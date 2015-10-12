@@ -1,0 +1,50 @@
+{
+	"Input"		:"testdata/phoneme.dat"
+,	"Rejected"	:"testdata/phoneme.rej"
+,	"MaxRecord"	:-1
+,	"InputMetadata"	:
+	[{
+		"Name"		:"f1"
+	,	"Type"		:"real"
+	,	"Separator"	:" "
+	},{
+		"Name"		:"f2"
+	,	"Type"		:"real"
+	,	"Separator"	:" "
+	},{
+		"Name"		:"f3"
+	,	"Type"		:"real"
+	,	"Separator"	:" "
+	},{
+		"Name"		:"f4"
+	,	"Type"		:"real"
+	,	"Separator"	:" "
+	},{
+		"Name"		:"f5"
+	,	"Type"		:"real"
+	,	"Separator"	:" "
+	},{
+		"Name"		:"class"
+	,	"Type"		:"integer"
+	}]
+,	"Output"	:"testdata/phoneme.csv"
+,	"OutputMetadata":
+	[{
+		"Name"		:"f1"
+	,	"Separator"	:","
+	},{
+		"Name"		:"f2"
+	,	"Separator"	:","
+	},{
+		"Name"		:"f3"
+	,	"Separator"	:","
+	},{
+		"Name"		:"f4"
+	,	"Separator"	:","
+	},{
+		"Name"		:"f5"
+	,	"Separator"	:","
+	},{
+		"Name"		:"class"
+	}]
+}

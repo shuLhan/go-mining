@@ -1,2 +1,4 @@
 knn/testdata/phoneme.rej
 knn/testdata/phoneme.csv
+resampling/smote/testdata/phoneme.csv
+resampling/smote/testdata/phoneme.rej
