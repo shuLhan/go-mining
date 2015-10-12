@@ -30,7 +30,7 @@ func TestComputeEuclidianDistance (t *testing.T) {
 	var dsvrw = dsv.New ()
 	var classes dsv.MapStringRow
 
-	e = dsvrw.Open ("phoneme.dsv")
+	e = dsvrw.Open ("testdata/phoneme.dsv")
 
 	if nil != e {
 		return

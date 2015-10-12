@@ -1,5 +1,6 @@
 {
-	"Input"		:"phoneme.dat"
+	"Input"		:"testdata/phoneme.dat"
+,	"Rejected"	:"testdata/phoneme.rej"
 ,	"MaxRecord"	:-1
 ,	"InputMetadata"	:
 	[{
@@ -26,7 +27,7 @@
 		"Name"		:"class"
 	,	"Type"		:"integer"
 	}]
-,	"Output"	:"phoneme.csv"
+,	"Output"	:"testdata/phoneme.csv"
 ,	"OutputMetadata":
 	[{
 		"Name"		:"f1"

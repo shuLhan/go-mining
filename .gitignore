@@ -1,2 +1,2 @@
-knn/rejected.dsv
-knn/phoneme.csv
+knn/testdata/phoneme.rej
+knn/testdata/phoneme.csv
