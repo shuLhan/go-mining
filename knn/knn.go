@@ -1,3 +1,7 @@
+// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package knn
 
 import (
@@ -9,7 +13,7 @@ import (
 )
 
 const (
-	// TEuclidianDistance used in Input.Method.
+	// TEuclidianDistance used in Input.DistanceMethod.
 	TEuclidianDistance = 0
 )
 
@@ -17,9 +21,14 @@ const (
 Input parameters for KNN processing.
 */
 type Input struct {
+	// Dataset training data.
 	Dataset		*dsv.Row
-	Method		int
+	// DistanceMethod define how the distance between sample will be
+	// measured.
+	DistanceMethod	int
+	// ClassIdx define index of class in dataset.
 	ClassIdx	int
+	// K define number of nearset neighbors that will be searched.
 	K		int
 }
 
@@ -80,7 +89,7 @@ func (input *Input) Neighbors (instance *dsv.RecordSlice) (*DistanceSlice, error
 	var d *DistanceSlice
 	var kneighbors DistanceSlice
 
-	switch (input.Method) {
+	switch (input.DistanceMethod) {
 	case TEuclidianDistance:
 		d, e = input.ComputeEuclidianDistance (instance)
 	}

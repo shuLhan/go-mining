@@ -1,3 +1,7 @@
+// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package knn_test
 
 import (
@@ -36,7 +40,7 @@ func TestComputeEuclidianDistance (t *testing.T) {
 	dsvrw.Close ()
 
 	// Processing
-	input.Method	= knn.TEuclidianDistance
+	input.DistanceMethod	= knn.TEuclidianDistance
 	input.ClassIdx	= 5
 	input.K		= 5
 	classes		= dsvrw.Records.GroupByValue (input.K)
