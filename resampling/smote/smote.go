@@ -1,8 +1,12 @@
+// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 /*
-smote Resamples a dataset by applying the Synthetic Minority Oversampling
-TEchnique (SMOTE). The original dataset must fit entirely in memory.
-The amount of SMOTE and number of nearest neighbors may be specified. For more
-information, see
+Package smote resamples a dataset by applying the Synthetic Minority
+Oversampling TEchnique (SMOTE). The original dataset must fit entirely in
+memory.  The amount of SMOTE and number of nearest neighbors may be specified.
+For more information, see
 
 	Nitesh V. Chawla et. al. (2002). Synthetic Minority Over-sampling
 	Technique. Journal of Artificial Intelligence Research. 16:321-357.
@@ -11,6 +15,7 @@ package smote
 
 import (
 	"container/list"
+	"errors"
 	"math/rand"
 	"time"
 
@@ -42,9 +47,12 @@ const (
 /*
 Init parameter, set to default value if it not valid.
 */
-func (smote *SMOTE) Init () {
+func (smote *SMOTE) Init () error {
 	rand.Seed (time.Now ().UnixNano ())
 
+	if smote.Dataset == nil {
+		return errors.New ("No input dataset.")
+	}
 	if smote.K <= 0 {
 		smote.K = DefaultK
 	}
@@ -52,6 +60,8 @@ func (smote *SMOTE) Init () {
 		smote.PercentOver = DefaultPercentOver
 	}
 	smote.Synthetic = &dsv.Row{}
+
+	return nil
 }
 
 /*
@@ -109,7 +119,11 @@ func (smote *SMOTE) Resampling() (*dsv.Row, error) {
 	var instance *dsv.RecordSlice
 	var neighbors *knn.DistanceSlice
 
-	smote.Init ()
+	e = smote.Init ()
+
+	if e != nil {
+		return nil, e
+	}
 
 	if smote.PercentOver < 100 {
 		// Randomize minority class sample by percentage.
