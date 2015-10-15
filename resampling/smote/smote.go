@@ -105,7 +105,7 @@ func (smote *SMOTE) populate (instance *dsv.RecordSlice,
 
 		newSynt[smote.ClassIdx] = (*instance)[attr]
 
-		smote.Synthetic.PushBack (newSynt)
+		smote.Synthetic.PushBack (&newSynt)
 	}
 }
 
