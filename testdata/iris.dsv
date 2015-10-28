@@ -1,0 +1,38 @@
+{
+	"Input"			:"iris.dat"
+,	"Rejected"		:"iris.rej"
+,	"MaxRecord"		:-1
+,	"ClassIndex"		:4
+,	"OutputMode"		:"fields"
+,	"InputMetadata"		:
+	[{
+		"Name"			:"f1"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"f2"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"f3"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"f4"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"class"
+	,	"Type"			:"string"
+	,	"NominalValues"		:
+		[
+			"Iris-setosa"
+		,	"Iris-versicolor"
+		,	"Iris-virginica"
+		]
+	}]
+}
