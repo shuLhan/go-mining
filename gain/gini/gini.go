@@ -38,11 +38,11 @@ type Gini struct {
 	Index []float64
 	// value of Gini index for all value in attribute.
 	Value float64
-	// maxPartIndex contain the index of partition which have the maximum
+	// MaxPartIndex contain the index of partition which have the maximum
 	// gain.
-	maxPartIndex int
-	// maxGainValue contain maximum gain of index.
-	maxGainValue float64
+	MaxPartIndex int
+	// MaxGainValue contain maximum gain of index.
+	MaxGainValue float64
 	// IsContinue define wether the Gini index came from continuous
 	// attribute or not.
 	IsContinu bool
@@ -53,7 +53,7 @@ ComputeDiscrete Given an attribute A with discreate value 'discval', and the
 target attribute T which contain N classes in C, compute the information gain
 of A.
 
-The result is saved as gain in maxGainValue.
+The result is saved as gain in MaxGainValue.
 */
 func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 				C *[]string) {
@@ -95,7 +95,7 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 		sumGI += p * giniIndex
 	}
 
-	gini.maxGainValue = gini.Value - sumGI
+	gini.MaxGainValue = gini.Value - sumGI
 }
 
 /*
@@ -275,9 +275,9 @@ func (gini *Gini) computeGain (A *[]float64, T *[]string, C *[]string) {
 		// count class in partition
 		gini.Index[p] = gini.Value - ((pleft * gleft) + (pright * gright))
 
-		if gini.maxGainValue < gini.Index[p] {
-			gini.maxGainValue = gini.Index[p]
-			gini.maxPartIndex = p
+		if gini.MaxGainValue < gini.Index[p] {
+			gini.MaxGainValue = gini.Index[p]
+			gini.MaxPartIndex = p
 		}
 	}
 }
@@ -287,7 +287,7 @@ GetMaxPartValue return the maximum partition that have the maximum index.
 */
 func (gini *Gini) GetMaxPartValue() float64 {
 	if gini.IsContinu {
-		return gini.Part[gini.maxPartIndex]
+		return gini.Part[gini.MaxPartIndex]
 	}
 
 	return -1.0
@@ -299,10 +299,10 @@ gain.
 */
 func (gini *Gini) GetMaxGainValue() float64 {
 	if gini.IsContinu {
-		return gini.Index[gini.maxPartIndex]
+		return gini.Index[gini.MaxPartIndex]
 	}
 
-	return gini.maxGainValue
+	return gini.MaxGainValue
 }
 
 /*

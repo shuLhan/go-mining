@@ -27,8 +27,6 @@ func TestComputeContinu(t *testing.T) {
 	gini.ComputeContinu(&data, &target, &classes)
 
 	fmt.Println (gini)
-	fmt.Println ("Gini max partition value:", gini.GetMaxPartValue())
-	fmt.Println ("Gini max gain:", gini.GetMaxGainValue())
 }
 
 var discreteSamples = []string{ "T", "T", "T", "F", "F", "F", "F", "T", "F"}
@@ -47,5 +45,4 @@ func TestComputeDiscrete(t *testing.T) {
 				&classes)
 
 	fmt.Println (gini)
-	fmt.Println ("Gini max gain:", gini.GetMaxGainValue())
 }
