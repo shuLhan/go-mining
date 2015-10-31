@@ -11,7 +11,9 @@ between the probability distribution of the target attributes' values.
 package gini
 
 import (
+	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"github.com/shuLhan/dsv/util"
 )
@@ -41,6 +43,59 @@ type Gini struct {
 	maxPartIndex int
 	// maxGainValue contain maximum gain of index.
 	maxGainValue float64
+	// IsContinue define wether the Gini index came from continuous
+	// attribute or not.
+	IsContinu bool
+}
+
+/*
+ComputeDiscrete Given an attribute A with discreate value 'discval', and the
+target attribute T which contain N classes in C, compute the information gain
+of A.
+
+The result is saved as gain in maxGainValue.
+*/
+func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
+				C *[]string) {
+	gini.IsContinu = false
+
+	// number of samples
+	nsample := float64(len(*A))
+
+	// compute gini index for all samples
+	gini.Value = gini.compute(T, C)
+
+	// compute gini index for each discrete values
+	sumGI := 0.0
+	for i := range (*discval) {
+		ndisc := 0.0
+		subT := make([]string, 0)
+
+		for a := range (*A) {
+			if (*A)[a] == (*discval)[i] {
+				// count how many sample with this discrete value
+				ndisc++
+				// split the target by discrete value
+				subT = append(subT, (*T)[a])
+			}
+		}
+
+		// compute gini index for subtarget
+		giniIndex := gini.compute(&subT, C)
+		// compute probabilites of discrete value through all samples
+		p := ndisc / nsample
+
+		if DEBUG {
+			fmt.Println("subsample:", subT)
+			fmt.Printf("Gini(a=%s) = %f/%f * %f\n", (*discval)[i],
+					ndisc, nsample, giniIndex)
+		}
+
+		// sum probabilities of all gini index.
+		sumGI += p * giniIndex
+	}
+
+	gini.maxGainValue = gini.Value - sumGI
 }
 
 /*
@@ -51,6 +106,8 @@ The result of Gini partitions value and Gini indexes is saved in Part and
 Index.
 */
 func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
+	gini.IsContinu = true
+
 	// sort the data
 	if nil == gini.SortedIndex {
 		gini.SortedIndex = util.IndirectSort (A)
@@ -112,8 +169,9 @@ func (gini *Gini) createPartition(A *[]float64) {
 		}
 	}
 
-	// last one
-	gini.Part = append(gini.Part, (*A)[l-1] + 0.5)
+	// last one, first partition + last attribute value
+	med = gini.Part[0] + (*A)[l-1]
+	gini.Part = append(gini.Part, med)
 }
 
 /*
@@ -134,11 +192,6 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 
 	for _,v := range *T {
 		classCount[v]++
-	}
-
-	if DEBUG {
-	//	fmt.Println ("class count:", classCount)
-	//	fmt.Println ("n attr:", n)
 	}
 
 	var p float64
@@ -233,7 +286,11 @@ func (gini *Gini) computeGain (A *[]float64, T *[]string, C *[]string) {
 GetMaxPartValue return the maximum partition that have the maximum index.
 */
 func (gini *Gini) GetMaxPartValue() float64 {
-	return gini.Part[gini.maxPartIndex]
+	if gini.IsContinu {
+		return gini.Part[gini.maxPartIndex]
+	}
+
+	return -1.0
 }
 
 /*
@@ -241,5 +298,21 @@ GetMaxGainValue return the value of partition which contain the maximum Gini
 gain.
 */
 func (gini *Gini) GetMaxGainValue() float64 {
-	return gini.Index[gini.maxPartIndex]
+	if gini.IsContinu {
+		return gini.Index[gini.maxPartIndex]
+	}
+
+	return gini.maxGainValue
+}
+
+/*
+String yes, it will print it JSON like format.
+*/
+func (gini Gini) String() (string) {
+	s, e := json.MarshalIndent(gini, "", "\t")
+	if nil != e {
+		log.Print(e)
+		return ""
+	}
+	return string(s)
 }
