@@ -29,20 +29,25 @@ func TestComputeContinu(t *testing.T) {
 	fmt.Println (gini)
 }
 
-var discreteSamples = []string{ "T", "T", "T", "F", "F", "F", "F", "T", "F"}
+var discreteSamples = [][]string{
+	{ "T","T","T","F","F","F","F","T","F" },
+	{ "T","T","F","F","T","T","F","F","T" },
+}
 var discreteValues = []string{ "T", "F" }
 
 func TestComputeDiscrete(t *testing.T) {
 	gini := gini.Gini{}
 	target := make([]string, len(targetValues))
 
-	copy(target, targetValues)
+	for _,sample := range discreteSamples {
+		copy(target, targetValues)
 
-	fmt.Println ("target:", target)
-	fmt.Println ("data:", discreteSamples)
+		fmt.Println ("target:", target)
+		fmt.Println ("data:", sample)
 
-	gini.ComputeDiscrete(&discreteSamples, &discreteValues, &target,
-				&classes)
+		gini.ComputeDiscrete(&sample, &discreteValues, &target,
+					&classes)
 
-	fmt.Println (gini)
+		fmt.Println (gini)
+	}
 }

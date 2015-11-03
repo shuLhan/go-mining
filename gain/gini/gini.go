@@ -16,6 +16,7 @@ import (
 	"log"
 	"os"
 	"github.com/shuLhan/dsv/util"
+	"github.com/shuLhan/go-mining/set"
 )
 
 var (
@@ -46,6 +47,10 @@ type Gini struct {
 	// IsContinue define wether the Gini index came from continuous
 	// attribute or not.
 	IsContinu bool
+	// DiscretePart contain the possible combination of discrete values.
+	DiscretePart set.SetString
+	// DiscreteIndex contain the Gini index value for DiscreteSet
+	DiscreteIndex []float64
 }
 
 /*
@@ -53,7 +58,7 @@ ComputeDiscrete Given an attribute A with discreate value 'discval', and the
 target attribute T which contain N classes in C, compute the information gain
 of A.
 
-The result is saved as gain in MaxGainValue.
+The result is saved as gain value in MaxGainValue for each partition.
 */
 func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 				C *[]string) {
@@ -62,40 +67,92 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 	// number of samples
 	nsample := float64(len(*A))
 
+	// create partition for possible combination of discrete values.
+	gini.createDiscretePartition((*discval))
+
+	if DEBUG {
+		fmt.Printf("part : %v\n", gini.DiscretePart)
+	}
+
+	gini.DiscreteIndex = make([]float64, len(gini.DiscretePart))
+
 	// compute gini index for all samples
 	gini.Value = gini.compute(T, C)
 
-	// compute gini index for each discrete values
-	sumGI := 0.0
-	for i := range (*discval) {
-		ndisc := 0.0
-		subT := make([]string, 0)
+	if DEBUG {
+		fmt.Println("sample:", T)
+		fmt.Printf("Gini(a=%s) = %f\n",
+			(*A), gini.Value)
+	}
 
-		for a := range (*A) {
-			if (*A)[a] == (*discval)[i] {
-				// count how many sample with this discrete value
-				ndisc++
-				// split the target by discrete value
-				subT = append(subT, (*T)[a])
+	// compute gini index for each discrete values
+	for i,subPart := range gini.DiscretePart {
+		// check if sub partition has at least an element
+		if len(subPart) <= 0 {
+			continue
+		}
+
+		sumGI := 0.0
+		for _,part := range subPart {
+			ndisc := 0.0
+			var subT []string
+
+			for _,el := range part {
+				for t,a := range (*A) {
+					if a != el {
+						continue
+					}
+
+					// count how many sample with this discrete value
+					ndisc++
+					// split the target by discrete value
+					subT = append(subT, (*T)[t])
+				}
+			}
+
+			// compute gini index for subtarget
+			giniIndex := gini.compute(&subT, C)
+
+			// compute probabilites of discrete value through all samples
+			p := ndisc / nsample
+
+			probIndex := p * giniIndex
+
+			// sum all probabilities times gini index.
+			sumGI += probIndex
+
+			if DEBUG {
+				fmt.Println("subsample:", subT)
+				fmt.Printf("Gini(a=%s) = %f/%f * %f = %f\n",
+						part, ndisc, nsample,
+						giniIndex, probIndex)
 			}
 		}
 
-		// compute gini index for subtarget
-		giniIndex := gini.compute(&subT, C)
-		// compute probabilites of discrete value through all samples
-		p := ndisc / nsample
+		gini.DiscreteIndex[i] = gini.Value - sumGI
 
-		if DEBUG {
-			fmt.Println("subsample:", subT)
-			fmt.Printf("Gini(a=%s) = %f/%f * %f\n", (*discval)[i],
-					ndisc, nsample, giniIndex)
+		if gini.MaxGainValue < gini.DiscreteIndex[i] {
+			gini.MaxGainValue = gini.DiscreteIndex[i]
+			gini.MaxPartIndex = i
 		}
+	}
+}
 
-		// sum probabilities of all gini index.
-		sumGI += p * giniIndex
+/*
+createDiscretePartition will create possible combination for discrete value
+in DiscretePart and their Index in DiscreteIndex.
+
+Number of split is defined in `nsplit`.
+*/
+func (gini *Gini) createDiscretePartition(discval []string) {
+	// no discrete values ?
+	if len(discval) <= 0{
+		return
 	}
 
-	gini.MaxGainValue = gini.Value - sumGI
+	// use set partition function to group the discrete values into two
+	// subset.
+	gini.DiscretePart = set.PartitioningSetString(discval, 2)
 }
 
 /*
@@ -198,8 +255,14 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 	var sump2 float64
 
 	for i := range classCount {
-		p = float64 (classCount[i]) / n
+		p = float64(classCount[i]) / n
 		sump2 += (p * p)
+
+		if DEBUG {
+			fmt.Printf(" compute (%s): (%f/%f)^2 = %f\n", *T,
+					float64(classCount[i]), n, p * p)
+		}
+
 	}
 
 	return 1 - sump2
