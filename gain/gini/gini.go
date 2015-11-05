@@ -30,7 +30,7 @@ Gini contain slice of sorted index, slice of partition values, slice of Gini
 index, Gini value for all samples.
 */
 type Gini struct {
-	// IsContinue define wether the Gini index came from continuous
+	// IsContinue define whether the Gini index came from continuous
 	// attribute or not.
 	IsContinu bool
 	// Value of Gini index for all value in attribute.
@@ -360,9 +360,9 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 }
 
 /*
-GetMaxPartValue return the partition that have the maximum Gini index.
+GetMaxPartGainValue return the partition that have the maximum Gini gain.
 */
-func (gini *Gini) GetMaxPartValue() interface{} {
+func (gini *Gini) GetMaxPartGainValue() interface{} {
 	if gini.IsContinu {
 		return gini.ContinuPart[gini.MaxPartGain]
 	}
