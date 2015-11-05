@@ -30,27 +30,27 @@ Gini contain slice of sorted index, slice of partition values, slice of Gini
 index, Gini value for all samples.
 */
 type Gini struct {
-	// Index of attributed sorted by values of attribute. This will be used
-	// to reference the unsorted target attribute.
-	SortedIndex *[]int
-	// Partition
-	Part []float64
-	// Index of Gini.
-	Index []float64
-	// value of Gini index for all value in attribute.
-	Value float64
-	// MaxPartIndex contain the index of partition which have the maximum
-	// gain.
-	MaxPartIndex int
-	// MaxGainValue contain maximum gain of index.
-	MaxGainValue float64
 	// IsContinue define wether the Gini index came from continuous
 	// attribute or not.
 	IsContinu bool
+	// Value of Gini index for all value in attribute.
+	Value float64
+	// MaxPartGain contain the index of partition which have the maximum
+	// gain.
+	MaxPartGain int
+	// MaxGainValue contain maximum gain of index.
+	MaxGainValue float64
+	// SortedIndex of attribute, sorted by values of attribute. This will
+	// be used to reference the unsorted target attribute.
+	SortedIndex *[]int
+	// ContinuPart contain list of partition value for continuous attribute.
+	ContinuPart []float64
 	// DiscretePart contain the possible combination of discrete values.
 	DiscretePart set.SetString
-	// DiscreteIndex contain the Gini index value for DiscreteSet
-	DiscreteIndex []float64
+	// Index contain list of Gini Index for each partition.
+	Index []float64
+	// Gain contain information gain for each partition.
+	Gain []float64
 }
 
 /*
@@ -64,9 +64,6 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 				C *[]string) {
 	gini.IsContinu = false
 
-	// number of samples
-	nsample := float64(len(*A))
-
 	// create partition for possible combination of discrete values.
 	gini.createDiscretePartition((*discval))
 
@@ -74,10 +71,21 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 		fmt.Printf("part : %v\n", gini.DiscretePart)
 	}
 
-	gini.DiscreteIndex = make([]float64, len(gini.DiscretePart))
+	gini.Index = make([]float64, len(gini.DiscretePart))
+	gini.Gain = make([]float64, len(gini.DiscretePart))
 
 	// compute gini index for all samples
 	gini.Value = gini.compute(T, C)
+
+	gini.computeDiscreteGain(A, T, C)
+}
+
+/*
+computeDiscreteGain will compute Gini index and Gain for each partition.
+*/
+func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
+	// number of samples
+	nsample := float64(len(*A))
 
 	if DEBUG {
 		fmt.Println("sample:", T)
@@ -129,20 +137,26 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 			}
 		}
 
-		gini.DiscreteIndex[i] = gini.Value - sumGI
+		gini.Index[i] = sumGI
+		gini.Gain[i] = gini.Value - sumGI
 
-		if gini.MaxGainValue < gini.DiscreteIndex[i] {
-			gini.MaxGainValue = gini.DiscreteIndex[i]
-			gini.MaxPartIndex = i
+		if DEBUG {
+			fmt.Println("sample:", subPart)
+			fmt.Printf("Gain(a=%s) = %f - %f = %f\n",
+					subPart, gini.Value, sumGI,
+					gini.Gain[i])
+		}
+
+		if gini.MaxGainValue < gini.Gain[i] {
+			gini.MaxGainValue = gini.Gain[i]
+			gini.MaxPartGain = i
 		}
 	}
 }
 
 /*
 createDiscretePartition will create possible combination for discrete value
-in DiscretePart and their Index in DiscreteIndex.
-
-Number of split is defined in `nsplit`.
+in DiscretePart.
 */
 func (gini *Gini) createDiscretePartition(discval []string) {
 	// no discrete values ?
@@ -159,8 +173,8 @@ func (gini *Gini) createDiscretePartition(discval []string) {
 ComputeContinu Given an attribute A and the target attribute T which contain
 N classes in C, compute the information gain of A.
 
-The result of Gini partitions value and Gini indexes is saved in Part and
-Index.
+The result of Gini partitions value, Gini Index, and Gini Gain is saved in
+ContinuPart, Index, and Gain.
 */
 func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	gini.IsContinu = true
@@ -174,14 +188,15 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	gini.sortTarget (T)
 
 	// create partition
-	gini.createPartition (A)
+	gini.createContinuPartition (A)
 
-	// create holder for gini index
-	gini.Index = make([]float64, len(gini.Part))
+	// create holder for gini index and gini gain
+	gini.Index = make([]float64, len(gini.ContinuPart))
+	gini.Gain = make([]float64, len(gini.ContinuPart))
 
 	gini.Value = gini.compute (T, C)
 
-	gini.computeGain (A, T, C)
+	gini.computeContinuGain(A, T, C)
 }
 
 /*
@@ -196,14 +211,14 @@ func (gini *Gini) sortTarget (T *[]string) {
 }
 
 /*
-createPartition for dividing class and computing Gini index.
+createContinuPart for dividing class and computing Gini index.
 */
-func (gini *Gini) createPartition(A *[]float64) {
+func (gini *Gini) createContinuPartition(A *[]float64) {
 	l := len(*A)
-	gini.Part = make([]float64, 1)
+	gini.ContinuPart = make([]float64, 1)
 
 	// first partition is the first index / 2
-	gini.Part[0] = (*A)[0] / 2
+	gini.ContinuPart[0] = (*A)[0] / 2
 
 	// loop from first index until last index - 1
 	var sum float64
@@ -222,13 +237,13 @@ func (gini *Gini) createPartition(A *[]float64) {
 			}
 		}
 		if ! exist {
-			gini.Part = append(gini.Part, med)
+			gini.ContinuPart = append(gini.ContinuPart, med)
 		}
 	}
 
 	// last one, first partition + last attribute value
-	med = gini.Part[0] + (*A)[l-1]
-	gini.Part = append(gini.Part, med)
+	med = gini.ContinuPart[0] + (*A)[l-1]
+	gini.ContinuPart = append(gini.ContinuPart, med)
 }
 
 /*
@@ -236,7 +251,7 @@ compute value for attribute T.
 
 Return Gini value in the form of,
 
-	1 - sum (probability each classes in T)
+	1 - sum (probability of each classes in T)
 */
 func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 	n := float64 (len(*T))
@@ -269,7 +284,7 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 }
 
 /*
-computeGain for each partition.
+computeContinuGain for each partition.
 
 The Gini gain formula we used here is,
 
@@ -280,7 +295,7 @@ where,
 	- left is sub-sample from S that is less than part value.
 	- right is sub-sample from S that is greater than part value.
 */
-func (gini *Gini) computeGain (A *[]float64, T *[]string, C *[]string) {
+func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 	var a, nleft, nright, partidx int
 	var pleft, pright float64
 	var gleft, gright float64
@@ -293,13 +308,13 @@ func (gini *Gini) computeGain (A *[]float64, T *[]string, C *[]string) {
 		fmt.Println ("Gini.Value:", gini.Value)
 	}
 
-	for p := range gini.Part {
+	for p := range gini.ContinuPart {
 
 		// find the split of samples between partition based on
 		// partition value
 		partidx = nsample
 		for a = range *A {
-			if (*A)[a] > gini.Part[p] {
+			if (*A)[a] > gini.ContinuPart[p] {
 				partidx = a
 				break;
 			}
@@ -324,36 +339,35 @@ func (gini *Gini) computeGain (A *[]float64, T *[]string, C *[]string) {
 			gright = gini.compute(&tright, C)
 		}
 
+		// count class in partition
+		gini.Index[p] = ((pleft * gleft) + (pright * gright))
+		gini.Gain[p] = gini.Value - gini.Index[p]
+
 		if DEBUG {
 			fmt.Println(tleft)
 			fmt.Println(tright)
 
-			fmt.Print ("GiniGain(", gini.Part[p],") = ",
-					gini.Value, " - (")
-			fmt.Print("(", pleft, " * ", gleft, ")")
-			fmt.Print(" + (", pright,  " * ", gright, ")")
-			fmt.Println(")")
+			fmt.Printf("GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
+					gini.ContinuPart[p], gini.Value, pleft, gleft,
+					pright, gright, gini.Gain[p])
 		}
 
-		// count class in partition
-		gini.Index[p] = gini.Value - ((pleft * gleft) + (pright * gright))
-
-		if gini.MaxGainValue < gini.Index[p] {
-			gini.MaxGainValue = gini.Index[p]
-			gini.MaxPartIndex = p
+		if gini.MaxGainValue < gini.Gain[p] {
+			gini.MaxGainValue = gini.Gain[p]
+			gini.MaxPartGain = p
 		}
 	}
 }
 
 /*
-GetMaxPartValue return the maximum partition that have the maximum index.
+GetMaxPartValue return the partition that have the maximum Gini index.
 */
-func (gini *Gini) GetMaxPartValue() float64 {
+func (gini *Gini) GetMaxPartValue() interface{} {
 	if gini.IsContinu {
-		return gini.Part[gini.MaxPartIndex]
+		return gini.ContinuPart[gini.MaxPartGain]
 	}
 
-	return -1.0
+	return gini.DiscretePart[gini.MaxPartGain]
 }
 
 /*
@@ -361,10 +375,6 @@ GetMaxGainValue return the value of partition which contain the maximum Gini
 gain.
 */
 func (gini *Gini) GetMaxGainValue() float64 {
-	if gini.IsContinu {
-		return gini.Index[gini.MaxPartIndex]
-	}
-
 	return gini.MaxGainValue
 }
 

@@ -32,6 +32,7 @@ func TestComputeContinu(t *testing.T) {
 var discreteSamples = [][]string{
 	{ "T","T","T","F","F","F","F","T","F" },
 	{ "T","T","F","F","T","T","F","F","T" },
+	{ "T","T","F","T","F","F","F","T","F" },
 }
 var discreteValues = []string{ "T", "F" }
 
