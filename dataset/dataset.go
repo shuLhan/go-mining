@@ -8,7 +8,7 @@ value (DSV) file by adding attribute ClassIndex which indicate the index of
 target attribute (class) in data.
 
 This package also extends the metadata to include additional attribute
-IsContinue (to indicate wether the field is continuous) and NominalValues
+IsContinue (to indicate whether the field is continuous) and NominalValues
 (which contain the discrete values).
 */
 package dataset

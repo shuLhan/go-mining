@@ -10,7 +10,7 @@ import (
 Attr define a simple form of all dataset in continuous or discrete value.
 */
 type Attr struct {
-	// IsContinu indicated wether the attribute is continuous or not.
+	// IsContinu indicated whether the attribute is continuous or not.
 	IsContinu bool
 	// Values contain the slice of values.
 	Values interface{}

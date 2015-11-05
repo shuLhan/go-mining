@@ -17,7 +17,7 @@ Metadata extension for common dataset.
 type Metadata struct {
 	// dsv.Metadata as our base
 	dsv.Metadata
-	// IsContinu indicated wether the data continu or not.
+	// IsContinu indicated whether the data continu or not.
 	IsContinu	bool		`json:"IsContinu"`
 	// NominalValues contain list of known discrete values in data.
 	NominalValues	[]string	`json:"NominalValues"`
