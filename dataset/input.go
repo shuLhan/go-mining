@@ -1,8 +1,15 @@
+// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
+
 package dataset
 
 import (
 	"errors"
+	"fmt"
 	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/dsv/util"
+	"github.com/shuLhan/go-mining/set"
 )
 
 /*
@@ -97,7 +104,7 @@ func (in *Input) GetTargetAttrValues() (*[]string) {
 }
 
 /*
-IsInSingleClass check wether all target class contain only single class.
+IsInSingleClass check whether all target class contain only single class.
 */
 func (in *Input) IsInSingleClass() (single bool) {
 	var class string
@@ -153,4 +160,190 @@ func (in *Input) Split(start, end int) (*Input, error) {
 	in.Size = in.Size - (end - start)
 
 	return split,nil
+}
+
+/*
+SplitByAttrValue will split all attribute using attrIdx as split reference,
+and using attrV as the value for splitting.
+*/
+func (in *Input) SplitByAttrValue(attrIdx int, attrV interface{}) (
+							split *Input) {
+	if in.Attrs[attrIdx].IsContinu {
+		attrC := attrV.(float64)
+		split = in.SplitAttrContinu(attrIdx, attrC)
+	} else {
+		attrD := attrV.(set.SliceString)
+		split = in.SplitAttrDiscrete(attrIdx, attrD)
+	}
+
+	return split
+}
+
+/*
+SplitAttrContinu will split all attribute by value of attrIdx.
+
+NOTE: This function assume that all attributes has been sorted according to
+attrIdx.
+
+If the attribute referenced by attrIdx is continuous, all the attribute value
+less than attrV will be moved to new dataset, and the remains will keep in
+current dataset. For example, given two continuous attribute,
+
+	A: {1,2,3,4}
+	B: {5,6,7,8}
+
+if attrIdx is B and attrV is 6.5, the splitted input will be,
+
+	A': {1,2}
+	B': {5,6}
+
+and the remaining input would be,
+
+	A: {3,4}
+	B: {7,8}
+*/
+func (in *Input) SplitAttrContinu(attrIdx int, attrV float64) (*Input) {
+	splitAttr := in.Attrs[attrIdx].GetContinuValues()
+	splitIdx := len(*splitAttr)
+
+	// find the index where attribute value is greater than attrV.
+	for i := range *splitAttr {
+		if (*splitAttr)[i] > attrV {
+			splitIdx = i
+			break
+		}
+	}
+
+	// and then split all attributes using split index.
+	split, e := in.Split(0, splitIdx)
+
+	if e != nil {
+		// there are no possibilities that the split range is wrong.
+		fmt.Println("SplitAttrContinu: error ", e)
+		return nil
+	}
+
+	return split
+}
+
+/*
+SplitAttrDiscrete will split all attribute based on nominal value in attrV.
+
+If the attribute referenced by attrIdx is discrete, select the row that
+has the attrV in referenced attribute and move it to the new dataset, and keep
+the rest in current dataset. For example, given two attribute,
+
+	A: {1,2,3,4}
+	B: {A,B,A,C}
+
+if attrIdx is B and attrV is A, the splitted input will be,
+
+	A':{1,3}
+	B':{A,A}
+
+while the remaining input would be,
+
+	A: {2,4}
+	B: {B,C}
+*/
+func (in *Input) SplitAttrDiscrete(attrIdx int, attrD set.SliceString) (
+							split *Input) {
+	split = new(Input)
+
+	split.Attrs = make([]Attr, len(in.Attrs))
+	split.ClassIdx = in.ClassIdx
+	split.MajorityClass = in.MajorityClass
+	split.MinorityClass = in.MinorityClass
+
+	// Get the index of attrD in attrIdx values.
+	var splitIdx []int
+	splitAttr := in.Attrs[attrIdx].GetDiscreteValues()
+
+	for i,x := range *splitAttr {
+		for _,y := range attrD {
+			if x == y {
+				splitIdx = append(splitIdx, i)
+			}
+		}
+	}
+
+	// After we got the split index, we create two slice: one for new split
+	// and another for input (leftover, non-indexed).
+	for i := range (*in).Attrs {
+		var attrC *[]float64
+		var attrD *[]string
+		var size int
+		var attrCSplit []float64
+		var attrCLeft []float64
+		var attrDSplit []string
+		var attrDLeft []string
+
+		isCont := (*in).Attrs[i].IsContinu
+
+		if isCont {
+			attrC = (*in).Attrs[i].Values.(*[]float64)
+			size = len(*attrC)
+		} else {
+			attrD = (*in).Attrs[i].Values.(*[]string)
+			size = len(*attrD)
+		}
+
+		k := 0
+		for _,j := range splitIdx {
+			// insert non-indexed value to left-over
+			for ; k < j; k++ {
+				if isCont {
+					attrCLeft = append(attrCLeft, (*attrC)[k])
+				} else {
+					attrDLeft = append(attrDLeft, (*attrD)[k])
+				}
+			}
+			k = j + 1
+
+			// insert indexed value to split
+			if isCont {
+				attrCSplit = append(attrCSplit, (*attrC)[j])
+			} else {
+				attrDSplit = append(attrDSplit, (*attrD)[j])
+			}
+		}
+
+		for ; k < size; k++ {
+			if isCont {
+				attrCLeft = append(attrCLeft, (*attrC)[k])
+			} else {
+				attrDLeft = append(attrDLeft, (*attrD)[k])
+			}
+		}
+
+		// split done.
+		if isCont {
+			split.Attrs[i].Values = attrCSplit
+			in.Attrs[i].Values = attrCLeft
+		} else {
+			split.Attrs[i].Values = attrDSplit
+			in.Attrs[i].Values = attrDLeft
+		}
+	}
+
+	return
+}
+
+/*
+SortByIndex will sort all attribute, except sortedAttr, using sorted index.
+*/
+func (in *Input) SortByIndex(sortedAttr int, sortedIdx *[]int) {
+	for i := range (*in).Attrs {
+		if i == sortedAttr {
+			continue
+		}
+
+		if (*in).Attrs[i].IsContinu {
+			attrC := (*in).Attrs[i].GetContinuValues()
+			util.SortFloatSliceByIndex(attrC, sortedIdx)
+		} else {
+			attrD := (*in).Attrs[i].GetDiscreteValues()
+			util.SortStringSliceByIndex(attrD, sortedIdx)
+		}
+	}
 }
