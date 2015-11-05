@@ -5,6 +5,7 @@
 package dataset_test
 
 import (
+	"fmt"
 	"io"
 	"testing"
 
@@ -32,4 +33,22 @@ func TestReader (t *testing.T) {
 	if ds.GetRecordRead() != NRecords {
 		t.Fatal("Dataset should be ", NRecords)
 	}
+
+	input,e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+					ds.ClassIndex)
+
+	fmt.Println(input)
+	fmt.Printf("\n>>> Is in single class : %v\n", input.IsInSingleClass())
+
+	setosa,e := input.Split(0, 50)
+
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	fmt.Println(setosa)
+	fmt.Printf("\n>>> Is in single class : %v\n", setosa.IsInSingleClass())
+/*
+	fmt.Println(input)
+*/
 }
