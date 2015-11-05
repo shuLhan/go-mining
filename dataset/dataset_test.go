@@ -37,17 +37,18 @@ func TestReader (t *testing.T) {
 	input,e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
 					ds.ClassIndex)
 
-	fmt.Println(input)
-	fmt.Printf("\n>>> Is in single class : %v\n", input.IsInSingleClass())
-
+	// Split the iris-setosa
 	setosa,e := input.Split(0, 50)
+
+	fmt.Println(input)
+	fmt.Printf("\n>>> Is in single class : %v\n\n", input.IsInSingleClass())
 
 	if e != nil {
 		t.Fatal(e)
 	}
 
 	fmt.Println(setosa)
-	fmt.Printf("\n>>> Is in single class : %v\n", setosa.IsInSingleClass())
+	fmt.Printf("\n>>> Is in single class : %v\n\n", setosa.IsInSingleClass())
 /*
 	fmt.Println(input)
 */
