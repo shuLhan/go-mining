@@ -179,24 +179,28 @@ ContinuPart, Index, and Gain.
 func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	gini.IsContinu = true
 
-	// sort the data
-	if nil == gini.SortedIndex {
-		gini.SortedIndex = util.IndirectSort (A)
-	}
+	// make a copy of attribute and target.
+	A2 := make([]float64, len(*A))
+	copy(A2, *A)
+
+	T2 := make([]string, len(*T))
+	copy(T2, *T)
+
+	gini.SortedIndex = util.IndirectSort (&A2)
 
 	// sort the target attribute using sorted index.
-	gini.sortTarget (T)
+	gini.sortTarget (&T2)
 
 	// create partition
-	gini.createContinuPartition (A)
+	gini.createContinuPartition (&A2)
 
 	// create holder for gini index and gini gain
 	gini.Index = make([]float64, len(gini.ContinuPart))
 	gini.Gain = make([]float64, len(gini.ContinuPart))
 
-	gini.Value = gini.compute (T, C)
+	gini.Value = gini.compute (&T2, C)
 
-	gini.computeContinuGain(A, T, C)
+	gini.computeContinuGain(&A2, &T2, C)
 }
 
 /*
@@ -376,6 +380,25 @@ gain.
 */
 func (gini *Gini) GetMaxGainValue() float64 {
 	return gini.MaxGainValue
+}
+
+/*
+FindMaxGain find the attribute and value that have the maximum gain.
+The returned value is index of attribute.
+*/
+func FindMaxGain(gains *[]Gini) (MaxGainIdx int) {
+	var gainValue = 0.0
+	var maxGainValue = 0.0
+
+	for i := range *gains {
+		gainValue = (*gains)[i].GetMaxGainValue()
+		if gainValue > maxGainValue {
+			maxGainValue = gainValue
+			MaxGainIdx = i
+		}
+	}
+
+	return
 }
 
 /*
