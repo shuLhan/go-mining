@@ -9,6 +9,8 @@ CART is binary decision tree.
 	Breiman, Leo, et al. Classification and regression trees. CRC press,
 	1984.
 
+The implementation is based on Data Mining book,
+
 	Han, Jiawei, Micheline Kamber, and Jian Pei. Data mining: concepts and
 	techniques: concepts and techniques. Elsevier, 2011.
 */
@@ -37,11 +39,6 @@ type Input struct {
 	SplitMethod int
 	// tree in classification.
 	Tree binary.Tree
-	// Gains contain the gain value with additional information depends on
-	// split method.
-	Gains []gini.Gini
-	// AttrMaxGain contain the attribute with the maximum gain.
-	AttrMaxGain int
 }
 
 /*
@@ -79,6 +76,7 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 		node.Value = NodeValue{
 				IsLeaf: true,
 				Class: (*targetAttr)[0],
+				Size: len(*targetAttr),
 			}
 
 		return node
@@ -95,13 +93,14 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 	}
 
 	// calculate the Gini gain for each attribute.
-	in.computeGiniGain(D)
+	gains := in.computeGiniGain(D)
 
 	// get attribute with maximum Gini gain.
-	in.findAttrMaxGain()
+	MaxGainIdx := gini.FindMaxGain(gains)
+	MaxGain := (*gains)[MaxGainIdx]
 
 	// using the sorted index in MaxGain, sort all field in dataset
-	D.SortByIndex(in.AttrMaxGain, in.Gains[in.AttrMaxGain].SortedIndex)
+	D.SortByIndex(MaxGainIdx, MaxGain.SortedIndex)
 
 	// Now that we have attribute with max gain in AttrMaxGain, and their
 	// gain dan partition value in Gains[AttrMaxGain] and
@@ -112,21 +111,23 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 	// nominal values.
 	var splitV interface{}
 
-	if in.Gains[in.AttrMaxGain].IsContinu {
-		splitV = in.Gains[in.AttrMaxGain].GetMaxPartGainValue()
+	if MaxGain.IsContinu {
+		splitV = MaxGain.GetMaxPartGainValue()
 	} else {
-		attrPartV := in.Gains[in.AttrMaxGain].GetMaxPartGainValue()
+		attrPartV := MaxGain.GetMaxPartGainValue()
 		attrSubV := attrPartV.(set.SubsetString)
 		splitV = attrSubV[0]
 	}
 
 	node.Value = NodeValue{
 			IsLeaf: false,
-			IsContinu: in.Gains[in.AttrMaxGain].IsContinu,
+			IsContinu: MaxGain.IsContinu,
+			Size: D.Size,
+			SplitAttrIdx: MaxGainIdx,
 			SplitV: splitV,
 		}
 
-	splitD := D.SplitByAttrValue(in.AttrMaxGain, splitV)
+	splitD := D.SplitByAttrValue(MaxGainIdx, splitV)
 
 	nodeLeft := in.splitTree(splitD)
 	nodeRight := in.splitTree(D)
@@ -140,11 +141,13 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 /*
 computeGiniGain calculate the gini index for each value in each attribute.
 */
-func (in *Input) computeGiniGain(D *dataset.Input) {
+func (in *Input) computeGiniGain(D *dataset.Input) (*[]gini.Gini) {
+	var gains []gini.Gini
+
 	switch in.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
-		in.Gains = make([]gini.Gini, len(D.Attrs) - 1)
+		gains = make([]gini.Gini, len(D.Attrs))
 	}
 
 	targetAttr := D.GetTargetAttr()
@@ -164,38 +167,16 @@ func (in *Input) computeGiniGain(D *dataset.Input) {
 		if (*D).Attrs[i].IsContinu {
 			attr := (*D).Attrs[i].GetContinuValues()
 
-			in.Gains[i].ComputeContinu(attr, &target, &classes)
+			gains[i].ComputeContinu(attr, &target, &classes)
 		} else {
 			attr := (*D).Attrs[i].GetDiscreteValues()
 			attrValues := (*D).Attrs[i].NominalValues
 
-			in.Gains[i].ComputeDiscrete(attr, &attrValues, &target,
+			gains[i].ComputeDiscrete(attr, &attrValues, &target,
 							&classes)
 		}
 	}
-}
-
-/*
-findAttrMaxGain find the attribute and value that have the maximum gain.
-*/
-func (in *Input) findAttrMaxGain() {
-	var gainValue = 0.0
-	var maxGainValue = 0.0
-
-	for i := range in.Gains {
-		gainValue = in.Gains[i].GetMaxGainValue()
-		if gainValue > maxGainValue {
-			maxGainValue = gainValue
-			in.AttrMaxGain = i
-		}
-	}
-}
-
-/*
-GetAttrMaxGain return the maximum gain in attribute.
-*/
-func (in *Input) GetAttrMaxGain() (*gini.Gini) {
-	return &in.Gains[in.AttrMaxGain]
+	return &gains
 }
 
 /*
