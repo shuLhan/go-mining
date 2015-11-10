@@ -334,10 +334,6 @@ SortByIndex will sort all attribute, except sortedAttr, using sorted index.
 */
 func (in *Input) SortByIndex(sortedAttr int, sortedIdx *[]int) {
 	for i := range (*in).Attrs {
-		if i == sortedAttr {
-			continue
-		}
-
 		if (*in).Attrs[i].IsContinu {
 			attrC := (*in).Attrs[i].GetContinuValues()
 			util.SortFloatSliceByIndex(attrC, sortedIdx)
