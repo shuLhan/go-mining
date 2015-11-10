@@ -19,6 +19,10 @@ type NodeValue struct {
 	Class string
 	// IsContinu define whether the node split is continuous or discrete.
 	IsContinu bool
+	// Size define number of value that this node hold.
+	Size int
+	// SplitAttrIdx define the attribute which cause the split.
+	SplitAttrIdx int
 	// splitV define the split value.
 	SplitV interface{}
 }
