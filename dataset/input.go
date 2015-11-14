@@ -343,3 +343,32 @@ func (in *Input) SortByIndex(sortedAttr int, sortedIdx *[]int) {
 		}
 	}
 }
+
+/*
+String display the input data in table like format.
+*/
+func (in *Input) String() (s string) {
+	for a := range in.Attrs {
+		s += fmt.Sprintf("\t[%d]", a)
+	}
+	s += "\nCont:"
+	for a := range in.Attrs {
+		s += fmt.Sprint("\t", in.Attrs[a].IsContinu)
+	}
+	s += "\n"
+
+	for i := 0; i < in.Size; i++ {
+		s += fmt.Sprintf("[%d]", i)
+
+		for a := range in.Attrs {
+			if in.Attrs[a].IsContinu {
+				s += fmt.Sprint("\t", (*in.Attrs[a].Values.(*[]float64))[i])
+			} else {
+				s += fmt.Sprint("\t", (*in.Attrs[a].Values.(*[]string))[i])
+			}
+		}
+		s += "\n"
+	}
+
+	return
+}
