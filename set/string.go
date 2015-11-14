@@ -271,3 +271,16 @@ func IsSetStringEqual(a SetString, b SetString) bool {
 	}
 	return true
 }
+
+/*
+IsSliceStringContain return true if slice of string contain elemen `el`,
+otherwise return false.
+*/
+func IsSliceStringContain(ss SliceString, el string) bool {
+	for i := range ss {
+		if ss[i] == el {
+			return true
+		}
+	}
+	return false
+}
