@@ -7,6 +7,7 @@ package cart_test
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"testing"
 
 	"github.com/shuLhan/dsv"
@@ -35,12 +36,33 @@ func TestCART(t *testing.T) {
 		t.Fatal("Dataset should be ", NRecords)
 	}
 
-	D, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata, ds.ClassIndex)
+	Dataset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+						ds.ClassIndex)
+	Trainingset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+						ds.ClassIndex)
+	Testset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+						ds.ClassIndex)
+
+	fmt.Println("TrainingSet: ", Trainingset)
 
 	// Build CART tree.
 	CART := cart.NewInput(cart.SplitMethodGini)
 
-	CART.BuildTree(D)
+	CART.BuildTree(Trainingset)
 
 	fmt.Println("CART Tree:\n", CART)
+
+	// clear the target values.
+	Testset.GetTargetAttr().ClearValues()
+
+	// Classifiy test set
+	CART.ClassifySet(Testset)
+
+	fmt.Println("Test set:\n", Testset)
+
+	fmt.Println("\tValues:", Dataset.GetTargetAttrValues())
+
+	fmt.Println("is target equal:",
+			reflect.DeepEqual(Dataset.GetTargetAttrValues(),
+			Testset.GetTargetAttrValues()))
 }

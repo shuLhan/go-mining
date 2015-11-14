@@ -55,18 +55,18 @@ func NewInput(SplitMethod int) (*Input) {
 BuildTree will create a tree using CART algorithm.
 */
 func (in *Input) BuildTree(D *dataset.Input) (e error) {
-	in.Tree.Root = in.splitTree(D)
+	in.Tree.Root = in.splitTreeByGain(D)
 
 	return e
 }
 
 /*
-splitTree calculate the gain in all dataset, and split into two node: left and
+splitTreeByGain calculate the gain in all dataset, and split into two node: left and
 right.
 
 Return node with the split information.
 */
-func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
+func (in *Input) splitTreeByGain(D *dataset.Input) (node *binary.BTNode) {
 	node = &binary.BTNode{}
 
 	// if all dataset is in the same class, return node as leaf with class
@@ -89,7 +89,9 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class: majorClass,
+			Size: 0,
 		}
+		return node
 	}
 
 	// calculate the Gini gain for each attribute.
@@ -129,8 +131,8 @@ func (in *Input) splitTree(D *dataset.Input) (node *binary.BTNode) {
 
 	splitD := D.SplitByAttrValue(MaxGainIdx, splitV)
 
-	nodeLeft := in.splitTree(splitD)
-	nodeRight := in.splitTree(D)
+	nodeLeft := in.splitTreeByGain(splitD)
+	nodeRight := in.splitTreeByGain(D)
 
 	node.SetLeft(nodeLeft)
 	node.SetRight(nodeRight)
@@ -177,6 +179,49 @@ func (in *Input) computeGiniGain(D *dataset.Input) (*[]gini.Gini) {
 		}
 	}
 	return &gains
+}
+
+/*
+Classify set the class attribute based on tree classification.
+*/
+func (in *Input) ClassifySet(data *dataset.Input) (e error) {
+	var node *binary.BTNode
+	var nodev NodeValue
+
+	targetAttr := data.GetTargetAttrValues()
+
+	for i := 0; i < data.Size; i++ {
+		node = in.Tree.Root
+		nodev = node.Value.(NodeValue)
+
+		for ! nodev.IsLeaf {
+			if nodev.IsContinu {
+				splitV := nodev.SplitV.(float64)
+				attrV := (*(*data).Attrs[nodev.SplitAttrIdx].Values.(*[]float64))[i]
+
+				if attrV < splitV {
+					node = node.Left
+				} else {
+					node = node.Right
+				}
+			} else {
+				splitV := nodev.SplitV.(set.SliceString)
+				attrV := (*(*data).Attrs[nodev.SplitAttrIdx].Values.(*[]string))[i]
+
+				if set.IsSliceStringContain(splitV, attrV) {
+					node = node.Left
+				} else {
+					node = node.Right
+				}
+			}
+			nodev = node.Value.(NodeValue)
+		}
+
+		(*targetAttr)[i] = nodev.Class
+	}
+
+	//data.Attrs[data.ClassIdx].Values = targetAttr
+	return
 }
 
 /*
