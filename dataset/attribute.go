@@ -171,6 +171,25 @@ func (attr *Attr) GetNominalMinority() (string,int) {
 }
 
 /*
+ClearValues set the attribute value to empty.
+*/
+func (attr *Attr) ClearValues() {
+	if attr.IsContinu {
+		attrC := attr.GetContinuValues()
+
+		for i := range *attrC {
+			(*attrC)[i] = 0.0
+		}
+	} else {
+		attrD := attr.GetDiscreteValues()
+
+		for i := range *attrD {
+			(*attrD)[i] = ""
+		}
+	}
+}
+
+/*
 String return the pretty print format of attribute.
 */
 func (attr Attr) String() (s string) {
