@@ -40,6 +40,11 @@ type Gini struct {
 	MaxPartGain int
 	// MaxGainValue contain maximum gain of index.
 	MaxGainValue float64
+	// MinIndexPart contain the index of partition which have the minimum
+	// Gini index.
+	MinIndexPart int
+	// MinIndexGini contain minimum Gini index value.
+	MinIndexValue float64
 	// SortedIndex of attribute, sorted by values of attribute. This will
 	// be used to reference the unsorted target attribute.
 	SortedIndex *[]int
@@ -73,6 +78,7 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 
 	gini.Index = make([]float64, len(gini.DiscretePart))
 	gini.Gain = make([]float64, len(gini.DiscretePart))
+	gini.MinIndexValue = 1.0
 
 	// compute gini index for all samples
 	gini.Value = gini.compute(T, C)
@@ -147,6 +153,11 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 					gini.Gain[i])
 		}
 
+		if gini.MinIndexValue > gini.Index[i] && gini.Index[i] != 0 {
+			gini.MinIndexValue = gini.Index[i]
+			gini.MinIndexPart = i
+		}
+
 		if gini.MaxGainValue < gini.Gain[i] {
 			gini.MaxGainValue = gini.Gain[i]
 			gini.MaxPartGain = i
@@ -197,7 +208,9 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	// create holder for gini index and gini gain
 	gini.Index = make([]float64, len(gini.ContinuPart))
 	gini.Gain = make([]float64, len(gini.ContinuPart))
+	gini.MinIndexValue = 1.0
 
+	// compute gini index for all samples
 	gini.Value = gini.compute (&T2, C)
 
 	gini.computeContinuGain(&A2, &T2, C)
@@ -356,6 +369,11 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 					pright, gright, gini.Gain[p])
 		}
 
+		if gini.MinIndexValue > gini.Index[p] && gini.Index[p] != 0 {
+			gini.MinIndexValue = gini.Index[p]
+			gini.MinIndexPart = p
+		}
+
 		if gini.MaxGainValue < gini.Gain[p] {
 			gini.MaxGainValue = gini.Gain[p]
 			gini.MaxPartGain = p
@@ -383,6 +401,24 @@ func (gini *Gini) GetMaxGainValue() float64 {
 }
 
 /*
+GetMinIndexPartValue return the partition that have the minimum Gini index.
+*/
+func (gini *Gini) GetMinIndexPartValue() interface{} {
+	if gini.IsContinu {
+		return gini.ContinuPart[gini.MinIndexPart]
+	}
+
+	return gini.DiscretePart[gini.MinIndexPart]
+}
+
+/*
+GetMinIndexValue return the minimum Gini index value.
+*/
+func (gini *Gini) GetMinIndexValue() float64 {
+	return gini.MinIndexValue
+}
+
+/*
 FindMaxGain find the attribute and value that have the maximum gain.
 The returned value is index of attribute.
 */
@@ -402,10 +438,28 @@ func FindMaxGain(gains *[]Gini) (MaxGainIdx int) {
 }
 
 /*
+FindMinIndex return the index of attribute that have the minimum Gini index.
+*/
+func FindMinGiniIndex(ginis *[]Gini) (MinIndexIdx int) {
+	var indexV = 0.0
+	var minIndexV = 1.0
+
+	for i := range *ginis {
+		indexV = (*ginis)[i].GetMinIndexValue()
+		if indexV > minIndexV {
+			minIndexV = indexV
+			MinIndexIdx = i
+		}
+	}
+
+	return
+}
+
+/*
 String yes, it will print it JSON like format.
 */
 func (gini Gini) String() (string) {
-	s, e := json.MarshalIndent(gini, "", "\t")
+	s, e := json.Marshal(gini)
 	if nil != e {
 		log.Print(e)
 		return ""
