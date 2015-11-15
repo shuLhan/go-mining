@@ -6,22 +6,22 @@
 ,	"OutputMode"		:"fields"
 ,	"InputMetadata"		:
 	[{
-		"Name"			:"f1"
+		"Name"			:"sepal-length"
 	,	"Separator"		:","
 	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
-		"Name"			:"f2"
+		"Name"			:"sepal-width"
 	,	"Separator"		:","
 	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
-		"Name"			:"f3"
+		"Name"			:"petal-length"
 	,	"Separator"		:","
 	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
-		"Name"			:"f4"
+		"Name"			:"petal-width"
 	,	"Separator"		:","
 	,	"IsContinu"		:true
 	,	"Type"			:"real"
