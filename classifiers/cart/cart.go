@@ -131,6 +131,23 @@ func (in *Input) splitTreeByGain(D *dataset.Input) (node *binary.BTNode) {
 
 	splitD := D.SplitByAttrValue(MaxGainIdx, splitV)
 
+	// Set the SkipCompute flag to true in attribute referenced by
+	// MaxGainIdx, so it will not computed again in the next round.
+	for i := range splitD.Attrs {
+		if i == MaxGainIdx {
+			splitD.Attrs[i].SkipCompute = true
+		} else {
+			splitD.Attrs[i].SkipCompute = false
+		}
+	}
+	for i := range D.Attrs {
+		if i == MaxGainIdx {
+			D.Attrs[i].SkipCompute = true
+		} else {
+			D.Attrs[i].SkipCompute = false
+		}
+	}
+
 	nodeLeft := in.splitTreeByGain(splitD)
 	nodeRight := in.splitTreeByGain(D)
 
@@ -159,6 +176,10 @@ func (in *Input) computeGiniGain(D *dataset.Input) (*[]gini.Gini) {
 	for i := range (*D).Attrs {
 		// skip class attribute.
 		if i == D.ClassIdx {
+			continue
+		}
+		// skip attribute with SkipCompute is true
+		if D.Attrs[i].SkipCompute {
 			continue
 		}
 

@@ -62,7 +62,7 @@ func TestCART(t *testing.T) {
 
 	fmt.Println("\tValues:", Dataset.GetTargetAttrValues())
 
-	fmt.Println("is target equal:",
+	fmt.Println("\n>>> is target test-set equal with data-set:",
 			reflect.DeepEqual(Dataset.GetTargetAttrValues(),
 			Testset.GetTargetAttrValues()))
 }
