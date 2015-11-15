@@ -20,6 +20,9 @@ type Attr struct {
 	Values interface{}
 	// NominalValue contain possible value in discrete attribute.
 	NominalValues []string
+	// SkipCompute define whether it is already computed or not.
+	// true means its already computed, false otherwise.
+	SkipCompute bool
 }
 
 /*
