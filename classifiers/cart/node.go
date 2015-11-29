@@ -23,7 +23,7 @@ type NodeValue struct {
 	Size int
 	// SplitAttrIdx define the attribute which cause the split.
 	SplitAttrIdx int
-	// splitV define the split value.
+	// SplitV define the split value.
 	SplitV interface{}
 }
 
