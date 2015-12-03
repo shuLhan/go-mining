@@ -15,8 +15,8 @@ var discV = []string{"a","b","b","a","a"}
 var contV = []float64{0.2,0.4,0.6,0.8,1.0}
 
 var attrs = []dataset.Attr{
-	{false, &discV, []string{"a","b"}},
-	{true, &contV, nil},
+	{false, &discV, []string{"a","b"}, false,},
+	{true, &contV, nil, false,},
 }
 
 func TestGetContinuValue(t *testing.T) {

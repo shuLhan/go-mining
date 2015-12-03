@@ -15,10 +15,10 @@ var contV2 = []float64{1,2,2,1,1}
 
 func TestSplitByAttrValue(t *testing.T) {
 	var attrs = []dataset.Attr{
-		{false, &discV, []string{"a","b"}},
-		{false, &discV2, []string{"x","y"}},
-		{true, &contV, nil},
-		{true, &contV2, nil},
+		{false, &discV, []string{"a","b"}, false,},
+		{false, &discV2, []string{"x","y"}, false,},
+		{true, &contV, nil, false,},
+		{true, &contV2, nil, false,},
 	}
 	var splitExps = []string{
 		"[a a a]",
@@ -56,10 +56,10 @@ func TestSplitByAttrValue(t *testing.T) {
 
 func TestSpliyByAttrValue2(t *testing.T) {
 	var attrs = []dataset.Attr{
-		{false, &discV, []string{"a","b"}},
-		{false, &discV2, []string{"x","y"}},
-		{true, &contV, nil},
-		{true, &contV2, nil},
+		{false, &discV, []string{"a","b"}, false,},
+		{false, &discV2, []string{"x","y"}, false,},
+		{true, &contV, nil, false,},
+		{true, &contV2, nil, false,},
 	}
 	var inputExps = []string{
 		"[a a a]",
