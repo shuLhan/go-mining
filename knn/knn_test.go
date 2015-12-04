@@ -26,7 +26,7 @@ func TestComputeEuclidianDistance(t *testing.T) {
 
 	// Reading data
 	reader := dsv.NewReader()
-	e := dsv.Open(reader, "testdata/phoneme.dsv")
+	e := dsv.Open(reader, "../testdata/phoneme/phoneme.dsv")
 
 	if nil != e {
 		return

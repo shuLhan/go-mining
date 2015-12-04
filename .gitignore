@@ -1,5 +1,3 @@
-knn/testdata/phoneme.rej
-knn/testdata/phoneme.csv
+*.rej
+testdata/phoneme/phoneme.csv
 resampling/smote/testdata/phoneme.csv
-resampling/smote/testdata/phoneme.rej
-testdata/iris.rej
