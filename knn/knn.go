@@ -5,7 +5,6 @@
 package knn
 
 import (
-	"container/list"
 	"math"
 	"sort"
 
@@ -22,7 +21,7 @@ Input parameters for KNN processing.
 */
 type Input struct {
 	// Dataset training data.
-	Dataset		*dsv.Row
+	Dataset		dsv.Rows
 	// DistanceMethod define how the distance between sample will be
 	// measured.
 	DistanceMethod	int
@@ -35,70 +34,57 @@ type Input struct {
 /*
 ComputeEuclidianDistance of instance with each sample in dataset.
 */
-func (input *Input) ComputeEuclidianDistance (instance *dsv.RecordSlice) (
-				*DistanceSlice, error) {
-	var e error
-	var i int
-	var d float64
-	var sv *dsv.RecordSlice
-	var ir *dsv.Record
-	var sr *dsv.Record
-	var sample *list.Element
+func (input *Input) ComputeEuclidianDistance (instanceIdx int) (
+				distances DistanceSlice, e error) {
+	instance := input.Dataset[instanceIdx]
 
-	distances := make (DistanceSlice, 0)
-
-	for sample = input.Dataset.Front (); sample != nil; sample = sample.Next () {
-		sv = sample.Value.(*dsv.RecordSlice)
-
-		if instance == sv {
+	for rowIdx, row := range input.Dataset {
+		if instanceIdx == rowIdx {
 			continue
 		}
 
 		// compute euclidian distance
-		d = 0.0
-		for i = range (*sv) {
+		d := 0.0
+		for i := range row {
 			if i == input.ClassIdx {
 				// skip class attribute
 				continue
 			}
 
-			ir = &(*instance)[i]
-			sr = &(*sv)[i]
+			ir := instance[i]
+			sr := row[i]
 
-			switch ir.T {
-			case dsv.TReal:
+			switch ir.V.(type) {
+			case float64:
 				d += math.Abs (ir.Value ().(float64) - sr.Value ().(float64))
-			case dsv.TInteger:
+			case int64:
 				d += math.Abs (float64(ir.Value ().(int64) - sr.Value ().(int64)))
 			}
 		}
 
-		distances = append (distances, Distance { sv, math.Sqrt (d) })
+		distances = append(distances, Distance{row, math.Sqrt(d)})
 	}
 
 	sort.Sort (&distances)
 
-	return &distances, e
+	return
 }
 
 /*
-Neighbors return the nearest neighbors as pointer to slice of distance.
+Neighbors return the nearest neighbors as a slice of distance.
 */
-func (input *Input) Neighbors (instance *dsv.RecordSlice) (*DistanceSlice, error) {
-	var e error
-	var d *DistanceSlice
-	var kneighbors DistanceSlice
-
+func (input *Input) Neighbors(instanceIdx int) (kneighbors DistanceSlice,
+						e error) {
 	switch (input.DistanceMethod) {
 	case TEuclidianDistance:
-		d, e = input.ComputeEuclidianDistance (instance)
+		kneighbors, e = input.ComputeEuclidianDistance(instanceIdx)
 	}
 
 	if nil != e {
 		return nil, e
 	}
 
-	kneighbors = (*d)[0:input.K]
+	kneighbors = kneighbors[0:input.K]
 
-	return &kneighbors, e
+	return
 }

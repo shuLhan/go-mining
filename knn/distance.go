@@ -15,7 +15,7 @@ import (
 Distance is a mapping between record and their distance.
 */
 type Distance struct {
-	Sample	*dsv.RecordSlice
+	Sample	dsv.RecordSlice
 	Value	float64
 }
 
@@ -27,8 +27,8 @@ type DistanceSlice []Distance
 /*
 NewDistance create new distance object.
 */
-func NewDistance () *Distance {
-	return &Distance {
+func NewDistance() Distance {
+	return Distance {
 		Sample	: nil,
 		Value	: 0.0,
 	}
