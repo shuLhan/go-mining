@@ -36,11 +36,11 @@ func TestCART(t *testing.T) {
 		t.Fatal("Dataset should be ", NRecords)
 	}
 
-	Dataset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+	Dataset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
 						ds.ClassIndex)
-	Trainingset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+	Trainingset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
 						ds.ClassIndex)
-	Testset, e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+	Testset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
 						ds.ClassIndex)
 
 	fmt.Println("TrainingSet: ", Trainingset)

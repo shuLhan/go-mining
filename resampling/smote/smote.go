@@ -66,11 +66,10 @@ func (smote *SMOTE) Init () error {
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *SMOTE) populate (instance *dsv.RecordSlice,
-	neighbors knn.DistanceSlice) {
+func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 	var i, n, lenAttr, attr int
 	var iv, sv, dif, gap, newAttr float64
-	var sample dsv.RecordSlice
+	var sample dsv.Row
 	var ir *dsv.Record
 	var sr *dsv.Record
 
@@ -81,7 +80,7 @@ func (smote *SMOTE) populate (instance *dsv.RecordSlice,
 		n = rand.Intn(len(neighbors))
 		sample = neighbors[n].Sample
 
-		newSynt := make (dsv.RecordSlice, lenAttr)
+		newSynt := make(dsv.Row, lenAttr)
 
 		// Compute new synthetic attributes.
 		for attr = range sample {

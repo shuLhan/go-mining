@@ -8,7 +8,7 @@ value (DSV) file by adding attribute ClassIndex which indicate the index of
 target attribute (class) in data.
 
 This package also extends the metadata to include additional attribute
-IsContinue (to indicate whether the field is continuous) and NominalValues
+IsContinue (to indicate whether the column is continuous) and NominalValues
 (which contain the discrete values).
 */
 package dataset
@@ -27,9 +27,9 @@ and the data.
 type Reader struct {
 	// Reader extend dsv.Reader
 	dsv.Reader
-	// InputMetadata with additional field.
+	// InputMetadata with additional attributes.
 	InputMetadata	[]Metadata	`json:"InputMetadata"`
-	// ClassIndex for target classification in fields attributes.
+	// ClassIndex for target classification in columns attributes.
 	ClassIndex	int		`json:"ClassIndex"`
 }
 

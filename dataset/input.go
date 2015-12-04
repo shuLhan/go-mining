@@ -35,7 +35,7 @@ type Input struct {
 NewInput will convert all fields in dataset to their type (continuous or
 discrete) and merge the nominal value from metadata.
 */
-func NewInput(dataset *[]dsv.RecordSlice, md *[]Metadata, classIdx int) (
+func NewInput(dataset *dsv.Columns, md *[]Metadata, classIdx int) (
 							in *Input, e error) {
 	mdSize := len(*md)
 
@@ -61,11 +61,9 @@ func NewInput(dataset *[]dsv.RecordSlice, md *[]Metadata, classIdx int) (
 		attr.NominalValues = m.NominalValues
 
 		if m.IsContinu {
-			attr.Values = dsv.RecordSliceToFloatSlice(
-							&(*dataset)[i])
+			attr.Values = (*dataset)[i].ToFloatSlice()
 		} else {
-			attr.Values = dsv.RecordSliceToStringSlice(
-							&(*dataset)[i])
+			attr.Values = (*dataset)[i].ToStringSlice()
 		}
 
 		in.Attrs[i] = attr

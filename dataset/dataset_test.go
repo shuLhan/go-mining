@@ -34,7 +34,7 @@ func TestReader (t *testing.T) {
 		t.Fatal("Dataset should be ", NRecords)
 	}
 
-	input,e := dataset.NewInput(&ds.Fields, &ds.InputMetadata,
+	input,e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
 					ds.ClassIndex)
 
 	// Split the iris-setosa

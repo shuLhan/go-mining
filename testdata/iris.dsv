@@ -3,7 +3,7 @@
 ,	"Rejected"		:"iris.rej"
 ,	"MaxRecord"		:-1
 ,	"ClassIndex"		:4
-,	"OutputMode"		:"fields"
+,	"OutputMode"		:"columns"
 ,	"InputMetadata"		:
 	[{
 		"Name"			:"sepal-length"

@@ -15,7 +15,7 @@ import (
 Distance is a mapping between record and their distance.
 */
 type Distance struct {
-	Sample	dsv.RecordSlice
+	Sample	dsv.Row
 	Value	float64
 }
 
