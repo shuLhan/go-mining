@@ -18,7 +18,7 @@ const (
 )
 
 func TestReader (t *testing.T) {
-	ds, e := dataset.NewReader ("../testdata/iris.dsv")
+	ds, e := dataset.NewReader ("../testdata/iris/iris.dsv")
 
 	if nil != e {
 		t.Fatal (e)
