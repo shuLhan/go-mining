@@ -14,7 +14,6 @@ For more information, see
 package smote
 
 import (
-	"container/list"
 	"errors"
 	"math/rand"
 	"time"
@@ -34,7 +33,7 @@ type SMOTE struct {
 	// n input for number of new synthetic per sample.
 	n int
 	// Synthetic output for new sample.
-	Synthetic *dsv.Row
+	Synthetic dsv.Rows
 }
 
 const (
@@ -59,7 +58,7 @@ func (smote *SMOTE) Init () error {
 	if smote.PercentOver <= 0 {
 		smote.PercentOver = DefaultPercentOver
 	}
-	smote.Synthetic = &dsv.Row{}
+	smote.Synthetic = dsv.Rows{}
 
 	return nil
 }
@@ -68,10 +67,10 @@ func (smote *SMOTE) Init () error {
 populate will generate new synthetic sample using nearest neighbors.
 */
 func (smote *SMOTE) populate (instance *dsv.RecordSlice,
-	neighbors *knn.DistanceSlice) {
+	neighbors knn.DistanceSlice) {
 	var i, n, lenAttr, attr int
 	var iv, sv, dif, gap, newAttr float64
-	var sample *dsv.RecordSlice
+	var sample dsv.RecordSlice
 	var ir *dsv.Record
 	var sr *dsv.Record
 
@@ -79,19 +78,19 @@ func (smote *SMOTE) populate (instance *dsv.RecordSlice,
 
 	for i = 0; i < smote.n; i++ {
 		// choose one of the K nearest neighbors
-		n = rand.Intn (len (*neighbors))
-		sample = (*neighbors)[n].Sample
+		n = rand.Intn(len(neighbors))
+		sample = neighbors[n].Sample
 
 		newSynt := make (dsv.RecordSlice, lenAttr)
 
 		// Compute new synthetic attributes.
-		for attr = range *sample {
+		for attr = range sample {
 			if attr == smote.ClassIdx {
 				continue
 			}
 
 			ir = &(*instance)[attr]
-			sr = &(*sample)[attr]
+			sr = &sample[attr]
 
 			iv = ir.Value ().(float64)
 			sv = sr.Value ().(float64)
@@ -105,7 +104,7 @@ func (smote *SMOTE) populate (instance *dsv.RecordSlice,
 
 		newSynt[smote.ClassIdx] = (*instance)[attr]
 
-		smote.Synthetic.PushBack (&newSynt)
+		smote.Synthetic.PushBack(newSynt)
 	}
 }
 
@@ -113,13 +112,8 @@ func (smote *SMOTE) populate (instance *dsv.RecordSlice,
 Resampling will run SMOTE algorithm using parameters that has been defined in
 struct and return list of synthetic samples.
 */
-func (smote *SMOTE) Resampling() (*dsv.Row, error) {
-	var e error
-	var el *list.Element
-	var instance *dsv.RecordSlice
-	var neighbors *knn.DistanceSlice
-
-	e = smote.Init ()
+func (smote *SMOTE) Resampling() (dsv.Rows, error) {
+	e := smote.Init()
 
 	if e != nil {
 		return nil, e
@@ -127,23 +121,21 @@ func (smote *SMOTE) Resampling() (*dsv.Row, error) {
 
 	if smote.PercentOver < 100 {
 		// Randomize minority class sample by percentage.
-		smote.n = (smote.PercentOver / 100.0) * smote.Dataset.Len ()
-		smote.Dataset = smote.Dataset.RandomPick (smote.n)
+		smote.n = (smote.PercentOver / 100.0) * len(smote.Dataset)
+		smote.Dataset = smote.Dataset.RandomPick(smote.n, true)
 		smote.PercentOver = 100
 	}
 	smote.n = smote.PercentOver / 100.0
 
 	// for each sample in dataset, generate their synthetic samples.
-	for el = smote.Dataset.Front (); el != nil; el = el.Next () {
-		instance = el.Value.(*dsv.RecordSlice)
-
+	for i := range smote.Dataset {
 		// Compute k nearest neighbors for instance
-		neighbors, e = smote.Input.Neighbors (instance)
+		neighbors, e := smote.Input.Neighbors(i)
 		if nil != e {
 			break
 		}
 
-		smote.populate (instance, neighbors)
+		smote.populate(&smote.Dataset[i], neighbors)
 	}
 
 	return smote.Synthetic, e

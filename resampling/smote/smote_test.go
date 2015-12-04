@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	fcfg = "testdata/phoneme.dsv"
+	fcfg = "../../testdata/phoneme/phoneme.dsv"
 )
 
 func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
@@ -30,10 +30,10 @@ func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
 		Synthetic	: nil,
 	}
 
-	classes := reader.Records.GroupByValue (smot.ClassIdx)
-	minClass := classes.GetMinority ()
+	classes := reader.Rows.GroupByValue(smot.ClassIdx)
+	_, minClass := classes.GetMinority()
 
-	fmt.Println ("minority samples:", minClass.Len ())
+	fmt.Println("minority samples:", len(minClass))
 
 	smot.Dataset = minClass
 	synthetic, e := smot.Resampling ()
@@ -42,7 +42,7 @@ func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
 		return nil, e
 	}
 
-	fmt.Println ("Synthetic:", synthetic.Len ())
+	fmt.Println("Synthetic:", len(synthetic))
 
 	return smot, e
 }
@@ -55,13 +55,13 @@ func TestSmote (t *testing.T) {
 
 	reader = dsv.NewReader ()
 
-	e = reader.Open (fcfg)
+	e = dsv.Open(reader, fcfg)
 
 	if nil != e {
 		t.Fatal (e)
 	}
 
-	n, e = reader.Read ()
+	n, e = dsv.Read(reader)
 
 	if nil != e && e != io.EOF {
 		t.Fatal (e)
@@ -80,12 +80,12 @@ func TestSmote (t *testing.T) {
 	// write synthetic samples.
 	writer = dsv.NewWriter ()
 
-	e = writer.Open (fcfg)
+	e = dsv.Open(writer, fcfg)
 	if nil != e {
 		t.Fatal (e)
 	}
 
-	writer.WriteRows (smot.Synthetic)
+	writer.WriteRows(smot.Synthetic, &reader.InputMetadata)
 
 	writer.Close ()
 }
