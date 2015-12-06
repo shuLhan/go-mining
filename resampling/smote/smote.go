@@ -121,7 +121,7 @@ func (smote *SMOTE) Resampling() (dsv.Rows, error) {
 	if smote.PercentOver < 100 {
 		// Randomize minority class sample by percentage.
 		smote.n = (smote.PercentOver / 100.0) * len(smote.Dataset)
-		smote.Dataset = smote.Dataset.RandomPick(smote.n, true)
+		_, smote.Dataset, _ = smote.Dataset.RandomPick(smote.n, false)
 		smote.PercentOver = 100
 	}
 	smote.n = smote.PercentOver / 100.0
