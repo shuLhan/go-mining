@@ -44,68 +44,69 @@ type Input struct {
 /*
 NewInput create new Input object.
 */
-func NewInput(SplitMethod int) (*Input) {
+func NewInput(SplitMethod int) *Input {
 	return &Input{
 		SplitMethod: SplitMethod,
-		Tree: binary.Tree{},
+		Tree:        binary.Tree{},
 	}
 }
 
 /*
 BuildTree will create a tree using CART algorithm.
 */
-func (in *Input) BuildTree(D *dataset.Input) (e error) {
-	in.Tree.Root = in.splitTreeByGain(D)
+func (in *Input) BuildTree(D *dataset.Reader) (e error) {
+	in.Tree.Root, e = in.splitTreeByGain(D)
 
-	return e
+	return
 }
 
 /*
-splitTreeByGain calculate the gain in all dataset, and split into two node: left and
-right.
+splitTreeByGain calculate the gain in all dataset, and split into two node:
+left and right.
 
 Return node with the split information.
 */
-func (in *Input) splitTreeByGain(D *dataset.Input) (node *binary.BTNode) {
+func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
+	e error,
+) {
 	node = &binary.BTNode{}
 
 	// if all dataset is in the same class, return node as leaf with class
 	// is set to that class.
-	if D.IsInSingleClass() {
-		targetAttr := (*D).GetTargetAttrValues()
+	single, name := D.IsInSingleClass()
+	if single {
 		node.Value = NodeValue{
-				IsLeaf: true,
-				Class: (*targetAttr)[0],
-				Size: len(*targetAttr),
-			}
+			IsLeaf: true,
+			Class:  name,
+			Size:   D.GetNRow(),
+		}
 
-		return node
+		return node, nil
 	}
 
 	// if dataset is empty return node labeled with majority classes in
 	// dataset.
-	if D.Size <= 0 {
-		majorClass := D.GetMajorityClass()
+	if D.GetNRow() <= 0 {
 		node.Value = NodeValue{
 			IsLeaf: true,
-			Class: majorClass,
-			Size: 0,
+			Class:  D.GetMajorityClass(),
+			Size:   0,
 		}
-		return node
+		return node, nil
 	}
 
 	// calculate the Gini gain for each attribute.
 	gains := in.computeGiniGain(D)
 
 	// get attribute with maximum Gini gain.
-	MaxGainIdx := gini.FindMaxGain(gains)
-	MaxGain := (*gains)[MaxGainIdx]
+	MaxGainIdx := gini.FindMaxGain(&gains)
+	MaxGain := gains[MaxGainIdx]
 
 	// using the sorted index in MaxGain, sort all field in dataset
-	D.SortByIndex(MaxGainIdx, MaxGain.SortedIndex)
+	D.SortColumnsByIndex(*MaxGain.SortedIndex)
 
-	// Now that we have attribute with max gain in AttrMaxGain, and their
-	// gain dan partition value in Gains[AttrMaxGain] and
+	// Now that we have attribute with max gain in MaxGainIdx, and their
+	// gain dan partition value in Gains[MaxGainIdx] and
 	// GetMaxPartValue(), we split the dataset based on type of max-gain
 	// attribute.
 	// If its continuous, split the attribute using numeric value.
@@ -122,103 +123,111 @@ func (in *Input) splitTreeByGain(D *dataset.Input) (node *binary.BTNode) {
 	}
 
 	node.Value = NodeValue{
-			IsLeaf: false,
-			IsContinu: MaxGain.IsContinu,
-			Size: D.Size,
-			SplitAttrIdx: MaxGainIdx,
-			SplitV: splitV,
-		}
+		IsLeaf:       false,
+		IsContinu:    MaxGain.IsContinu,
+		Size:         D.NRow,
+		SplitAttrIdx: MaxGainIdx,
+		SplitV:       splitV,
+	}
 
-	splitD := D.SplitByAttrValue(MaxGainIdx, splitV)
+	splitL, splitR, e := D.SplitRowsByValue(MaxGainIdx, splitV)
 
-	// Set the SkipCompute flag to true in attribute referenced by
+	if e != nil {
+		return node, e
+	}
+
+	// Set the Skip flag to true in attribute referenced by
 	// MaxGainIdx, so it will not computed again in the next round.
-	for i := range splitD.Attrs {
+	for i := range splitL.InputMetadata {
 		if i == MaxGainIdx {
-			splitD.Attrs[i].SkipCompute = true
+			splitL.InputMetadata[i].Skip = true
 		} else {
-			splitD.Attrs[i].SkipCompute = false
+			splitL.InputMetadata[i].Skip = false
 		}
 	}
-	for i := range D.Attrs {
+	for i := range splitR.InputMetadata {
 		if i == MaxGainIdx {
-			D.Attrs[i].SkipCompute = true
+			splitR.InputMetadata[i].Skip = true
 		} else {
-			D.Attrs[i].SkipCompute = false
+			splitR.InputMetadata[i].Skip = false
 		}
 	}
 
-	nodeLeft := in.splitTreeByGain(splitD)
-	nodeRight := in.splitTreeByGain(D)
+	nodeLeft, e := in.splitTreeByGain(splitL)
+	if e != nil {
+		return node, e
+	}
+
+	nodeRight, e := in.splitTreeByGain(splitR)
+	if e != nil {
+		return node, e
+	}
 
 	node.SetLeft(nodeLeft)
 	node.SetRight(nodeRight)
 
-	return node
+	return node, nil
 }
 
 /*
 computeGiniGain calculate the gini index for each value in each attribute.
 */
-func (in *Input) computeGiniGain(D *dataset.Input) (*[]gini.Gini) {
-	var gains []gini.Gini
-
+func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 	switch in.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
-		gains = make([]gini.Gini, len(D.Attrs))
+		gains = make([]gini.Gini, D.GetNColumn())
 	}
 
-	targetAttr := D.GetTargetAttr()
-	targetValues := targetAttr.GetDiscreteValues()
-	classes := targetAttr.NominalValues
+	targetV := D.GetTarget().ToStringSlice()
+	classes := D.GetClass()
 
-	for i := range (*D).Attrs {
+	for i := range (*D).InputMetadata {
 		// skip class attribute.
-		if i == D.ClassIdx {
+		if i == D.ClassIndex {
 			continue
 		}
-		// skip attribute with SkipCompute is true
-		if D.Attrs[i].SkipCompute {
+		// skip attribute with Skip is true
+		if D.InputMetadata[i].Skip {
 			continue
 		}
 
-		target := make([]string, len(*targetValues))
-		copy(target, (*targetValues))
+		target := make([]string, len(targetV))
+		copy(target, targetV)
 
 		// compute gain.
-		if (*D).Attrs[i].IsContinu {
-			attr := (*D).Attrs[i].GetContinuValues()
+		if (*D).InputMetadata[i].IsContinu {
+			attr := (*D).Columns[i].ToFloatSlice()
 
-			gains[i].ComputeContinu(attr, &target, &classes)
+			gains[i].ComputeContinu(&attr, &target, &classes)
 		} else {
-			attr := (*D).Attrs[i].GetDiscreteValues()
-			attrValues := (*D).Attrs[i].NominalValues
+			attr := (*D).Columns[i].ToStringSlice()
+			attrV := (*D).InputMetadata[i].NominalValues
 
-			gains[i].ComputeDiscrete(attr, &attrValues, &target,
-							&classes)
+			gains[i].ComputeDiscrete(&attr, &attrV, &target,
+				&classes)
 		}
 	}
-	return &gains
+	return
 }
 
 /*
 Classify set the class attribute based on tree classification.
 */
-func (in *Input) ClassifySet(data *dataset.Input) (e error) {
+func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 	var node *binary.BTNode
 	var nodev NodeValue
 
-	targetAttr := data.GetTargetAttrValues()
+	targetAttr := data.GetTarget()
 
-	for i := 0; i < data.Size; i++ {
+	for i := 0; i < data.NRow; i++ {
 		node = in.Tree.Root
 		nodev = node.Value.(NodeValue)
 
-		for ! nodev.IsLeaf {
+		for !nodev.IsLeaf {
 			if nodev.IsContinu {
 				splitV := nodev.SplitV.(float64)
-				attrV := (*(*data).Attrs[nodev.SplitAttrIdx].Values.(*[]float64))[i]
+				attrV := (*data).Columns[nodev.SplitAttrIdx].ToFloatSlice()[i]
 
 				if attrV < splitV {
 					node = node.Left
@@ -227,7 +236,7 @@ func (in *Input) ClassifySet(data *dataset.Input) (e error) {
 				}
 			} else {
 				splitV := nodev.SplitV.(set.SliceString)
-				attrV := (*(*data).Attrs[nodev.SplitAttrIdx].Values.(*[]string))[i]
+				attrV := (*data).Columns[nodev.SplitAttrIdx].ToStringSlice()[i]
 
 				if set.IsSliceStringContain(splitV, attrV) {
 					node = node.Left
@@ -238,10 +247,9 @@ func (in *Input) ClassifySet(data *dataset.Input) (e error) {
 			nodev = node.Value.(NodeValue)
 		}
 
-		(*targetAttr)[i] = nodev.Class
+		(*targetAttr)[i].V = nodev.Class
 	}
 
-	//data.Attrs[data.ClassIdx].Values = targetAttr
 	return
 }
 

@@ -35,7 +35,7 @@ func (nodev *NodeValue) String() (s string) {
 		s = fmt.Sprintf("Class: %s", nodev.Class)
 	} else {
 		s = fmt.Sprintf("(SplitValue: %v)",
-				reflect.ValueOf(nodev.SplitV))
+			reflect.ValueOf(nodev.SplitV))
 	}
 
 	return s

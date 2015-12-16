@@ -6,17 +6,15 @@ package cart_test
 
 import (
 	"fmt"
-	"io"
-	"reflect"
-	"testing"
-
-	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/dsv/util/assert"
 	"github.com/shuLhan/go-mining/classifiers/cart"
+	"github.com/shuLhan/go-mining/dataset"
+	"io"
+	"testing"
 )
 
 const (
-	NRecords = 150
+	NRows = 150
 )
 
 func TestCART(t *testing.T) {
@@ -26,43 +24,51 @@ func TestCART(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	_, e = dsv.Read(ds)
+	e = ds.Read()
 
 	if nil != e && e != io.EOF {
 		t.Fatal(e)
 	}
 
-	if ds.GetRecordRead() != NRecords {
-		t.Fatal("Dataset should be ", NRecords)
-	}
-
-	Dataset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
-						ds.ClassIndex)
-	Trainingset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
-						ds.ClassIndex)
-	Testset, e := dataset.NewInput(&ds.Columns, &ds.InputMetadata,
-						ds.ClassIndex)
-
-	fmt.Println("TrainingSet: ", Trainingset)
+	assert.Equal(t, NRows, ds.GetNRow())
 
 	// Build CART tree.
 	CART := cart.NewInput(cart.SplitMethodGini)
 
-	CART.BuildTree(Trainingset)
+	e = CART.BuildTree(ds)
+
+	if e != nil {
+		t.Fatal(e)
+	}
 
 	fmt.Println("CART Tree:\n", CART)
 
-	// clear the target values.
-	Testset.GetTargetAttr().ClearValues()
+	// Reread the data
+	ds.Reset()
+	ds.Open()
+
+	e = ds.Read()
+	if nil != e && e != io.EOF {
+		t.Fatal(e)
+	}
+
+	// Create test set
+	testset, e := dataset.NewReader("../../testdata/iris/iris.dsv")
+
+	if nil != e {
+		t.Fatal(e)
+	}
+
+	e = testset.Read()
+
+	if nil != e && e != io.EOF {
+		t.Fatal(e)
+	}
+
+	testset.GetTarget().ClearValues()
 
 	// Classifiy test set
-	CART.ClassifySet(Testset)
+	CART.ClassifySet(testset)
 
-	fmt.Println("Test set:\n", Testset)
-
-	fmt.Println("\tValues:", Dataset.GetTargetAttrValues())
-
-	fmt.Println("\n>>> is target test-set equal with data-set:",
-			reflect.DeepEqual(Dataset.GetTargetAttrValues(),
-			Testset.GetTargetAttrValues()))
+	assert.Equal(t, ds.GetTarget(), testset.GetTarget())
 }
