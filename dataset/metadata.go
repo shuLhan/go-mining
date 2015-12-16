@@ -5,9 +5,7 @@
 package dataset
 
 import (
-	"encoding/json"
-	"log"
-
+	"fmt"
 	"github.com/shuLhan/dsv"
 )
 
@@ -18,18 +16,33 @@ type Metadata struct {
 	// dsv.Metadata as our base
 	dsv.Metadata
 	// IsContinu indicated whether the data continu or not.
-	IsContinu	bool		`json:"IsContinu"`
+	IsContinu bool `json:"IsContinu"`
 	// NominalValues contain list of known discrete values in data.
-	NominalValues	[]string	`json:"NominalValues"`
+	NominalValues []string `json:"NominalValues"`
 }
 
 /*
-String yes, it will print it JSON like format.
+GetNominalValue return the nominal value for discrete attribute.
+If attribute is continuous, return nil.
 */
-func (md *Metadata) String() string {
-	r, e := json.MarshalIndent (md, "", "\t")
-	if nil != e {
-		log.Print (e)
+func (md *Metadata) GetNominalValue() []string {
+	if md.IsContinu {
+		return nil
 	}
-	return string (r)
+	return md.NominalValues
+}
+
+/*
+String return the pretty print format of attribute.
+*/
+func (md Metadata) String() (s string) {
+	s = fmt.Sprintf("{\n\tIsContinue: %v\n", md.IsContinu)
+
+	if !md.IsContinu {
+		s += fmt.Sprintf("\tNominalValues: %v\n", md.NominalValues)
+	}
+
+	s += "}"
+
+	return
 }

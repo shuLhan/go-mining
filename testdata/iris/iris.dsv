@@ -1,9 +1,9 @@
 {
 	"Input"			:"iris.dat"
 ,	"Rejected"		:"iris.rej"
-,	"MaxRecord"		:-1
+,	"MaxRows"		:-1
 ,	"ClassIndex"		:4
-,	"OutputMode"		:"columns"
+,	"DatasetMode"		:"columns"
 ,	"InputMetadata"		:
 	[{
 		"Name"			:"sepal-length"
