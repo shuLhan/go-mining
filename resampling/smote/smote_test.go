@@ -53,9 +53,7 @@ func TestSmote (t *testing.T) {
 	var reader *dsv.Reader
 	var writer *dsv.Writer
 
-	reader = dsv.NewReader ()
-
-	e = dsv.Open(reader, fcfg)
+	reader, e = dsv.NewReader(fcfg)
 
 	if nil != e {
 		t.Fatal (e)
@@ -78,14 +76,13 @@ func TestSmote (t *testing.T) {
 	reader.Close ()
 
 	// write synthetic samples.
-	writer = dsv.NewWriter ()
+	writer, e = dsv.NewWriter(fcfg)
 
-	e = dsv.Open(writer, fcfg)
 	if nil != e {
 		t.Fatal (e)
 	}
 
-	writer.WriteRows(smot.Synthetic, &reader.InputMetadata)
+	writer.WriteRows(smot.Synthetic, reader.GetInputMetadata())
 
 	writer.Close ()
 }

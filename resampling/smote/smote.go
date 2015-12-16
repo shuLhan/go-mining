@@ -15,11 +15,10 @@ package smote
 
 import (
 	"errors"
-	"math/rand"
-	"time"
-
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
+	"math/rand"
+	"time"
 )
 
 /*
@@ -88,8 +87,8 @@ func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 				continue
 			}
 
-			ir = &(*instance)[attr]
-			sr = &sample[attr]
+			ir = (*instance)[attr]
+			sr = sample[attr]
 
 			iv = ir.Value ().(float64)
 			sv = sr.Value ().(float64)
@@ -98,7 +97,9 @@ func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 			gap = rand.Float64 ()
 			newAttr = iv + (gap * dif)
 
-			newSynt[attr].SetFloat (newAttr)
+			record := &dsv.Record{}
+			record.SetFloat(newAttr)
+			newSynt[attr] = record
 		}
 
 		newSynt[smote.ClassIdx] = (*instance)[attr]
