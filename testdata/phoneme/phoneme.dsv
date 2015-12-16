@@ -1,7 +1,7 @@
 {
 	"Input"		:"phoneme.dat"
 ,	"Rejected"	:"phoneme.rej"
-,	"MaxRecord"	:-1
+,	"MaxRows"	:-1
 ,	"InputMetadata"	:
 	[{
 		"Name"		:"f1"
