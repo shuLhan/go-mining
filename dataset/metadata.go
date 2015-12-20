@@ -32,6 +32,15 @@ func (md *Metadata) GetNominalValue() []string {
 	return md.NominalValues
 }
 
+func (md *Metadata) CreateCopy() (dest Metadata) {
+	dest.IsContinu = md.IsContinu
+
+	dest.NominalValues = make([]string, len(md.NominalValues))
+	copy(dest.NominalValues, md.NominalValues)
+
+	return
+}
+
 /*
 String return the pretty print format of attribute.
 */

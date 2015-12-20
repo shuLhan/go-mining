@@ -31,7 +31,11 @@ type Reader struct {
 	dsv.Reader
 	// InputMetadata with additional attributes.
 	InputMetadata []Metadata `json:"InputMetadata"`
+	// ClassMetadataIndex target classification in metadata
+	ClassMetadataIndex int `json:"ClassMetadataIndex"`
 	// ClassIndex for target classification in columns attributes.
+	// It could be different with ClassMetadataIndex because of Skip value
+	// in certain column.
 	ClassIndex int `json:"ClassIndex"`
 	// MajorityClass contain the name of class that have majority data.
 	MajorityClass string
@@ -52,6 +56,27 @@ func NewReader(config string) (reader *Reader, e error) {
 	}
 
 	return reader, e
+}
+
+/*
+ReaderCopy set reader attribute value using other reader value.
+*/
+func (reader *Reader) ReaderCopy(src *Reader) {
+	if src == nil {
+		return
+	}
+
+	mdlen := len(src.InputMetadata)
+	reader.InputMetadata = make([]Metadata, mdlen)
+
+	for x := 0; x < mdlen; x++ {
+		reader.InputMetadata[x] = src.InputMetadata[x].CreateCopy()
+	}
+
+	reader.ClassIndex = src.ClassIndex
+	reader.ClassMetadataIndex = src.ClassMetadataIndex
+	reader.MajorityClass = src.MajorityClass
+	reader.MinorityClass = src.MajorityClass
 }
 
 /*
@@ -95,14 +120,14 @@ func (reader *Reader) Read() (e error) {
 GetClass return the classification values.
 */
 func (reader *Reader) GetClass() []string {
-	return reader.InputMetadata[reader.ClassIndex].NominalValues
+	return reader.InputMetadata[reader.ClassMetadataIndex].NominalValues
 }
 
 /*
 GetTargetMetadata return the target attribute of input.
 */
 func (reader *Reader) GetTargetMetadata() Metadata {
-	return reader.InputMetadata[reader.ClassIndex]
+	return reader.InputMetadata[reader.ClassMetadataIndex]
 }
 
 /*
@@ -160,17 +185,90 @@ func (reader *Reader) SplitRowsByValue(colidx int, colval interface{}) (
 		return nil, nil, e
 	}
 
-	splitL.InputMetadata = make([]Metadata, len(reader.InputMetadata))
-	copy(splitL.InputMetadata, reader.InputMetadata)
+	splitL.ReaderCopy(reader)
+	splitR.ReaderCopy(reader)
 
-	splitR.InputMetadata = make([]Metadata, len(reader.InputMetadata))
-	copy(splitR.InputMetadata, reader.InputMetadata)
+	return
+}
 
-	splitL.ClassIndex = reader.ClassIndex
-	splitR.ClassIndex = reader.ClassIndex
+/*
+PushColumn append new column to dataset including their metadata.
+*/
+func (reader *Reader) PushColumn(col dsv.Column, md Metadata) {
+	reader.Dataset.PushColumn(col)
+	reader.InputMetadata = append(reader.InputMetadata, md)
+}
 
-	splitL.TransposeToColumns()
-	splitR.TransposeToColumns()
+/*
+RandomPickRows return `n` rows that randomly picked from dataset.
+*/
+func (reader *Reader) RandomPickRows(n int, dup bool) (
+	picked Reader,
+	unpicked Reader,
+	pickedIdx []int,
+	unpickedIdx []int,
+) {
+	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx =
+		reader.Reader.RandomPickRows(n, dup)
+
+	picked.ReaderCopy(reader)
+	unpicked.ReaderCopy(reader)
+
+	return
+}
+
+/*
+RandomPickColumns return `n` column that randomly picked from dataset.
+If dup is true, then column that has been picked can be pick up gain.
+otherwise one column can only be pick up once.
+*/
+func (reader *Reader) RandomPickColumns(n int, dup bool) (
+	picked Reader,
+	unpicked Reader,
+	pickedIdx []int,
+	unpickedIdx []int,
+	e error,
+) {
+	// exclude target column
+	excludeIdx := []int{reader.ClassIndex}
+
+	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx, e =
+		reader.Reader.RandomPickColumns(n, dup, excludeIdx)
+
+	if e != nil {
+		return
+	}
+
+	// set picked metadata
+	mds := make([]Metadata, 0)
+	for _, v := range pickedIdx {
+		mds = append(mds, reader.InputMetadata[v])
+	}
+	picked.InputMetadata = mds
+
+	// set unpicked metadata
+	mds = make([]Metadata, 0)
+	for _, v := range unpickedIdx {
+		mds = append(mds, reader.InputMetadata[v])
+	}
+	unpicked.InputMetadata = mds
+
+	targetAttr := reader.GetTarget()
+	targetMd := reader.GetTargetMetadata()
+
+	// add target column to picked set
+	picked.PushColumn(*targetAttr, targetMd)
+
+	classIdx := len(picked.Columns) - 1
+	picked.ClassMetadataIndex = classIdx
+	picked.ClassIndex = classIdx
+
+	// add target column to unpicked set
+	unpicked.PushColumn(*targetAttr, targetMd)
+
+	classIdx = len(unpicked.Columns) - 1
+	unpicked.ClassMetadataIndex = classIdx
+	unpicked.ClassIndex = classIdx
 
 	return
 }
@@ -201,16 +299,16 @@ func (reader *Reader) PrintTable() (s string) {
 	}
 	s += "\n"
 
-	for i := 0; i < reader.NRow; i++ {
+	for i := 0; i < reader.GetNRow(); i++ {
 		s += fmt.Sprintf("[%d]", i)
 
 		for a, md := range reader.InputMetadata {
 			if md.IsContinu {
 				s += fmt.Sprint("\t",
-					reader.Columns[a][i].Float())
+					reader.Columns[a].Records[i].Float())
 			} else {
 				s += fmt.Sprint("\t",
-					reader.Columns[a][i].String())
+					reader.Columns[a].Records[i].String())
 			}
 		}
 		s += "\n"
