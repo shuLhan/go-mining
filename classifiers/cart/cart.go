@@ -71,6 +71,17 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 ) {
 	node = &binary.BTNode{}
 
+	// if dataset is empty return node labeled with majority classes in
+	// dataset.
+	if D.GetNRow() <= 0 {
+		node.Value = NodeValue{
+			IsLeaf: true,
+			Class:  D.GetMajorityClass(),
+			Size:   0,
+		}
+		return node, nil
+	}
+
 	// if all dataset is in the same class, return node as leaf with class
 	// is set to that class.
 	single, name := D.IsInSingleClass()
@@ -81,17 +92,6 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 			Size:   D.GetNRow(),
 		}
 
-		return node, nil
-	}
-
-	// if dataset is empty return node labeled with majority classes in
-	// dataset.
-	if D.GetNRow() <= 0 {
-		node.Value = NodeValue{
-			IsLeaf: true,
-			Class:  D.GetMajorityClass(),
-			Size:   0,
-		}
 		return node, nil
 	}
 
@@ -125,7 +125,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	node.Value = NodeValue{
 		IsLeaf:       false,
 		IsContinu:    MaxGain.IsContinu,
-		Size:         D.NRow,
+		Size:         D.GetNRow(),
 		SplitAttrIdx: MaxGainIdx,
 		SplitV:       splitV,
 	}
@@ -184,7 +184,7 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 
 	for i := range (*D).InputMetadata {
 		// skip class attribute.
-		if i == D.ClassIndex {
+		if i == D.ClassMetadataIndex {
 			continue
 		}
 		// skip attribute with Skip is true
@@ -220,14 +220,15 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 
 	targetAttr := data.GetTarget()
 
-	for i := 0; i < data.NRow; i++ {
+	for i := 0; i < data.GetNRow(); i++ {
 		node = in.Tree.Root
 		nodev = node.Value.(NodeValue)
 
 		for !nodev.IsLeaf {
 			if nodev.IsContinu {
 				splitV := nodev.SplitV.(float64)
-				attrV := (*data).Columns[nodev.SplitAttrIdx].ToFloatSlice()[i]
+				attrV := (*data).Columns[nodev.SplitAttrIdx].
+					Records[i].Float()
 
 				if attrV < splitV {
 					node = node.Left
@@ -236,7 +237,8 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 				}
 			} else {
 				splitV := nodev.SplitV.(set.SliceString)
-				attrV := (*data).Columns[nodev.SplitAttrIdx].ToStringSlice()[i]
+				attrV := (*data).Columns[nodev.SplitAttrIdx].
+					Records[i].String()
 
 				if set.IsSliceStringContain(splitV, attrV) {
 					node = node.Left
@@ -247,7 +249,7 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 			nodev = node.Value.(NodeValue)
 		}
 
-		(*targetAttr)[i].V = nodev.Class
+		(*targetAttr).Records[i].V = nodev.Class
 	}
 
 	return

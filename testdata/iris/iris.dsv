@@ -2,6 +2,7 @@
 	"Input"			:"iris.dat"
 ,	"Rejected"		:"iris.rej"
 ,	"MaxRows"		:-1
+,	"ClassMetadataIndex"	:4
 ,	"ClassIndex"		:4
 ,	"DatasetMode"		:"columns"
 ,	"InputMetadata"		:
