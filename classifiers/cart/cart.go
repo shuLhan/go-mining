@@ -17,6 +17,7 @@ The implementation is based on Data Mining book,
 package cart
 
 import (
+	"github.com/golang/glog"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/set"
@@ -73,7 +74,9 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 
 	// if dataset is empty return node labeled with majority classes in
 	// dataset.
-	if D.GetNRow() <= 0 {
+	nrow := D.GetNRow()
+
+	if nrow <= 0 {
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  D.GetMajorityClass(),
@@ -89,11 +92,12 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  name,
-			Size:   D.GetNRow(),
+			Size:   nrow,
 		}
-
 		return node, nil
 	}
+
+	glog.V(1).Infoln(">>> D:", D)
 
 	// calculate the Gini gain for each attribute.
 	gains := in.computeGiniGain(D)
@@ -102,8 +106,25 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	MaxGainIdx := gini.FindMaxGain(&gains)
 	MaxGain := gains[MaxGainIdx]
 
+	// if maxgain value is 0, use majority class as node and terminate
+	// the process
+	if MaxGain.GetMaxGainValue() == 0 {
+		glog.V(1).Infoln(">>> max gain 0 with target",
+			D.GetTarget(), " and majority class is ",
+			D.GetMajorityClass())
+
+		node.Value = NodeValue{
+			IsLeaf: true,
+			Class:  D.GetMajorityClass(),
+			Size:   0,
+		}
+		return node, nil
+	}
+
 	// using the sorted index in MaxGain, sort all field in dataset
-	D.SortColumnsByIndex(*MaxGain.SortedIndex)
+	D.SortColumnsByIndex(MaxGain.SortedIndex)
+
+	glog.V(1).Infoln(">>> maxgain:", MaxGain)
 
 	// Now that we have attribute with max gain in MaxGainIdx, and their
 	// gain dan partition value in Gains[MaxGainIdx] and
@@ -122,10 +143,13 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		splitV = attrSubV[0]
 	}
 
+	glog.V(1).Infoln(">>> maxgainindex:", MaxGainIdx)
+	glog.V(1).Infoln(">>> split v:", splitV)
+
 	node.Value = NodeValue{
 		IsLeaf:       false,
 		IsContinu:    MaxGain.IsContinu,
-		Size:         D.GetNRow(),
+		Size:         nrow,
 		SplitAttrIdx: MaxGainIdx,
 		SplitV:       splitV,
 	}
@@ -187,8 +211,10 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 		if i == D.ClassMetadataIndex {
 			continue
 		}
+
 		// skip attribute with Skip is true
 		if D.InputMetadata[i].Skip {
+			gains[i].Skip = true
 			continue
 		}
 
@@ -197,16 +223,22 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 
 		// compute gain.
 		if (*D).InputMetadata[i].IsContinu {
-			attr := (*D).Columns[i].ToFloatSlice()
+			col := (*D).Columns[i]
+			attr := col.ToFloatSlice()
 
 			gains[i].ComputeContinu(&attr, &target, &classes)
 		} else {
 			attr := (*D).Columns[i].ToStringSlice()
 			attrV := (*D).InputMetadata[i].NominalValues
 
+			glog.V(1).Infoln(">>> attr :", attr)
+			glog.V(1).Infoln(">>> attrV:", attrV)
+
 			gains[i].ComputeDiscrete(&attr, &attrV, &target,
 				&classes)
 		}
+
+		glog.V(1).Infoln(">>> gain :", gains[i])
 	}
 	return
 }
