@@ -11,22 +11,29 @@ import (
 	"github.com/shuLhan/go-mining/gain/gini"
 )
 
-var data = []float64{ 1.0, 6.0, 5.0, 4.0, 7.0, 3.0, 8.0, 7.0, 5.0 }
+var data = [][]float64{
+	{1.0, 6.0, 5.0, 4.0, 7.0, 3.0, 8.0, 7.0, 5.0},
+	{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+}
 var targetValues = []string{ "P", "P", "N", "P", "N", "N", "N", "P", "N" }
 var classes = []string { "P", "N" }
 
 func TestComputeContinu(t *testing.T) {
-	gini := gini.Gini{}
 	target := make([]string, len(targetValues))
 
 	copy(target, targetValues)
 
 	fmt.Println ("target:", target)
-	fmt.Println ("data:", data)
 
-	gini.ComputeContinu(&data, &target, &classes)
+	fmt.Println ("data:", data[0])
+	GINI := gini.Gini{}
+	GINI.ComputeContinu(&data[0], &target, &classes)
+	fmt.Println (">>> gini:", GINI)
 
-	fmt.Println (gini)
+	fmt.Println ("data:", data[1])
+	GINI = gini.Gini{}
+	GINI.ComputeContinu(&data[1], &target, &classes)
+	fmt.Println (">>> gini:", GINI)
 }
 
 var discreteSamples = [][]string{

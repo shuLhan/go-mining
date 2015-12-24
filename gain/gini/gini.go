@@ -11,18 +11,10 @@ between the probability distribution of the target attributes' values.
 package gini
 
 import (
-	"encoding/json"
 	"fmt"
-	"log"
-	"os"
+	"github.com/golang/glog"
 	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/set"
-)
-
-var (
-	// DEBUG use this to debug the package, by printing additional
-	// information when running the function.
-	DEBUG = bool (os.Getenv ("DEBUG") != "")
 )
 
 /*
@@ -30,6 +22,9 @@ Gini contain slice of sorted index, slice of partition values, slice of Gini
 index, Gini value for all samples.
 */
 type Gini struct {
+	// Skip if its true, the gain value would not be searched on this
+	// instance.
+	Skip bool
 	// IsContinue define whether the Gini index came from continuous
 	// attribute or not.
 	IsContinu bool
@@ -47,7 +42,7 @@ type Gini struct {
 	MinIndexValue float64
 	// SortedIndex of attribute, sorted by values of attribute. This will
 	// be used to reference the unsorted target attribute.
-	SortedIndex *[]int
+	SortedIndex []int
 	// ContinuPart contain list of partition value for continuous attribute.
 	ContinuPart []float64
 	// DiscretePart contain the possible combination of discrete values.
@@ -72,9 +67,7 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 	// create partition for possible combination of discrete values.
 	gini.createDiscretePartition((*discval))
 
-	if DEBUG {
-		fmt.Printf("part : %v\n", gini.DiscretePart)
-	}
+	glog.V(2).Infoln("part : ", gini.DiscretePart)
 
 	gini.Index = make([]float64, len(gini.DiscretePart))
 	gini.Gain = make([]float64, len(gini.DiscretePart))
@@ -93,10 +86,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 	// number of samples
 	nsample := float64(len(*A))
 
-	if DEBUG {
-		fmt.Println("sample:", T)
-		fmt.Printf("Gini(a=%s) = %f\n",
-			(*A), gini.Value)
+	if glog.V(2) {
+		glog.Infoln("sample:", T)
+		glog.Infof("Gini(a=%s) = %f\n", (*A), gini.Value)
 	}
 
 	// compute gini index for each discrete values
@@ -135,9 +127,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 			// sum all probabilities times gini index.
 			sumGI += probIndex
 
-			if DEBUG {
-				fmt.Println("subsample:", subT)
-				fmt.Printf("Gini(a=%s) = %f/%f * %f = %f\n",
+			if glog.V(2) {
+				glog.Infoln("subsample:", subT)
+				glog.Infof("Gini(a=%s) = %f/%f * %f = %f\n",
 						part, ndisc, nsample,
 						giniIndex, probIndex)
 			}
@@ -146,9 +138,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 		gini.Index[i] = sumGI
 		gini.Gain[i] = gini.Value - sumGI
 
-		if DEBUG {
-			fmt.Println("sample:", subPart)
-			fmt.Printf("Gain(a=%s) = %f - %f = %f\n",
+		if glog.V(2) {
+			glog.Infoln("sample:", subPart)
+			glog.Infof("Gain(a=%s) = %f - %f = %f\n",
 					subPart, gini.Value, sumGI,
 					gini.Gain[i])
 		}
@@ -197,10 +189,14 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	T2 := make([]string, len(*T))
 	copy(T2, *T)
 
-	gini.SortedIndex = util.IndirectSort (&A2)
+	gini.SortedIndex = util.IndirectSortFloat64(A2)
+
+	if glog.V(1) {
+		glog.Infoln(">>> attr :", A2)
+	}
 
 	// sort the target attribute using sorted index.
-	gini.sortTarget (&T2)
+	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
 
 	// create partition
 	gini.createContinuPartition (&A2)
@@ -217,37 +213,31 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 }
 
 /*
-SortTarget attribute using sorted index.
-*/
-func (gini *Gini) sortTarget (T *[]string) {
-	for i := range (*gini.SortedIndex) {
-		if (*gini.SortedIndex)[i] > i {
-			util.SwapString (T, i, (*gini.SortedIndex)[i])
-		}
-	}
-}
-
-/*
 createContinuPart for dividing class and computing Gini index.
+
+This is assuming that the data `A` has been sorted in ascending order.
 */
 func (gini *Gini) createContinuPartition(A *[]float64) {
 	l := len(*A)
-	gini.ContinuPart = make([]float64, 1)
-
-	// first partition is the first index / 2
-	gini.ContinuPart[0] = (*A)[0] / 2
+	gini.ContinuPart = make([]float64, 0)
 
 	// loop from first index until last index - 1
-	var sum float64
-	var med float64
-	var exist bool
 	for i := 0; i < l - 1; i++ {
-		sum = (*A)[i] + (*A)[i + 1]
-		med = sum / 2
+		sum := (*A)[i] + (*A)[i + 1]
+		med := sum / 2.0
 
-		// reject if median is contained in attribute's value.
-		exist = false
-		for j := i; j < l; j++ {
+		// If median is zero, its mean both left and right value is
+		// zero. We are not allowing this, because it will result the
+		// minimum Gini Index or maximum Gain value.
+		if med == 0 {
+			continue
+		}
+
+		// Reject if median is contained in attribute's value.
+		// We use equality because if both A[i] and A[i+1] value is
+		// equal, the median is equal to both of them.
+		exist := false
+		for j := 0; j <= i; j++ {
 			if (*A)[j] == med {
 				exist = true
 				break
@@ -257,10 +247,6 @@ func (gini *Gini) createContinuPartition(A *[]float64) {
 			gini.ContinuPart = append(gini.ContinuPart, med)
 		}
 	}
-
-	// last one, first partition + last attribute value
-	med = gini.ContinuPart[0] + (*A)[l-1]
-	gini.ContinuPart = append(gini.ContinuPart, med)
 }
 
 /*
@@ -290,8 +276,8 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 		p = float64(classCount[i]) / n
 		sump2 += (p * p)
 
-		if DEBUG {
-			fmt.Printf(" compute (%s): (%f/%f)^2 = %f\n", *T,
+		if glog.V(2) {
+			glog.Infof(" compute (%s): (%f/%f)^2 = %f\n", *T,
 					float64(classCount[i]), n, p * p)
 		}
 
@@ -320,9 +306,9 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 
 	nsample := len(*A)
 
-	if DEBUG {
-		fmt.Println ("sorted data:", A)
-		fmt.Println ("Gini.Value:", gini.Value)
+	if glog.V(2) {
+		glog.Infoln("sorted data:", A)
+		glog.Infoln("Gini.Value:", gini.Value)
 	}
 
 	for p := range gini.ContinuPart {
@@ -360,13 +346,13 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		gini.Index[p] = ((pleft * gleft) + (pright * gright))
 		gini.Gain[p] = gini.Value - gini.Index[p]
 
-		if DEBUG {
-			fmt.Println(tleft)
-			fmt.Println(tright)
+		if glog.V(2) {
+			glog.Infoln(tleft)
+			glog.Infoln(tright)
 
-			fmt.Printf("GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
-					gini.ContinuPart[p], gini.Value, pleft, gleft,
-					pright, gright, gini.Gain[p])
+			glog.Infof("GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
+				gini.ContinuPart[p], gini.Value, pleft, gleft,
+				pright, gright, gini.Gain[p])
 		}
 
 		if gini.MinIndexValue > gini.Index[p] && gini.Index[p] != 0 {
@@ -427,6 +413,9 @@ func FindMaxGain(gains *[]Gini) (MaxGainIdx int) {
 	var maxGainValue = 0.0
 
 	for i := range *gains {
+		if (*gains)[i].Skip {
+			continue
+		}
 		gainValue = (*gains)[i].GetMaxGainValue()
 		if gainValue > maxGainValue {
 			maxGainValue = gainValue
@@ -458,11 +447,20 @@ func FindMinGiniIndex(ginis *[]Gini) (MinIndexIdx int) {
 /*
 String yes, it will print it JSON like format.
 */
-func (gini Gini) String() (string) {
-	s, e := json.Marshal(gini)
-	if nil != e {
-		log.Print(e)
-		return ""
-	}
-	return string(s)
+func (gini Gini) String() (s string) {
+	s = fmt.Sprint("{\n",
+	"  Skip          :", gini.Skip, "\n",
+	"  IsContinu     :", gini.IsContinu, "\n",
+	"  Index         :", gini.Index, "\n",
+	"  Value         :", gini.Value, "\n",
+	"  Gain          :", gini.Gain, "\n",
+	"  MaxPartGain   :", gini.MaxPartGain, "\n",
+	"  MaxGainValue  :", gini.MaxGainValue, "\n",
+	"  MinIndexPart  :", gini.MinIndexPart, "\n",
+	"  MinIndexValue :", gini.MinIndexValue, "\n",
+	"  SortedIndex   :", gini.SortedIndex, "\n",
+	"  ContinuPart   :", gini.ContinuPart, "\n",
+	"  DiscretePart  :", gini.DiscretePart, "\n",
+	"}")
+	return
 }
