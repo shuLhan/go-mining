@@ -31,6 +31,9 @@ func (md *Metadata) GetNominalValue() []string {
 	return md.NominalValues
 }
 
+/*
+CreateCopy of caller object.
+*/
 func (md *Metadata) CreateCopy() (dest Metadata) {
 	dest.IsContinu = md.IsContinu
 

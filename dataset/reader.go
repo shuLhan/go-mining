@@ -90,6 +90,9 @@ func (reader *Reader) GetInputMetadata() []dsv.MetadataInterface {
 	return md
 }
 
+/*
+CountMajorMinorClass recount major and minor class in dataset.
+*/
 func (reader *Reader) CountMajorMinorClass() {
 	targetV := reader.GetTarget().ToStringSlice()
 	classV := reader.GetClass()
@@ -249,7 +252,8 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	}
 
 	// set picked metadata
-	mds := make([]Metadata, 0)
+	var mds []Metadata
+
 	for _, v := range pickedIdx {
 		mds = append(mds, reader.InputMetadata[v])
 	}

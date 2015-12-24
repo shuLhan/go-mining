@@ -244,7 +244,7 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 }
 
 /*
-Classify set the class attribute based on tree classification.
+ClassifySet set the class attribute based on tree classification.
 */
 func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 	var node *binary.BTNode

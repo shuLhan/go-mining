@@ -427,7 +427,7 @@ func FindMaxGain(gains *[]Gini) (MaxGainIdx int) {
 }
 
 /*
-FindMinIndex return the index of attribute that have the minimum Gini index.
+FindMinGiniIndex return the index of attribute that have the minimum Gini index.
 */
 func FindMinGiniIndex(ginis *[]Gini) (MinIndexIdx int) {
 	var indexV = 0.0
