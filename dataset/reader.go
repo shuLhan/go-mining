@@ -14,12 +14,10 @@ IsContinue (to indicate whether the column is continuous) and NominalValues
 package dataset
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/dsv/util"
 	"io"
-	"log"
 )
 
 /*
@@ -76,7 +74,7 @@ func (reader *Reader) ReaderCopy(src *Reader) {
 	reader.ClassIndex = src.ClassIndex
 	reader.ClassMetadataIndex = src.ClassMetadataIndex
 	reader.MajorityClass = src.MajorityClass
-	reader.MinorityClass = src.MajorityClass
+	reader.MinorityClass = src.MinorityClass
 }
 
 /*
@@ -92,6 +90,18 @@ func (reader *Reader) GetInputMetadata() []dsv.MetadataInterface {
 	return md
 }
 
+func (reader *Reader) CountMajorMinorClass() {
+	targetV := reader.GetTarget().ToStringSlice()
+	classV := reader.GetClass()
+
+	classCount := util.StringCountBy(targetV, classV)
+
+	_, maxIdx := util.IntFindMax(classCount)
+	_, minIdx := util.IntFindMin(classCount)
+	reader.MajorityClass = classV[maxIdx]
+	reader.MinorityClass = classV[minIdx]
+}
+
 /*
 Read a wrapper for dsv reader with additional post-read initialization like
 counting majority and minority class.
@@ -103,15 +113,7 @@ func (reader *Reader) Read() (e error) {
 		return
 	}
 
-	targetV := reader.GetTarget().ToStringSlice()
-	classV := reader.GetClass()
-
-	classCount := util.StringCountBy(targetV, classV)
-
-	_, maxIdx := util.IntFindMax(classCount)
-	_, minIdx := util.IntFindMin(classCount)
-	reader.MajorityClass = classV[maxIdx]
-	reader.MinorityClass = classV[minIdx]
+	reader.CountMajorMinorClass()
 
 	return
 }
@@ -188,6 +190,9 @@ func (reader *Reader) SplitRowsByValue(colidx int, colval interface{}) (
 	splitL.ReaderCopy(reader)
 	splitR.ReaderCopy(reader)
 
+	splitL.CountMajorMinorClass()
+	splitR.CountMajorMinorClass()
+
 	return
 }
 
@@ -207,12 +212,16 @@ func (reader *Reader) RandomPickRows(n int, dup bool) (
 	unpicked Reader,
 	pickedIdx []int,
 	unpickedIdx []int,
+	e error,
 ) {
-	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx =
+	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx, e =
 		reader.Reader.RandomPickRows(n, dup)
 
 	picked.ReaderCopy(reader)
+	picked.CountMajorMinorClass()
+
 	unpicked.ReaderCopy(reader)
+	unpicked.CountMajorMinorClass()
 
 	return
 }
@@ -270,20 +279,10 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	unpicked.ClassMetadataIndex = classIdx
 	unpicked.ClassIndex = classIdx
 
+	picked.CountMajorMinorClass()
+	unpicked.CountMajorMinorClass()
+
 	return
-}
-
-/*
-String yes, it will print it in JSON like format.
-*/
-func (reader *Reader) String() string {
-	r, e := json.MarshalIndent(reader, "", "\t")
-
-	if nil != e {
-		log.Println(e)
-	}
-
-	return string(r)
 }
 
 /*
@@ -313,6 +312,20 @@ func (reader *Reader) PrintTable() (s string) {
 		}
 		s += "\n"
 	}
+
+	return
+}
+
+func (reader *Reader) String() (s string) {
+	s = fmt.Sprint("{\n",
+	"  InputMetadata     : ", reader.InputMetadata, "\n",
+	"  ClassMetadataIndex: ", reader.ClassMetadataIndex, "\n",
+	"  ClassIndex        : ", reader.ClassIndex, "\n",
+	"  NRow              : ", reader.GetNRow(), "\n",
+	"  Dataset           : ", fmt.Sprint(reader.Dataset), "\n",
+	"  MajorityClass     : ", reader.MajorityClass, "\n",
+	"  MinorityClass     : ", reader.MinorityClass, "\n",
+	"}")
 
 	return
 }

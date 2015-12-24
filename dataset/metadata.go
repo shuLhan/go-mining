@@ -5,7 +5,6 @@
 package dataset
 
 import (
-	"fmt"
 	"github.com/shuLhan/dsv"
 )
 
@@ -37,21 +36,6 @@ func (md *Metadata) CreateCopy() (dest Metadata) {
 
 	dest.NominalValues = make([]string, len(md.NominalValues))
 	copy(dest.NominalValues, md.NominalValues)
-
-	return
-}
-
-/*
-String return the pretty print format of attribute.
-*/
-func (md Metadata) String() (s string) {
-	s = fmt.Sprintf("{\n\tIsContinue: %v\n", md.IsContinu)
-
-	if !md.IsContinu {
-		s += fmt.Sprintf("\tNominalValues: %v\n", md.NominalValues)
-	}
-
-	s += "}"
 
 	return
 }
