@@ -38,6 +38,8 @@ Input data for building CART.
 type Input struct {
 	// SplitMethod define the criteria to used for splitting.
 	SplitMethod int
+	// OOBErrVal is the last out-of-bag error value in the tree.
+	OOBErrVal float64
 	// tree in classification.
 	Tree binary.Tree
 }
@@ -97,7 +99,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		return node, nil
 	}
 
-	glog.V(1).Infoln(">>> D:", D)
+	glog.V(2).Infoln(">>> D:", D)
 
 	// calculate the Gini gain for each attribute.
 	gains := in.computeGiniGain(D)
@@ -109,7 +111,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// if maxgain value is 0, use majority class as node and terminate
 	// the process
 	if MaxGain.GetMaxGainValue() == 0 {
-		glog.V(1).Infoln(">>> max gain 0 with target",
+		glog.V(2).Infoln(">>> max gain 0 with target",
 			D.GetTarget(), " and majority class is ",
 			D.GetMajorityClass())
 
@@ -124,7 +126,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// using the sorted index in MaxGain, sort all field in dataset
 	D.SortColumnsByIndex(MaxGain.SortedIndex)
 
-	glog.V(1).Infoln(">>> maxgain:", MaxGain)
+	glog.V(2).Infoln(">>> maxgain:", MaxGain)
 
 	// Now that we have attribute with max gain in MaxGainIdx, and their
 	// gain dan partition value in Gains[MaxGainIdx] and
@@ -143,8 +145,8 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		splitV = attrSubV[0]
 	}
 
-	glog.V(1).Infoln(">>> maxgainindex:", MaxGainIdx)
-	glog.V(1).Infoln(">>> split v:", splitV)
+	glog.V(2).Infoln(">>> maxgainindex:", MaxGainIdx)
+	glog.V(2).Infoln(">>> split v:", splitV)
 
 	node.Value = NodeValue{
 		IsLeaf:       false,
@@ -231,14 +233,14 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 			attr := (*D).Columns[i].ToStringSlice()
 			attrV := (*D).InputMetadata[i].NominalValues
 
-			glog.V(1).Infoln(">>> attr :", attr)
-			glog.V(1).Infoln(">>> attrV:", attrV)
+			glog.V(2).Infoln(">>> attr :", attr)
+			glog.V(2).Infoln(">>> attrV:", attrV)
 
 			gains[i].ComputeDiscrete(&attr, &attrV, &target,
 				&classes)
 		}
 
-		glog.V(1).Infoln(">>> gain :", gains[i])
+		glog.V(2).Infoln(">>> gain :", gains[i])
 	}
 	return
 }
@@ -285,6 +287,43 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 	}
 
 	return
+}
+
+/*
+CountOOBError process out-of-bag data on tree and return error value.
+*/
+func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
+	n := float64(oob.GetNRow())
+
+	// save the original target to be compared later.
+	origTarget := oob.GetTarget().ToStringSlice()
+
+	// reset the target.
+	oob.GetTarget().ClearValues()
+
+	e = in.ClassifySet(&oob)
+
+	if e != nil {
+		return
+	}
+
+	// count how many target value is miss-classified.
+	var miss float64
+
+	target := oob.GetTarget().ToStringSlice()
+
+	glog.V(2).Info(">>> original target:", origTarget)
+	glog.V(2).Info(">>> classify target:", target)
+
+	for x, row := range target {
+		if row != origTarget[x] {
+			miss++
+		}
+	}
+
+	in.OOBErrVal = float64(miss / n)
+
+	return in.OOBErrVal, nil
 }
 
 /*
