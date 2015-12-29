@@ -57,6 +57,19 @@ func NewReader(config string) (reader *Reader, e error) {
 }
 
 /*
+CopyConfig copy only configuration from other reader object not including data
+and metadata.
+*/
+func (reader *Reader) CopyConfig(src *Reader) {
+	reader.Reader.CopyConfig(&src.Reader)
+
+	reader.ClassIndex = src.ClassIndex
+	reader.ClassMetadataIndex = src.ClassMetadataIndex
+	reader.MajorityClass = src.MajorityClass
+	reader.MinorityClass = src.MinorityClass
+}
+
+/*
 ReaderCopy set reader attribute value using other reader value.
 */
 func (reader *Reader) ReaderCopy(src *Reader) {
@@ -71,10 +84,7 @@ func (reader *Reader) ReaderCopy(src *Reader) {
 		reader.InputMetadata[x] = src.InputMetadata[x].CreateCopy()
 	}
 
-	reader.ClassIndex = src.ClassIndex
-	reader.ClassMetadataIndex = src.ClassMetadataIndex
-	reader.MajorityClass = src.MajorityClass
-	reader.MinorityClass = src.MinorityClass
+	reader.CopyConfig(src)
 }
 
 /*
@@ -88,6 +98,10 @@ func (reader *Reader) GetInputMetadata() []dsv.MetadataInterface {
 	}
 
 	return md
+}
+
+func (reader *Reader) PushMetadata(md Metadata) {
+	reader.InputMetadata = append(reader.InputMetadata, md)
 }
 
 /*
@@ -200,14 +214,6 @@ func (reader *Reader) SplitRowsByValue(colidx int, colval interface{}) (
 }
 
 /*
-PushColumn append new column to dataset including their metadata.
-*/
-func (reader *Reader) PushColumn(col dsv.Column, md Metadata) {
-	reader.Dataset.PushColumn(col)
-	reader.InputMetadata = append(reader.InputMetadata, md)
-}
-
-/*
 RandomPickRows return `n` rows that randomly picked from dataset.
 */
 func (reader *Reader) RandomPickRows(n int, dup bool) (
@@ -270,14 +276,18 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	targetMd := reader.GetTargetMetadata()
 
 	// add target column to picked set
-	picked.PushColumn(*targetAttr, targetMd)
+	picked.PushColumn(*targetAttr)
+	picked.PushMetadata(targetMd)
+	pickedIdx = append(pickedIdx, reader.ClassIndex)
 
 	classIdx := len(picked.Columns) - 1
 	picked.ClassMetadataIndex = classIdx
 	picked.ClassIndex = classIdx
 
 	// add target column to unpicked set
-	unpicked.PushColumn(*targetAttr, targetMd)
+	unpicked.PushColumn(*targetAttr)
+	unpicked.PushMetadata(targetMd)
+	unpickedIdx = append(unpickedIdx, reader.ClassIndex)
 
 	classIdx = len(unpicked.Columns) - 1
 	unpicked.ClassMetadataIndex = classIdx
@@ -285,6 +295,37 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 
 	picked.CountMajorMinorClass()
 	unpicked.CountMajorMinorClass()
+
+	return
+}
+
+/*
+SelectColumnsByIdx return new dataset with selected columns index.
+*/
+func (reader *Reader) SelectColumnsByIdx(colsIdx []int) (
+	newset Reader,
+	e error,
+) {
+	newset.Dataset, e = reader.Dataset.SelectColumnsByIdx(colsIdx)
+
+	if e != nil {
+		return
+	}
+
+	// Copy metadata
+	for x, v := range colsIdx {
+		md := reader.InputMetadata[v]
+		newset.PushMetadata(md)
+
+		if v == reader.ClassIndex {
+			newset.ClassIndex = x
+			newset.ClassMetadataIndex = x
+		}
+	}
+
+	// Copy config
+	newset.MajorityClass = reader.MajorityClass
+	newset.MinorityClass = reader.MinorityClass
 
 	return
 }
