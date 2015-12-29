@@ -1,0 +1,128 @@
+{
+	"Input"			:"glass.data"
+,	"Rejected"		:"glass.rej"
+,	"MaxRows"		:-1
+,	"ClassMetadataIndex"	:10
+,	"ClassIndex"		:9
+,	"DatasetMode"		:"matrix"
+,	"InputMetadata"		:
+	[{
+		"Name"			:"ID"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"integer"
+	,	"Skip"			:true
+	},{
+		"Name"			:"RI"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"NA20"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"MGO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"AL203"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"SI02"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"K20"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"CAO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"BAO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"FE203"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"TYPE"
+	,	"Type"			:"string"
+	,	"IsContinu"		:false
+	,	"NominalValues"		:
+		[
+			"1"
+		,	"2"
+		,	"3"
+		,	"4"
+		,	"5"
+		,	"6"
+		,	"7"
+		]
+	}]
+
+,	"Output"		:"glass.out"
+,	"OutputMetadata"	:
+	[{
+		"Name"			:"RI"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"NA20"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"MGO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"AL203"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"SI02"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"K20"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"CAO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"BAO"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"FE203"
+	,	"Separator"		:","
+	,	"IsContinu"		:true
+	,	"Type"			:"real"
+	},{
+		"Name"			:"TYPE"
+	,	"IsContinu"		:true
+	,	"Type"			:"integer"
+	}]
+}
