@@ -191,9 +191,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 
 	gini.SortedIndex = util.IndirectSortFloat64(A2)
 
-	if glog.V(1) {
-		glog.Infoln(">>> attr :", A2)
-	}
+	glog.V(2).Infoln(">>> attr sorted :", A2)
 
 	// sort the target attribute using sorted index.
 	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
