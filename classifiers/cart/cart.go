@@ -149,6 +149,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	glog.V(2).Infoln(">>> split v:", splitV)
 
 	node.Value = NodeValue{
+		SplitAttrName:D.Columns[MaxGainIdx].GetName(),
 		IsLeaf:       false,
 		IsContinu:    MaxGain.IsContinu,
 		Size:         nrow,
@@ -252,9 +253,10 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 	var node *binary.BTNode
 	var nodev NodeValue
 
+	nrow := data.GetNRow()
 	targetAttr := data.GetTarget()
 
-	for i := 0; i < data.GetNRow(); i++ {
+	for i := 0; i < nrow; i++ {
 		node = in.Tree.Root
 		nodev = node.Value.(NodeValue)
 
@@ -304,6 +306,8 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	e = in.ClassifySet(&oob)
 
 	if e != nil {
+		// set original target values back.
+		oob.GetTarget().SetValues(origTarget)
 		return
 	}
 
@@ -322,6 +326,9 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	}
 
 	in.OOBErrVal = float64(miss / n)
+
+	// set original target values back.
+	oob.GetTarget().SetValues(origTarget)
 
 	return in.OOBErrVal, nil
 }
