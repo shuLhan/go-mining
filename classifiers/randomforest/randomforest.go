@@ -44,8 +44,8 @@ type Ensemble struct {
 	NFeature int
 	// NTree number of tree in forest.
 	NTree int
-	// OOBAvgErrVal contain the average out-of-back error value.
-	OOBAvgErrVal float64
+	// OOBErrMeanVal contain the average out-of-back error value.
+	OOBErrMeanVal float64
 }
 
 /*
@@ -77,6 +77,8 @@ func (forest *Ensemble) init(samples *dataset.Reader, ntree int, nfeature int,
 	forest.NSubsample = int(float32(samples.GetNRow()) *
 				(float32(npercent) / 100.0))
 
+	forest.Trees = make([]cart.Input, 0)
+
 	return nil
 }
 
@@ -98,37 +100,40 @@ Ensembling the forest using samples dataset.
 generating a tree.
 */
 func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
-			npercent int) (forest Ensemble, e error) {
-	var pickedRows dataset.Reader
-	var unpickedRows dataset.Reader
-	var pickedCols dataset.Reader
-	var pickedColsIdx []int
-	var totalOOBErr float64
-
+		npercent int) (
+	forest Ensemble,
+	ooberrsteps []float64,
+	e error,
+) {
 	e = forest.init(samples, ntree, nfeature, npercent)
 	if e != nil {
 		return
 	}
 
+	glog.V(1).Info(">>> forest:", forest)
+
+	ooberrsteps = make([]float64, ntree)
+	totalOOBErr := 0.0
+
 	// create trees
 	for t := 0; t < ntree; t++ {
 		// select random samples with replacement.
-		pickedRows, unpickedRows, _, _, e = samples.RandomPickRows(
+		pickedRows, unpickedRows, _, _, e := samples.RandomPickRows(
 			forest.NSubsample, true)
 
 		if e != nil {
-			return
+			return forest, ooberrsteps, e
 		}
 
 		glog.V(2).Info(">>> picked rows:", pickedRows)
 
 		// select random features, without replacement, not including
 		// target feature.
-		pickedCols, _, pickedColsIdx, _, e = pickedRows.RandomPickColumns(
+		pickedCols, _, pickedColsIdx, _, e := pickedRows.RandomPickColumns(
 			forest.NFeature, false)
 
 		if e != nil {
-			return
+			return forest, ooberrsteps, e
 		}
 
 		glog.V(2).Info(">>> picked cols:", pickedCols)
@@ -140,42 +145,42 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 
 		e = cart.BuildTree(&pickedCols)
 		if e != nil {
-			return
+			return forest, ooberrsteps, e
 		}
 
 		glog.V(2).Info(">>> TREE:", &cart)
 
-		// run OOB on tree.
-		var oob dataset.Reader
-		var ooberr float64
-
 		glog.V(2).Info(">>> unpicked rows:", unpickedRows)
 		glog.V(2).Info(">>> picked cols idx:", pickedColsIdx)
 
-		oob, e = unpickedRows.SelectColumnsByIdx(pickedColsIdx)
+		// run OOB on tree.
+		oob, e := unpickedRows.SelectColumnsByIdx(pickedColsIdx)
 		if e != nil {
-			return
+			return forest, ooberrsteps, e
 		}
 
 		glog.V(2).Info(">>> OOB :", oob)
 
-		ooberr, e = cart.CountOOBError(oob)
+		ooberr, e := cart.CountOOBError(oob)
 
 		if e != nil {
-			return
+			return forest, ooberrsteps, e
 		}
 
-		glog.V(1).Info(">>> OOB error:", ooberr)
+		glog.V(2).Infof(">>> t %d - OOB error: %f", t, ooberr)
 
 		// calculate error.
 		totalOOBErr += ooberr
 
+		ooberrsteps[t] = totalOOBErr / float64(t + 1)
+
+		// Add tree to forest.
 		forest.AddCartTree(cart)
 	}
 
-	forest.OOBAvgErrVal = totalOOBErr / float64(ntree)
+	forest.OOBErrMeanVal = totalOOBErr / float64(ntree)
 
-	glog.V(1).Info(">>> OOB average error:", forest.OOBAvgErrVal)
+	glog.V(1).Info(">>> OOB error mean: ", forest.OOBErrMeanVal)
 
-	return
+	return forest, ooberrsteps, nil
 }

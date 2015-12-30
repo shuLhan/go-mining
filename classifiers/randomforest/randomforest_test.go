@@ -5,11 +5,12 @@
 package randomforest_test
 
 import (
+	"fmt"
 	"github.com/golang/glog"
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"io"
-	"math"
 	"testing"
 )
 
@@ -29,21 +30,54 @@ func TestEnsembling(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	// number of tree to generate.
-	ntree := 100
-	// number of feature selected randomly.
-	n := len(samples.InputMetadata) - 1
-	nfeature := int(math.Sqrt(float64(n)))
-	// percentage of sample used as subsample.
-	npercent := 66
-
-	// generate random forest.
-	forest, e := randomforest.Ensembling(samples, ntree, nfeature,
-						npercent)
+	// dataset to save each oob error in each feature iteration.
+	dataooberr, e := dsv.NewDataset(dsv.DatasetModeColumns, nil, nil)
 
 	if e != nil {
 		t.Fatal(e)
 	}
 
-	glog.V(2).Info(forest)
+	// number of tree to generate.
+	ntree := 1000
+	// percentage of sample used as subsample.
+	npercent := 66
+
+	nfeature := samples.GetNColumn() - 1
+	n := 2
+
+	for ; n < nfeature; n++ {
+		// generate random forest.
+		forest, oobsteps, e := randomforest.Ensembling(samples, ntree,
+			n, npercent)
+
+		if e != nil {
+			t.Fatal(e)
+		}
+
+		colName := fmt.Sprintf("M%d", n)
+
+		col := dsv.NewColumnReal(oobsteps, colName)
+
+		dataooberr.PushColumn(*col)
+
+		glog.V(2).Info(forest)
+	}
+
+	// write oob data to file
+	writer, e := dsv.NewWriter("")
+
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	e = writer.OpenOutput("oob")
+
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	_, e = writer.WriteDataset(dataooberr, nil)
+	if e != nil {
+		t.Fatal(e)
+	}
 }
