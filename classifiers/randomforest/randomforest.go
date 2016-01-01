@@ -15,8 +15,8 @@ package randomforest
 import (
 	"errors"
 	"github.com/golang/glog"
-	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/classifiers/cart"
+	"github.com/shuLhan/go-mining/dataset"
 )
 
 const (
@@ -52,7 +52,7 @@ type Ensemble struct {
 init check and initialize forest input and attributes.
 */
 func (forest *Ensemble) init(samples *dataset.Reader, ntree int, nfeature int,
-			npercent int) (error) {
+	npercent int) error {
 	// check input samples
 	if samples == nil {
 		return ErrNoInput
@@ -75,7 +75,7 @@ func (forest *Ensemble) init(samples *dataset.Reader, ntree int, nfeature int,
 
 	// count number of samples
 	forest.NSubsample = int(float32(samples.GetNRow()) *
-				(float32(npercent) / 100.0))
+		(float32(npercent) / 100.0))
 
 	forest.Trees = make([]cart.Input, 0)
 
@@ -100,7 +100,7 @@ Ensembling the forest using samples dataset.
 generating a tree.
 */
 func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
-		npercent int) (
+	npercent int) (
 	forest Ensemble,
 	ooberrsteps []float64,
 	e error,
@@ -140,8 +140,8 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 
 		// build tree.
 		cart := cart.Input{
-				SplitMethod: cart.SplitMethodGini,
-			}
+			SplitMethod: cart.SplitMethodGini,
+		}
 
 		e = cart.BuildTree(&pickedCols)
 		if e != nil {
@@ -172,7 +172,7 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 		// calculate error.
 		totalOOBErr += ooberr
 
-		ooberrsteps[t] = totalOOBErr / float64(t + 1)
+		ooberrsteps[t] = totalOOBErr / float64(t+1)
 
 		// Add tree to forest.
 		forest.AddCartTree(cart)

@@ -26,9 +26,11 @@ import (
 // SliceString is for working with element of subset with type is string.
 // Each element of slice is in the form of {"a", ..., "n"}
 type SliceString []string
+
 // SubsetString is for working with subsets of set.
 // Each elemen of slice is in the form of {{"a"},{"b","c"},...}
 type SubsetString []SliceString
+
 // SetString is for working with set of slice of string.
 // Each elemen in set is in the form of {{{"a"},{"b"},{"c"},...}}
 type SetString []SubsetString
@@ -69,7 +71,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infof("%s PartitioningSetString(%v,%v)\n", s, n, k)
 	}
 
@@ -104,7 +108,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infoln(s, " Number of subset:", nsubset)
 	}
 
@@ -118,8 +124,10 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
-		glog.Infoln(s, " el:", el," seed:", seed)
+		for i := 0; i < n; i++ {
+			s += " "
+		}
+		glog.Infoln(s, " el:", el, " seed:", seed)
 	}
 
 	// generate child subset
@@ -127,7 +135,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infoln(s, " genset join :", genset)
 	}
 
@@ -143,7 +153,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infof("%s join %v      : %v\n", s, el, rset)
 	}
 
@@ -151,7 +163,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infoln(s, " genset append :", genset)
 	}
 
@@ -164,7 +178,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 
 	if glog.V(1) {
 		s = ""
-		for i := 0; i < n; i++ { s += " " }
+		for i := 0; i < n; i++ {
+			s += " "
+		}
 		glog.Infof("%s append %v      : %v\n", s, el, rset)
 	}
 
@@ -195,7 +211,7 @@ func IsSliceStringEqual(a SliceString, b SliceString) bool {
 	}
 
 	for c := range check {
-		if ! check[c] {
+		if !check[c] {
 			return false
 		}
 	}
@@ -219,7 +235,7 @@ func IsSubsetStringEqual(a SubsetString, b SubsetString) bool {
 
 	for i := range a {
 		for j := range b {
-			if IsSliceStringEqual(a[i],b[j]) {
+			if IsSliceStringEqual(a[i], b[j]) {
 				check[i] = true
 				break
 			}
@@ -227,7 +243,7 @@ func IsSubsetStringEqual(a SubsetString, b SubsetString) bool {
 	}
 
 	for c := range check {
-		if ! check[c] {
+		if !check[c] {
 			return false
 		}
 	}
@@ -260,7 +276,7 @@ func IsSetStringEqual(a SetString, b SetString) bool {
 
 	for i := range a {
 		for j := range b {
-			if IsSubsetStringEqual(a[i],b[j]) {
+			if IsSubsetStringEqual(a[i], b[j]) {
 				check[i] = true
 				break
 			}
@@ -268,7 +284,7 @@ func IsSetStringEqual(a SetString, b SetString) bool {
 	}
 
 	for c := range check {
-		if ! check[c] {
+		if !check[c] {
 			return false
 		}
 	}

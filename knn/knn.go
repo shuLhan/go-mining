@@ -21,21 +21,21 @@ Input parameters for KNN processing.
 */
 type Input struct {
 	// Dataset training data.
-	Dataset		dsv.Rows
+	Dataset dsv.Rows
 	// DistanceMethod define how the distance between sample will be
 	// measured.
-	DistanceMethod	int
+	DistanceMethod int
 	// ClassIdx define index of class in dataset.
-	ClassIdx	int
+	ClassIdx int
 	// K define number of nearset neighbors that will be searched.
-	K		int
+	K int
 }
 
 /*
 ComputeEuclidianDistance of instance with each sample in dataset.
 */
-func (input *Input) ComputeEuclidianDistance (instanceIdx int) (
-				distances DistanceSlice, e error) {
+func (input *Input) ComputeEuclidianDistance(instanceIdx int) (
+	distances DistanceSlice, e error) {
 	instance := input.Dataset[instanceIdx]
 
 	for rowIdx, row := range input.Dataset {
@@ -56,16 +56,16 @@ func (input *Input) ComputeEuclidianDistance (instanceIdx int) (
 
 			switch ir.V.(type) {
 			case float64:
-				d += math.Abs (ir.Value ().(float64) - sr.Value ().(float64))
+				d += math.Abs(ir.Value().(float64) - sr.Value().(float64))
 			case int64:
-				d += math.Abs (float64(ir.Value ().(int64) - sr.Value ().(int64)))
+				d += math.Abs(float64(ir.Value().(int64) - sr.Value().(int64)))
 			}
 		}
 
 		distances = append(distances, Distance{row, math.Sqrt(d)})
 	}
 
-	sort.Sort (&distances)
+	sort.Sort(&distances)
 
 	return
 }
@@ -74,8 +74,8 @@ func (input *Input) ComputeEuclidianDistance (instanceIdx int) (
 Neighbors return the nearest neighbors as a slice of distance.
 */
 func (input *Input) Neighbors(instanceIdx int) (kneighbors DistanceSlice,
-						e error) {
-	switch (input.DistanceMethod) {
+	e error) {
+	switch input.DistanceMethod {
 	case TEuclidianDistance:
 		kneighbors, e = input.ComputeEuclidianDistance(instanceIdx)
 	}

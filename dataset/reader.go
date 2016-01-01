@@ -363,14 +363,14 @@ func (reader *Reader) PrintTable() (s string) {
 
 func (reader *Reader) String() (s string) {
 	s = fmt.Sprint("{\n",
-	"  InputMetadata     : ", reader.InputMetadata, "\n",
-	"  ClassMetadataIndex: ", reader.ClassMetadataIndex, "\n",
-	"  ClassIndex        : ", reader.ClassIndex, "\n",
-	"  NRow              : ", reader.GetNRow(), "\n",
-	"  Dataset           : ", fmt.Sprint(reader.Dataset), "\n",
-	"  MajorityClass     : ", reader.MajorityClass, "\n",
-	"  MinorityClass     : ", reader.MinorityClass, "\n",
-	"}")
+		"  InputMetadata     : ", reader.InputMetadata, "\n",
+		"  ClassMetadataIndex: ", reader.ClassMetadataIndex, "\n",
+		"  ClassIndex        : ", reader.ClassIndex, "\n",
+		"  NRow              : ", reader.GetNRow(), "\n",
+		"  Dataset           : ", fmt.Sprint(reader.Dataset), "\n",
+		"  MajorityClass     : ", reader.MajorityClass, "\n",
+		"  MinorityClass     : ", reader.MinorityClass, "\n",
+		"}")
 
 	return
 }

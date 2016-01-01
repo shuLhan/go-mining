@@ -149,12 +149,12 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	glog.V(2).Infoln(">>> split v:", splitV)
 
 	node.Value = NodeValue{
-		SplitAttrName:D.Columns[MaxGainIdx].GetName(),
-		IsLeaf:       false,
-		IsContinu:    MaxGain.IsContinu,
-		Size:         nrow,
-		SplitAttrIdx: MaxGainIdx,
-		SplitV:       splitV,
+		SplitAttrName: D.Columns[MaxGainIdx].GetName(),
+		IsLeaf:        false,
+		IsContinu:     MaxGain.IsContinu,
+		Size:          nrow,
+		SplitAttrIdx:  MaxGainIdx,
+		SplitV:        splitV,
 	}
 
 	splitL, splitR, e := D.SplitRowsByValue(MaxGainIdx, splitV)

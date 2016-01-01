@@ -61,7 +61,7 @@ of A.
 The result is saved as gain value in MaxGainValue for each partition.
 */
 func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
-				C *[]string) {
+	C *[]string) {
 	gini.IsContinu = false
 
 	// create partition for possible combination of discrete values.
@@ -92,19 +92,19 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 	}
 
 	// compute gini index for each discrete values
-	for i,subPart := range gini.DiscretePart {
+	for i, subPart := range gini.DiscretePart {
 		// check if sub partition has at least an element
 		if len(subPart) <= 0 {
 			continue
 		}
 
 		sumGI := 0.0
-		for _,part := range subPart {
+		for _, part := range subPart {
 			ndisc := 0.0
 			var subT []string
 
-			for _,el := range part {
-				for t,a := range (*A) {
+			for _, el := range part {
+				for t, a := range *A {
 					if a != el {
 						continue
 					}
@@ -130,8 +130,8 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 			if glog.V(2) {
 				glog.Infoln("subsample:", subT)
 				glog.Infof("Gini(a=%s) = %f/%f * %f = %f\n",
-						part, ndisc, nsample,
-						giniIndex, probIndex)
+					part, ndisc, nsample,
+					giniIndex, probIndex)
 			}
 		}
 
@@ -141,8 +141,8 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 		if glog.V(2) {
 			glog.Infoln("sample:", subPart)
 			glog.Infof("Gain(a=%s) = %f - %f = %f\n",
-					subPart, gini.Value, sumGI,
-					gini.Gain[i])
+				subPart, gini.Value, sumGI,
+				gini.Gain[i])
 		}
 
 		if gini.MinIndexValue > gini.Index[i] && gini.Index[i] != 0 {
@@ -163,7 +163,7 @@ in DiscretePart.
 */
 func (gini *Gini) createDiscretePartition(discval []string) {
 	// no discrete values ?
-	if len(discval) <= 0{
+	if len(discval) <= 0 {
 		return
 	}
 
@@ -197,7 +197,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
 
 	// create partition
-	gini.createContinuPartition (&A2)
+	gini.createContinuPartition(&A2)
 
 	// create holder for gini index and gini gain
 	gini.Index = make([]float64, len(gini.ContinuPart))
@@ -205,7 +205,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	gini.MinIndexValue = 1.0
 
 	// compute gini index for all samples
-	gini.Value = gini.compute (&T2, C)
+	gini.Value = gini.compute(&T2, C)
 
 	gini.computeContinuGain(&A2, &T2, C)
 }
@@ -220,8 +220,8 @@ func (gini *Gini) createContinuPartition(A *[]float64) {
 	gini.ContinuPart = make([]float64, 0)
 
 	// loop from first index until last index - 1
-	for i := 0; i < l - 1; i++ {
-		sum := (*A)[i] + (*A)[i + 1]
+	for i := 0; i < l-1; i++ {
+		sum := (*A)[i] + (*A)[i+1]
 		med := sum / 2.0
 
 		// If median is zero, its mean both left and right value is
@@ -241,7 +241,7 @@ func (gini *Gini) createContinuPartition(A *[]float64) {
 				break
 			}
 		}
-		if ! exist {
+		if !exist {
 			gini.ContinuPart = append(gini.ContinuPart, med)
 		}
 	}
@@ -255,7 +255,7 @@ Return Gini value in the form of,
 	1 - sum (probability of each classes in T)
 */
 func (gini *Gini) compute(T *[]string, C *[]string) float64 {
-	n := float64 (len(*T))
+	n := float64(len(*T))
 
 	if n == 0 {
 		return 0
@@ -263,7 +263,7 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 
 	classCount := make(map[string]int, len(*C))
 
-	for _,v := range *T {
+	for _, v := range *T {
 		classCount[v]++
 	}
 
@@ -276,7 +276,7 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 
 		if glog.V(2) {
 			glog.Infof(" compute (%s): (%f/%f)^2 = %f\n", *T,
-					float64(classCount[i]), n, p * p)
+				float64(classCount[i]), n, p*p)
 		}
 
 	}
@@ -317,7 +317,7 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		for a = range *A {
 			if (*A)[a] > gini.ContinuPart[p] {
 				partidx = a
-				break;
+				break
 			}
 		}
 
@@ -447,18 +447,18 @@ String yes, it will print it JSON like format.
 */
 func (gini Gini) String() (s string) {
 	s = fmt.Sprint("{\n",
-	"  Skip          :", gini.Skip, "\n",
-	"  IsContinu     :", gini.IsContinu, "\n",
-	"  Index         :", gini.Index, "\n",
-	"  Value         :", gini.Value, "\n",
-	"  Gain          :", gini.Gain, "\n",
-	"  MaxPartGain   :", gini.MaxPartGain, "\n",
-	"  MaxGainValue  :", gini.MaxGainValue, "\n",
-	"  MinIndexPart  :", gini.MinIndexPart, "\n",
-	"  MinIndexValue :", gini.MinIndexValue, "\n",
-	"  SortedIndex   :", gini.SortedIndex, "\n",
-	"  ContinuPart   :", gini.ContinuPart, "\n",
-	"  DiscretePart  :", gini.DiscretePart, "\n",
-	"}")
+		"  Skip          :", gini.Skip, "\n",
+		"  IsContinu     :", gini.IsContinu, "\n",
+		"  Index         :", gini.Index, "\n",
+		"  Value         :", gini.Value, "\n",
+		"  Gain          :", gini.Gain, "\n",
+		"  MaxPartGain   :", gini.MaxPartGain, "\n",
+		"  MaxGainValue  :", gini.MaxGainValue, "\n",
+		"  MinIndexPart  :", gini.MinIndexPart, "\n",
+		"  MinIndexValue :", gini.MinIndexValue, "\n",
+		"  SortedIndex   :", gini.SortedIndex, "\n",
+		"  ContinuPart   :", gini.ContinuPart, "\n",
+		"  DiscretePart  :", gini.DiscretePart, "\n",
+		"}")
 	return
 }

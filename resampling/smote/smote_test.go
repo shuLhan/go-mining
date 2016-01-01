@@ -18,16 +18,16 @@ const (
 	fcfg = "../../testdata/phoneme/phoneme.dsv"
 )
 
-func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
-	smot = &smote.SMOTE {
-		Input		: knn.Input {
-			Dataset		: nil,
-			DistanceMethod	: knn.TEuclidianDistance,
-			ClassIdx	: 5,
-			K		: 5,
+func doSmote(reader *dsv.Reader) (smot *smote.SMOTE, e error) {
+	smot = &smote.SMOTE{
+		Input: knn.Input{
+			Dataset:        nil,
+			DistanceMethod: knn.TEuclidianDistance,
+			ClassIdx:       5,
+			K:              5,
 		},
-		PercentOver	: 200,
-		Synthetic	: nil,
+		PercentOver: 200,
+		Synthetic:   nil,
 	}
 
 	classes := reader.Rows.GroupByValue(smot.ClassIdx)
@@ -36,7 +36,7 @@ func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
 	fmt.Println("minority samples:", len(minClass))
 
 	smot.Dataset = minClass
-	synthetic, e := smot.Resampling ()
+	synthetic, e := smot.Resampling()
 
 	if e != nil {
 		return nil, e
@@ -47,7 +47,7 @@ func doSmote (reader *dsv.Reader) (smot *smote.SMOTE, e error) {
 	return smot, e
 }
 
-func TestSmote (t *testing.T) {
+func TestSmote(t *testing.T) {
 	var e error
 	var n int
 	var reader *dsv.Reader
@@ -56,33 +56,33 @@ func TestSmote (t *testing.T) {
 	reader, e = dsv.NewReader(fcfg)
 
 	if nil != e {
-		t.Fatal (e)
+		t.Fatal(e)
 	}
 
 	n, e = dsv.Read(reader)
 
 	if nil != e && e != io.EOF {
-		t.Fatal (e)
+		t.Fatal(e)
 	}
 
-	fmt.Println ("Total samples:", n)
+	fmt.Println("Total samples:", n)
 
-	smot, e := doSmote (reader)
+	smot, e := doSmote(reader)
 
 	if e != nil {
-		t.Fatal (e)
+		t.Fatal(e)
 	}
 
-	reader.Close ()
+	reader.Close()
 
 	// write synthetic samples.
 	writer, e = dsv.NewWriter(fcfg)
 
 	if nil != e {
-		t.Fatal (e)
+		t.Fatal(e)
 	}
 
 	writer.WriteRows(smot.Synthetic, reader.GetInputMetadata())
 
-	writer.Close ()
+	writer.Close()
 }

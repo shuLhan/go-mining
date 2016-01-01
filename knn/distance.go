@@ -15,8 +15,8 @@ import (
 Distance is a mapping between record and their distance.
 */
 type Distance struct {
-	Sample	dsv.Row
-	Value	float64
+	Sample dsv.Row
+	Value  float64
 }
 
 /*
@@ -28,19 +28,19 @@ type DistanceSlice []Distance
 NewDistance create new distance object.
 */
 func NewDistance() Distance {
-	return Distance {
-		Sample	: nil,
-		Value	: 0.0,
+	return Distance{
+		Sample: nil,
+		Value:  0.0,
 	}
 }
 
 /*
 String format the distance object.
 */
-func (d Distance) String () (s string) {
-	s += fmt.Sprint (d.Sample)
+func (d Distance) String() (s string) {
+	s += fmt.Sprint(d.Sample)
 	s += " "
-	s += strconv.FormatFloat (d.Value, 'f', -1, 64)
+	s += strconv.FormatFloat(d.Value, 'f', -1, 64)
 	s += "\n"
 
 	return s
@@ -49,14 +49,14 @@ func (d Distance) String () (s string) {
 /*
 Len return length of slice.
 */
-func (jarak *DistanceSlice) Len () int {
-	return len (*jarak)
+func (jarak *DistanceSlice) Len() int {
+	return len(*jarak)
 }
 
 /*
 Less return true if i < j.
 */
-func (jarak *DistanceSlice) Less (i, j int) bool {
+func (jarak *DistanceSlice) Less(i, j int) bool {
 	if (*jarak)[i].Value < (*jarak)[j].Value {
 		return true
 	}
@@ -66,8 +66,8 @@ func (jarak *DistanceSlice) Less (i, j int) bool {
 /*
 Swap content of object in index i with index j.
 */
-func (jarak *DistanceSlice) Swap (i, j int) {
-	var tmp = &Distance{};
+func (jarak *DistanceSlice) Swap(i, j int) {
+	var tmp = &Distance{}
 
 	tmp.Sample = (*jarak)[i].Sample
 	tmp.Value = (*jarak)[i].Value

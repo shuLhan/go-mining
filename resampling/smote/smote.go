@@ -45,11 +45,11 @@ const (
 /*
 Init parameter, set to default value if it not valid.
 */
-func (smote *SMOTE) Init () error {
-	rand.Seed (time.Now ().UnixNano ())
+func (smote *SMOTE) Init() error {
+	rand.Seed(time.Now().UnixNano())
 
 	if smote.Dataset == nil {
-		return errors.New ("No input dataset.")
+		return errors.New("No input dataset.")
 	}
 	if smote.K <= 0 {
 		smote.K = DefaultK
@@ -72,7 +72,7 @@ func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 	var ir *dsv.Record
 	var sr *dsv.Record
 
-	lenAttr = len (*instance)
+	lenAttr = len(*instance)
 
 	for i = 0; i < smote.n; i++ {
 		// choose one of the K nearest neighbors
@@ -90,11 +90,11 @@ func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 			ir = (*instance)[attr]
 			sr = sample[attr]
 
-			iv = ir.Value ().(float64)
-			sv = sr.Value ().(float64)
+			iv = ir.Value().(float64)
+			sv = sr.Value().(float64)
 
 			dif = sv - iv
-			gap = rand.Float64 ()
+			gap = rand.Float64()
 			newAttr = iv + (gap * dif)
 
 			record := &dsv.Record{}
