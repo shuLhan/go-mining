@@ -100,6 +100,9 @@ func (reader *Reader) GetInputMetadata() []dsv.MetadataInterface {
 	return md
 }
 
+/*
+PushMetadata push new metadata to reader.
+*/
 func (reader *Reader) PushMetadata(md Metadata) {
 	reader.InputMetadata = append(reader.InputMetadata, md)
 }
