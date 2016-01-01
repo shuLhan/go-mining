@@ -46,7 +46,7 @@ type Gini struct {
 	// ContinuPart contain list of partition value for continuous attribute.
 	ContinuPart []float64
 	// DiscretePart contain the possible combination of discrete values.
-	DiscretePart set.SetString
+	DiscretePart set.TableStrings
 	// Index contain list of Gini Index for each partition.
 	Index []float64
 	// Gain contain information gain for each partition.
@@ -169,7 +169,7 @@ func (gini *Gini) createDiscretePartition(discval []string) {
 
 	// use set partition function to group the discrete values into two
 	// subset.
-	gini.DiscretePart = set.PartitioningSetString(discval, 2)
+	gini.DiscretePart = set.PartitioningTableStrings(discval, 2)
 }
 
 /*

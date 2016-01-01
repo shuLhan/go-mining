@@ -23,20 +23,24 @@ import (
 	"github.com/shuLhan/go-mining/math"
 )
 
-// SliceString is for working with element of subset with type is string.
-// Each element of slice is in the form of {"a", ..., "n"}
-type SliceString []string
+// Strings is for working with element of subset with type is string.
+// Each element of slice is in the form of ["a", ..., "n"]
+type Strings []string
 
-// SubsetString is for working with subsets of set.
-// Each elemen of slice is in the form of {{"a"},{"b","c"},...}
-type SubsetString []SliceString
+// ListStrings is for working with subsets of set.
+// Each elemen of slice is in the form of [["a"],["b","c"],...]
+type ListStrings []Strings
 
-// SetString is for working with set of slice of string.
-// Each elemen in set is in the form of {{{"a"},{"b"},{"c"},...}}
-type SetString []SubsetString
+// TableStrings is for working with set of slice of string.
+// Each elemen in set is in the form of
+// [
+//	[["a"],["b","c"],...],
+//	[["x"],["y",z"],...]
+// ]
+type TableStrings []ListStrings
 
 /*
-PartitioningSetString will group the set's element `orgseed` into non-empty
+PartitioningTableStrings will group the set's element `orgseed` into non-empty
 subsets, in such a way that every element is included in one and only of the
 subsets.
 
@@ -62,11 +66,11 @@ For more information see,
 - https://en.wikipedia.org/wiki/Partition_of_a_set
 - https://en.wikipedia.org/wiki/Partition_of_a_set
 */
-func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
+func PartitioningTableStrings(orgseed Strings, k int) (rset TableStrings) {
 	var s string
 
 	n := len(orgseed)
-	seed := make(SliceString, n)
+	seed := make(Strings, n)
 	copy(seed, orgseed)
 
 	if glog.V(1) {
@@ -74,16 +78,16 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 		for i := 0; i < n; i++ {
 			s += " "
 		}
-		glog.Infof("%s PartitioningSetString(%v,%v)\n", s, n, k)
+		glog.Infof("%s PartitioningTableStrings(%v,%v)\n", s, n, k)
 	}
 
 	// if only one split return the set contain only seed as subset.
 	// input: {a,b,c},  output: {{a,b,c}}
 	if k == 1 {
-		subset := make(SubsetString, 1)
+		subset := make(ListStrings, 1)
 		subset[0] = seed
 
-		rset := make(SetString, 1)
+		rset := make(TableStrings, 1)
 		rset[0] = subset
 		return rset
 	}
@@ -92,13 +96,13 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 	// that contain each element in subset.
 	// input: {a,b,c},  output:= {{a},{b},{c}}
 	if n == k {
-		subset := make(SubsetString, n)
+		subset := make(ListStrings, n)
 
 		for el := range seed {
-			subset[el] = SliceString{seed[el]}
+			subset[el] = Strings{seed[el]}
 		}
 
-		rset := make(SetString, 1)
+		rset := make(TableStrings, 1)
 		rset[0] = subset
 
 		return rset
@@ -114,7 +118,7 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 		glog.Infoln(s, " Number of subset:", nsubset)
 	}
 
-	rset = make(SetString, 0)
+	rset = make(TableStrings, 0)
 
 	// take the first element
 	el := seed[0]
@@ -131,7 +135,7 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 	}
 
 	// generate child subset
-	genset := PartitioningSetString(seed, k)
+	genset := PartitioningTableStrings(seed, k)
 
 	if glog.V(1) {
 		s = ""
@@ -144,7 +148,7 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 	// join elemen with generated set
 	for sub := range genset {
 		for s := range genset[sub] {
-			subset := make(SubsetString, len(genset[sub]))
+			subset := make(ListStrings, len(genset[sub]))
 			copy(subset, genset[sub])
 			subset[s] = append(subset[s], el)
 			rset = append(rset, subset)
@@ -159,7 +163,7 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 		glog.Infof("%s join %v      : %v\n", s, el, rset)
 	}
 
-	genset = PartitioningSetString(seed, k-1)
+	genset = PartitioningTableStrings(seed, k-1)
 
 	if glog.V(1) {
 		s = ""
@@ -170,9 +174,9 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 	}
 
 	for subidx := range genset {
-		subset := make(SubsetString, len(genset[subidx]))
+		subset := make(ListStrings, len(genset[subidx]))
 		copy(subset, genset[subidx])
-		subset = append(subset, SliceString{el})
+		subset = append(subset, Strings{el})
 		rset = append(rset, subset)
 	}
 
@@ -188,14 +192,14 @@ func PartitioningSetString(orgseed SliceString, k int) (rset SetString) {
 }
 
 /*
-IsSliceStringEqual compare elements of two slice of string without regard to
+IsStringsEqual compare elements of two slice of string without regard to
 their order
 
 	{"a","b"} == {"b","a"} is true
 
 Return true if each both slice have the same elements, false otherwise.
 */
-func IsSliceStringEqual(a SliceString, b SliceString) bool {
+func IsStringsEqual(a Strings, b Strings) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -219,14 +223,14 @@ func IsSliceStringEqual(a SliceString, b SliceString) bool {
 }
 
 /*
-IsSubsetStringEqual compare two subset of slice of string without regard to
+IsListStringsEqual compare two subset of slice of string without regard to
 their order.
 
 	{{"a"},{"b"}} == {{"b"},{"a"}} is true.
 
 Return true if both contain the same subset, false otherwise.
 */
-func IsSubsetStringEqual(a SubsetString, b SubsetString) bool {
+func IsListStringsEqual(a ListStrings, b ListStrings) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -235,7 +239,7 @@ func IsSubsetStringEqual(a SubsetString, b SubsetString) bool {
 
 	for i := range a {
 		for j := range b {
-			if IsSliceStringEqual(a[i], b[j]) {
+			if IsStringsEqual(a[i], b[j]) {
 				check[i] = true
 				break
 			}
@@ -251,7 +255,7 @@ func IsSubsetStringEqual(a SubsetString, b SubsetString) bool {
 }
 
 /*
-IsSetStringEqual compare two set of string without regard to their order.
+IsTableStringsEqual compare two set of string without regard to their order.
 
 	{
 		{{"a"},{"b"}},
@@ -267,7 +271,7 @@ is equal to
 
 Return true if both set is contain the same subset, false otherwise.
 */
-func IsSetStringEqual(a SetString, b SetString) bool {
+func IsTableStringsEqual(a TableStrings, b TableStrings) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -276,7 +280,7 @@ func IsSetStringEqual(a SetString, b SetString) bool {
 
 	for i := range a {
 		for j := range b {
-			if IsSubsetStringEqual(a[i], b[j]) {
+			if IsListStringsEqual(a[i], b[j]) {
 				check[i] = true
 				break
 			}
@@ -292,10 +296,10 @@ func IsSetStringEqual(a SetString, b SetString) bool {
 }
 
 /*
-IsSliceStringContain return true if slice of string contain elemen `el`,
+IsStringsContain return true if slice of string contain elemen `el`,
 otherwise return false.
 */
-func IsSliceStringContain(ss SliceString, el string) bool {
+func IsStringsContain(ss Strings, el string) bool {
 	for i := range ss {
 		if ss[i] == el {
 			return true

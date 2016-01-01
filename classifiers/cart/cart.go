@@ -141,7 +141,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		splitV = MaxGain.GetMaxPartGainValue()
 	} else {
 		attrPartV := MaxGain.GetMaxPartGainValue()
-		attrSubV := attrPartV.(set.SubsetString)
+		attrSubV := attrPartV.(set.ListStrings)
 		splitV = attrSubV[0]
 	}
 
@@ -272,11 +272,11 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 					node = node.Right
 				}
 			} else {
-				splitV := nodev.SplitV.(set.SliceString)
+				splitV := nodev.SplitV.(set.Strings)
 				attrV := (*data).Columns[nodev.SplitAttrIdx].
 					Records[i].String()
 
-				if set.IsSliceStringContain(splitV, attrV) {
+				if set.IsStringsContain(splitV, attrV) {
 					node = node.Left
 				} else {
 					node = node.Right
