@@ -23,11 +23,11 @@ import (
 	"github.com/shuLhan/go-mining/math"
 )
 
-// Strings is for working with element of subset with type is string.
+// Strings is for working with element of list with type is string.
 // Each element of slice is in the form of ["a", ..., "n"]
 type Strings []string
 
-// ListStrings is for working with subsets of set.
+// ListStrings is for working with lists of set.
 // Each elemen of slice is in the form of [["a"],["b","c"],...]
 type ListStrings []Strings
 
@@ -40,9 +40,62 @@ type ListStrings []Strings
 type TableStrings []ListStrings
 
 /*
+SinglePartitionStrings create a table from a set of string, where each elemen
+in a set become a single set.
+
+Input: [a,b,c]
+output:
+    [
+        [[a],[b],[c]]
+    ]
+*/
+func SinglePartitionStrings(set Strings) (table TableStrings) {
+	list := make(ListStrings, len(set))
+
+	for x, el := range set {
+		list[x] = Strings{el}
+	}
+
+	table = append(table, list)
+	return
+}
+
+/*
+JoinStringToTable will append string `s` to each set in list.
+For example, given string `s` and input table `[[["a"]["b"]["c"]]]`, the
+output table will be,
+[
+	[["a","s"]["b"]    ["c"]],
+	[["a"]    ["b","s"]["c"]],
+	[["a"]    ["b"]    ["c","s"]]
+]
+*/
+func JoinStringToTable(s string, tableIn, tableOut TableStrings) TableStrings {
+	for _, list := range tableIn {
+		for y := range list {
+			newList := make(ListStrings, len(list))
+			copy(newList, list)
+			newList[y] = append(newList[y], s)
+			tableOut = append(tableOut, newList)
+		}
+	}
+	return tableOut
+}
+
+/*
+createIndent will create n space indentation and return it.
+*/
+func createIndent(n int) (s string) {
+	for i := 0; i < n; i++ {
+		s += " "
+	}
+	return
+}
+
+/*
 PartitioningTableStrings will group the set's element `orgseed` into non-empty
-subsets, in such a way that every element is included in one and only of the
-subsets.
+lists, in such a way that every element is included in one and only of the
+lists.
 
 Given a list of element in `orgseed`, and number of partition `k`, return
 the set of all group of all elements without duplication.
@@ -60,65 +113,42 @@ if partitioned into 3 group (k=3) will result in,
 		{{a},{b},{c}},
 	}
 
-Number of possible subset can be computed using Stirling number of second kind.
+Number of possible list can be computed using Stirling number of second kind.
 
 For more information see,
 - https://en.wikipedia.org/wiki/Partition_of_a_set
-- https://en.wikipedia.org/wiki/Partition_of_a_set
 */
-func PartitioningTableStrings(orgseed Strings, k int) (rset TableStrings) {
-	var s string
-
+func PartitioningTableStrings(orgseed Strings, k int) (table TableStrings) {
 	n := len(orgseed)
 	seed := make(Strings, n)
 	copy(seed, orgseed)
 
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infof("%s PartitioningTableStrings(%v,%v)\n", s, n, k)
-	}
+	glog.V(1).Infof("%s PartitioningTableStrings(%v,%v)\n",
+		createIndent(n), n, k)
 
-	// if only one split return the set contain only seed as subset.
+	// if only one split return the set contain only seed as list.
 	// input: {a,b,c},  output: {{a,b,c}}
 	if k == 1 {
-		subset := make(ListStrings, 1)
-		subset[0] = seed
+		list := make(ListStrings, 1)
+		list[0] = seed
 
-		rset := make(TableStrings, 1)
-		rset[0] = subset
-		return rset
+		table := make(TableStrings, 1)
+		table[0] = list
+		return table
 	}
 
 	// if number of element in set equal with number split, return the set
-	// that contain each element in subset.
+	// that contain each element in list.
 	// input: {a,b,c},  output:= {{a},{b},{c}}
 	if n == k {
-		subset := make(ListStrings, n)
-
-		for el := range seed {
-			subset[el] = Strings{seed[el]}
-		}
-
-		rset := make(TableStrings, 1)
-		rset[0] = subset
-
-		return rset
+		return SinglePartitionStrings(seed)
 	}
 
-	nsubset := math.StirlingS2(n, k)
+	nlist := math.StirlingS2(n, k)
 
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infoln(s, " Number of subset:", nsubset)
-	}
+	glog.V(1).Infof("%s Number of list: %v", createIndent(n), nlist)
 
-	rset = make(TableStrings, 0)
+	table = make(TableStrings, 0)
 
 	// take the first element
 	el := seed[0]
@@ -126,69 +156,32 @@ func PartitioningTableStrings(orgseed Strings, k int) (rset TableStrings) {
 	// remove the first element from set
 	seed = append(seed[:0], seed[1:]...)
 
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infoln(s, " el:", el, " seed:", seed)
-	}
+	glog.V(1).Infof("%s el: %s, seed:", createIndent(n), el, seed)
 
-	// generate child subset
-	genset := PartitioningTableStrings(seed, k)
+	// generate child list
+	genTable := PartitioningTableStrings(seed, k)
 
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infoln(s, " genset join :", genset)
-	}
+	glog.V(1).Infof("%s genTable join: %v", createIndent(n), genTable)
 
 	// join elemen with generated set
-	for sub := range genset {
-		for s := range genset[sub] {
-			subset := make(ListStrings, len(genset[sub]))
-			copy(subset, genset[sub])
-			subset[s] = append(subset[s], el)
-			rset = append(rset, subset)
-		}
+	table = JoinStringToTable(el, genTable, table)
+
+	glog.V(1).Infof("%s join %s      : %v\n", createIndent(n), el, table)
+
+	genTable = PartitioningTableStrings(seed, k-1)
+
+	glog.V(1).Infof("%s genTable append :", createIndent(n), genTable)
+
+	for subidx := range genTable {
+		list := make(ListStrings, len(genTable[subidx]))
+		copy(list, genTable[subidx])
+		list = append(list, Strings{el})
+		table = append(table, list)
 	}
 
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infof("%s join %v      : %v\n", s, el, rset)
-	}
+	glog.V(1).Infof("%s append %v      : %v\n", createIndent(n), el, table)
 
-	genset = PartitioningTableStrings(seed, k-1)
-
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infoln(s, " genset append :", genset)
-	}
-
-	for subidx := range genset {
-		subset := make(ListStrings, len(genset[subidx]))
-		copy(subset, genset[subidx])
-		subset = append(subset, Strings{el})
-		rset = append(rset, subset)
-	}
-
-	if glog.V(1) {
-		s = ""
-		for i := 0; i < n; i++ {
-			s += " "
-		}
-		glog.Infof("%s append %v      : %v\n", s, el, rset)
-	}
-
-	return rset
+	return
 }
 
 /*
@@ -223,12 +216,12 @@ func IsStringsEqual(a Strings, b Strings) bool {
 }
 
 /*
-IsListStringsEqual compare two subset of slice of string without regard to
+IsListStringsEqual compare two list of slice of string without regard to
 their order.
 
 	{{"a"},{"b"}} == {{"b"},{"a"}} is true.
 
-Return true if both contain the same subset, false otherwise.
+Return true if both contain the same list, false otherwise.
 */
 func IsListStringsEqual(a ListStrings, b ListStrings) bool {
 	if len(a) != len(b) {
@@ -269,7 +262,7 @@ is equal to
 		{{"b"},{"a"}}
 	}
 
-Return true if both set is contain the same subset, false otherwise.
+Return true if both set is contain the same list, false otherwise.
 */
 func IsTableStringsEqual(a TableStrings, b TableStrings) bool {
 	if len(a) != len(b) {
