@@ -18,6 +18,8 @@ package cart
 
 import (
 	"github.com/golang/glog"
+	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/set"
@@ -32,12 +34,23 @@ const (
 	SplitMethodGini = 0
 )
 
+const (
+	// ColFlagParent denote that the column is parent/split node.
+	ColFlagParent = 1
+	// ColFlagSkip denote that the column would be skipped.
+	ColFlagSkip = 2
+)
+
 /*
 Input data for building CART.
 */
 type Input struct {
 	// SplitMethod define the criteria to used for splitting.
 	SplitMethod int
+	// NRandomFeature if less or equal to zero compute gain on all feature,
+	// otherwise select n random feature and compute gain only on selected
+	// features.
+	NRandomFeature int
 	// OOBErrVal is the last out-of-bag error value in the tree.
 	OOBErrVal float64
 	// tree in classification.
@@ -163,20 +176,20 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		return node, e
 	}
 
-	// Set the Skip flag to true in attribute referenced by
+	// Set the flag to parent in attribute referenced by
 	// MaxGainIdx, so it will not computed again in the next round.
-	for i := range splitL.InputMetadata {
-		if i == MaxGainIdx {
-			splitL.InputMetadata[i].Skip = true
+	for x, col := range splitL.Columns {
+		if x == MaxGainIdx {
+			col.Flag = ColFlagParent
 		} else {
-			splitL.InputMetadata[i].Skip = false
+			col.Flag = 0
 		}
 	}
-	for i := range splitR.InputMetadata {
-		if i == MaxGainIdx {
-			splitR.InputMetadata[i].Skip = true
+	for x, col := range splitR.Columns {
+		if x == MaxGainIdx {
+			col.Flag = ColFlagParent
 		} else {
-			splitR.InputMetadata[i].Skip = false
+			col.Flag = 0
 		}
 	}
 
@@ -196,6 +209,36 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	return node, nil
 }
 
+// SelectRandomFeature if NRandomFeature is greater than zero, select and
+// compute gain in n random features instead of in all features
+func (in *Input) SelectRandomFeature(D *dataset.Reader) {
+	if in.NRandomFeature <= 0 {
+		// all features selected
+		return
+	}
+
+	// exclude class index and parent node index
+	excludeIdx := []int{D.ClassIndex}
+	for x, col := range (*D).Columns {
+		if (col.Flag & ColFlagParent) == ColFlagParent {
+			excludeIdx = append(excludeIdx, x)
+		}
+		D.Columns[x].Flag |= ColFlagSkip
+	}
+
+	var pickedIdx []int
+	for x := 0; x < in.NRandomFeature; x++ {
+		idx := util.GetRandomInteger(D.GetNColumn(), false, pickedIdx,
+			excludeIdx)
+		pickedIdx = append(pickedIdx, idx)
+
+		D.Columns[idx].Flag = D.Columns[idx].Flag &^ ColFlagSkip
+	}
+
+	glog.V(1).Info(">>> selected random features: ", pickedIdx)
+	glog.V(1).Info(">>> selected columns        : ", D.Columns)
+}
+
 /*
 computeGiniGain calculate the gini index for each value in each attribute.
 */
@@ -206,18 +249,26 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 		gains = make([]gini.Gini, D.GetNColumn())
 	}
 
-	targetV := D.GetTarget().ToStringSlice()
-	classes := D.GetClass()
+	in.SelectRandomFeature(D)
 
-	for i := range (*D).InputMetadata {
+	targetV := D.GetTarget().ToStringSlice()
+	classes := D.GetTargetClass()
+
+	for x, col := range (*D).Columns {
 		// skip class attribute.
-		if i == D.ClassMetadataIndex {
+		if x == D.ClassIndex {
 			continue
 		}
 
-		// skip attribute with Skip is true
-		if D.InputMetadata[i].Skip {
-			gains[i].Skip = true
+		// skip column flagged with parent
+		if (col.Flag & ColFlagParent) == ColFlagParent {
+			gains[x].Skip = true
+			continue
+		}
+
+		// ignore column flagged with skip
+		if (col.Flag & ColFlagSkip) == ColFlagSkip {
+			gains[x].Skip = true
 			continue
 		}
 
@@ -225,23 +276,22 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 		copy(target, targetV)
 
 		// compute gain.
-		if (*D).InputMetadata[i].IsContinu {
-			col := (*D).Columns[i]
+		if col.GetType() == dsv.TReal {
 			attr := col.ToFloatSlice()
 
-			gains[i].ComputeContinu(&attr, &target, &classes)
+			gains[x].ComputeContinu(&attr, &target, &classes)
 		} else {
-			attr := (*D).Columns[i].ToStringSlice()
-			attrV := (*D).InputMetadata[i].NominalValues
+			attr := col.ToStringSlice()
+			attrV := col.ValueSpace
 
 			glog.V(2).Infoln(">>> attr :", attr)
 			glog.V(2).Infoln(">>> attrV:", attrV)
 
-			gains[i].ComputeDiscrete(&attr, &attrV, &target,
+			gains[x].ComputeDiscrete(&attr, &attrV, &target,
 				&classes)
 		}
 
-		glog.V(2).Infoln(">>> gain :", gains[i])
+		glog.V(2).Infoln(">>> gain :", gains[x])
 	}
 	return
 }
@@ -300,6 +350,9 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	// save the original target to be compared later.
 	origTarget := oob.GetTarget().ToStringSlice()
 
+	glog.V(2).Info(">>> OOB:", oob.Columns)
+	glog.V(2).Info(">>> TREE:", &in.Tree)
+
 	// reset the target.
 	oob.GetTarget().ClearValues()
 
@@ -321,6 +374,8 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 
 	for x, row := range target {
 		if row != origTarget[x] {
+			glog.V(1).Info(">>> miss ", oob.Rows[x],
+				" expecting ", origTarget[x])
 			miss++
 		}
 	}

@@ -13,12 +13,12 @@ import (
 NodeValue of tree in CART.
 */
 type NodeValue struct {
+	// Class of leaf node.
+	Class string
 	// SplitAttrName define the name of attribute which cause the split.
 	SplitAttrName string
 	// IsLeaf define whether node is a leaf or not.
 	IsLeaf bool
-	// Class of leaf node.
-	Class string
 	// IsContinu define whether the node split is continuous or discrete.
 	IsContinu bool
 	// Size define number of sample that this node hold before splitting.
