@@ -92,6 +92,8 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	nrow := D.GetNRow()
 
 	if nrow <= 0 {
+		glog.V(2).Info(">>> empty dataset (", D.GetMajorityClass(),
+			") : ", D)
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  D.GetMajorityClass(),
@@ -104,6 +106,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// is set to that class.
 	single, name := D.IsInSingleClass()
 	if single {
+		glog.V(2).Info(">>> in single class (", name, "): ", D.Columns)
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  name,
