@@ -86,7 +86,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 	// number of samples
 	nsample := float64(len(*A))
 
-	if glog.V(2) {
+	if glog.V(3) {
 		glog.Infoln("sample:", T)
 		glog.Infof("Gini(a=%s) = %f\n", (*A), gini.Value)
 	}
@@ -127,7 +127,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 			// sum all probabilities times gini index.
 			sumGI += probIndex
 
-			if glog.V(2) {
+			if glog.V(3) {
 				glog.Infoln("subsample:", subT)
 				glog.Infof("Gini(a=%s) = %f/%f * %f = %f\n",
 					part, ndisc, nsample,
@@ -138,7 +138,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 		gini.Index[i] = sumGI
 		gini.Gain[i] = gini.Value - sumGI
 
-		if glog.V(2) {
+		if glog.V(3) {
 			glog.Infoln("sample:", subPart)
 			glog.Infof("Gain(a=%s) = %f - %f = %f\n",
 				subPart, gini.Value, sumGI,
@@ -191,7 +191,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 
 	gini.SortedIndex = util.IndirectSortFloat64(A2)
 
-	glog.V(2).Infoln(">>> attr sorted :", A2)
+	glog.V(1).Infoln(">>> attr sorted :", A2)
 
 	// sort the target attribute using sorted index.
 	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
@@ -274,7 +274,7 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 		p = float64(classCount[i]) / n
 		sump2 += (p * p)
 
-		if glog.V(2) {
+		if glog.V(3) {
 			glog.Infof(" compute (%s): (%f/%f)^2 = %f\n", *T,
 				float64(classCount[i]), n, p*p)
 		}
@@ -297,8 +297,6 @@ where,
 	- right is sub-sample from S that is greater than part value.
 */
 func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
-	var a, nleft, nright, partidx int
-	var pleft, pright float64
 	var gleft, gright float64
 	var tleft, tright []string
 
@@ -309,22 +307,22 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		glog.Infoln("Gini.Value:", gini.Value)
 	}
 
-	for p := range gini.ContinuPart {
+	for p, contVal := range gini.ContinuPart {
 
 		// find the split of samples between partition based on
 		// partition value
-		partidx = nsample
-		for a = range *A {
-			if (*A)[a] > gini.ContinuPart[p] {
-				partidx = a
+		partidx := nsample
+		for x, attrVal := range *A {
+			if attrVal > contVal {
+				partidx = x
 				break
 			}
 		}
 
-		nleft = partidx
-		nright = nsample - partidx
-		pleft = float64(nleft) / float64(nsample)
-		pright = float64(nright) / float64(nsample)
+		nleft := partidx
+		nright := nsample - partidx
+		pleft := float64(nleft) / float64(nsample)
+		pright := float64(nright) / float64(nsample)
 
 		if partidx > 0 {
 			tleft = (*T)[0:partidx]
@@ -344,12 +342,12 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		gini.Index[p] = ((pleft * gleft) + (pright * gright))
 		gini.Gain[p] = gini.Value - gini.Index[p]
 
-		if glog.V(2) {
+		if glog.V(3) {
 			glog.Infoln(tleft)
 			glog.Infoln(tright)
 
 			glog.Infof("GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
-				gini.ContinuPart[p], gini.Value, pleft, gleft,
+				contVal, gini.Value, pleft, gleft,
 				pright, gright, gini.Gain[p])
 		}
 
