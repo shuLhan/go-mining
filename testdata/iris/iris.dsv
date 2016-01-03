@@ -4,7 +4,7 @@
 ,	"MaxRows"		:-1
 ,	"ClassMetadataIndex"	:4
 ,	"ClassIndex"		:4
-,	"DatasetMode"		:"columns"
+,	"DatasetMode"		:"matrix"
 ,	"InputMetadata"		:
 	[{
 		"Name"			:"sepal-length"

@@ -1,4 +1,6 @@
 classifiers/randomforest/oob
+classifiers/randomforest/oobglass
+classifiers/randomforest/oobiris
 *.rej
 resampling/smote/testdata/phoneme.csv
 testdata/phoneme/phoneme.csv

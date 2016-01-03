@@ -14,9 +14,23 @@ import (
 	"testing"
 )
 
-func TestEnsembling(t *testing.T) {
+const (
+	// NTREE number of tree to generate.
+	NTREE = 1
+	// NBOOTSTRAP percentage of sample used as subsample.
+	NBOOTSTRAP = 63
+	// FEATSTART number of feature to begin with.
+	FEATSTART = 3
+	// FEATEND maximum number of feature to test
+	FEATEND = 4
+)
+
+func runRandomForest(t *testing.T, sampledsv string,
+	ntree, npercent, nStart, nEnd int,
+	oobFile string,
+) {
 	// read data.
-	samples, e := dataset.NewReader("../../testdata/forensic_glass/glass.dsv")
+	samples, e := dataset.NewReader(sampledsv)
 
 	if nil != e {
 		t.Fatal(e)
@@ -37,29 +51,27 @@ func TestEnsembling(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	// number of tree to generate.
-	ntree := 500
-	// percentage of sample used as subsample.
-	npercent := 63
+	if nEnd < 0 {
+		nEnd = samples.GetNColumn()
+	}
 
-	nfeature := samples.GetNColumn()
-	n := 2
-	//nfeature := n + 1
-
-	for ; n < nfeature; n++ {
+	for ; nStart < nEnd; nStart++ {
 		// generate random forest.
 		forest, oobsteps, e := randomforest.Ensembling(samples, ntree,
-			n, npercent)
+			nStart, npercent)
 
 		if e != nil {
 			t.Fatal(e)
 		}
 
-		colName := fmt.Sprintf("M%d", n)
+		colName := fmt.Sprintf("M%d", nStart)
 
 		col := dsv.NewColumnReal(oobsteps, colName)
 
-		dataooberr.PushColumn(*col)
+		e = dataooberr.PushColumn(*col)
+		if e != nil {
+			t.Fatal(e)
+		}
 
 		glog.V(2).Info(forest)
 	}
@@ -71,7 +83,7 @@ func TestEnsembling(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	e = writer.OpenOutput("oob")
+	e = writer.OpenOutput(oobFile)
 
 	if e != nil {
 		t.Fatal(e)
@@ -81,4 +93,23 @@ func TestEnsembling(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+}
+
+func TestEnsemblingGlass(t *testing.T) {
+	sampledsv := "../../testdata/forensic_glass/fgl.dsv"
+	// oob file output
+	oobFile := "oobglass"
+
+	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
+}
+
+func TestEnsemblingIris(t *testing.T) {
+	// input data
+	sampledsv := "../../testdata/iris/iris.dsv"
+	// oob file output
+	oobFile := "oobiris"
+
+	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
 }
