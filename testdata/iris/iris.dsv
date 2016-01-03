@@ -9,27 +9,23 @@
 	[{
 		"Name"			:"sepal-length"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"sepal-width"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"petal-length"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"petal-width"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"class"
 	,	"Type"			:"string"
-	,	"NominalValues"		:
+	,	"ValueSpace"		:
 		[
 			"Iris-setosa"
 		,	"Iris-versicolor"

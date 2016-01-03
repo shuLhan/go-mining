@@ -6,10 +6,6 @@
 Package dataset extend the dsv.Reader to read data from delimited separated
 value (DSV) file by adding attribute ClassIndex which indicate the index of
 target attribute (class) in data.
-
-This package also extends the metadata to include additional attribute
-IsContinue (to indicate whether the column is continuous) and NominalValues
-(which contain the discrete values).
 */
 package dataset
 
@@ -27,8 +23,6 @@ and the data.
 type Reader struct {
 	// Reader embed dsv.Reader
 	dsv.Reader
-	// InputMetadata with additional attributes.
-	InputMetadata []Metadata `json:"InputMetadata"`
 	// ClassMetadataIndex target classification in metadata
 	ClassMetadataIndex int `json:"ClassMetadataIndex"`
 	// ClassIndex for target classification in columns attributes.
@@ -78,11 +72,8 @@ func (reader *Reader) ReaderCopy(src *Reader) {
 	}
 
 	mdlen := len(src.InputMetadata)
-	reader.InputMetadata = make([]Metadata, mdlen)
-
-	for x := 0; x < mdlen; x++ {
-		reader.InputMetadata[x] = src.InputMetadata[x].CreateCopy()
-	}
+	reader.InputMetadata = make([]dsv.Metadata, mdlen)
+	copy(reader.InputMetadata, src.InputMetadata)
 
 	reader.CopyConfig(src)
 }
@@ -103,7 +94,7 @@ func (reader *Reader) GetInputMetadata() []dsv.MetadataInterface {
 /*
 PushMetadata push new metadata to reader.
 */
-func (reader *Reader) PushMetadata(md Metadata) {
+func (reader *Reader) PushMetadata(md dsv.Metadata) {
 	reader.InputMetadata = append(reader.InputMetadata, md)
 }
 
@@ -112,7 +103,7 @@ CountMajorMinorClass recount major and minor class in dataset.
 */
 func (reader *Reader) CountMajorMinorClass() {
 	targetV := reader.GetTarget().ToStringSlice()
-	classV := reader.GetClass()
+	classV := reader.GetTargetClass()
 
 	classCount := util.StringCountBy(targetV, classV)
 
@@ -139,17 +130,17 @@ func (reader *Reader) Read() (e error) {
 }
 
 /*
-GetClass return the classification values.
+GetTargetMetadata return the target attribute of input.
 */
-func (reader *Reader) GetClass() []string {
-	return reader.InputMetadata[reader.ClassMetadataIndex].NominalValues
+func (reader *Reader) GetTargetMetadata() dsv.Metadata {
+	return reader.InputMetadata[reader.ClassMetadataIndex]
 }
 
 /*
-GetTargetMetadata return the target attribute of input.
+GetTargetClass return the classification values.
 */
-func (reader *Reader) GetTargetMetadata() Metadata {
-	return reader.InputMetadata[reader.ClassMetadataIndex]
+func (reader *Reader) GetTargetClass() []string {
+	return reader.Columns[reader.ClassIndex].ValueSpace
 }
 
 /*
@@ -261,7 +252,7 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	}
 
 	// set picked metadata
-	var mds []Metadata
+	var mds []dsv.Metadata
 
 	for _, v := range pickedIdx {
 		mds = append(mds, reader.InputMetadata[v])
@@ -269,7 +260,7 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	picked.InputMetadata = mds
 
 	// set unpicked metadata
-	mds = make([]Metadata, 0)
+	mds = make([]dsv.Metadata, 0)
 	for _, v := range unpickedIdx {
 		mds = append(mds, reader.InputMetadata[v])
 	}
@@ -340,17 +331,13 @@ func (reader *Reader) PrintTable() (s string) {
 	for a := range reader.InputMetadata {
 		s += fmt.Sprintf("\t[%d]", a)
 	}
-	s += "\nCont:"
-	for a := range reader.InputMetadata {
-		s += fmt.Sprint("\t", reader.InputMetadata[a].IsContinu)
-	}
 	s += "\n"
 
 	for i := 0; i < reader.GetNRow(); i++ {
 		s += fmt.Sprintf("[%d]", i)
 
 		for a, md := range reader.InputMetadata {
-			if md.IsContinu {
+			if md.GetType() == dsv.TReal {
 				s += fmt.Sprint("\t",
 					reader.Columns[a].Records[i].Float())
 			} else {
