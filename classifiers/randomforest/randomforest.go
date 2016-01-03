@@ -118,61 +118,43 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 	// create trees
 	for t := 0; t < ntree; t++ {
 		// select random samples with replacement.
-		pickedRows, unpickedRows, _, _, e := samples.RandomPickRows(
+		bootstrap, oob, _, _, e := samples.RandomPickRows(
 			forest.NSubsample, true)
 
 		if e != nil {
 			return forest, ooberrsteps, e
 		}
 
-		glog.V(2).Info(">>> picked rows:", pickedRows)
-
-		// select random features, without replacement, not including
-		// target feature.
-		pickedCols, _, pickedColsIdx, _, e := pickedRows.RandomPickColumns(
-			forest.NFeature, false)
-
-		if e != nil {
-			return forest, ooberrsteps, e
-		}
-
-		glog.V(2).Info(">>> picked cols:", pickedCols)
+		glog.V(2).Info(">>> picked rows:", bootstrap)
+		glog.V(2).Info(">>> unpicked rows:", oob)
 
 		// build tree.
 		cart := cart.Input{
-			SplitMethod: cart.SplitMethodGini,
+			SplitMethod:    cart.SplitMethodGini,
+			NRandomFeature: nfeature,
 		}
 
-		e = cart.BuildTree(&pickedCols)
+		e = cart.BuildTree(&bootstrap)
 		if e != nil {
 			return forest, ooberrsteps, e
 		}
 
 		glog.V(2).Info(">>> TREE:", &cart)
 
-		glog.V(2).Info(">>> unpicked rows:", unpickedRows)
-		glog.V(2).Info(">>> picked cols idx:", pickedColsIdx)
-
 		// run OOB on tree.
-		oob, e := unpickedRows.SelectColumnsByIdx(pickedColsIdx)
-		if e != nil {
-			return forest, ooberrsteps, e
-		}
-
-		glog.V(2).Info(">>> OOB :", oob)
-
 		ooberr, e := cart.CountOOBError(oob)
 
 		if e != nil {
 			return forest, ooberrsteps, e
 		}
 
-		glog.V(2).Infof(">>> t %d - OOB error: %f", t, ooberr)
-
 		// calculate error.
 		totalOOBErr += ooberr
 
 		ooberrsteps[t] = totalOOBErr / float64(t+1)
+
+		glog.V(2).Info(">>> tree #", t, " - OOB error: ", ooberr,
+			" total OOB error: ", ooberrsteps[t])
 
 		// Add tree to forest.
 		forest.AddCartTree(cart)

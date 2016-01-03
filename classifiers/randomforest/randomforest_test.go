@@ -38,12 +38,13 @@ func TestEnsembling(t *testing.T) {
 	}
 
 	// number of tree to generate.
-	ntree := 1000
+	ntree := 500
 	// percentage of sample used as subsample.
-	npercent := 66
+	npercent := 63
 
-	nfeature := samples.GetNColumn() - 1
+	nfeature := samples.GetNColumn()
 	n := 2
+	//nfeature := n + 1
 
 	for ; n < nfeature; n++ {
 		// generate random forest.

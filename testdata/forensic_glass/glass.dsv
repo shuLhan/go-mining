@@ -9,59 +9,48 @@
 	[{
 		"Name"			:"ID"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"integer"
 	,	"Skip"			:true
 	},{
 		"Name"			:"RI"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"NA20"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"MGO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"AL203"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"SI02"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"K20"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"CAO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"BAO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"FE203"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
 	,	"Type"			:"real"
 	},{
 		"Name"			:"TYPE"
 	,	"Type"			:"string"
-	,	"IsContinu"		:false
-	,	"NominalValues"		:
+	,	"ValueSpace"		:
 		[
 			"1"
 		,	"2"
@@ -78,51 +67,32 @@
 	[{
 		"Name"			:"RI"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"NA20"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"MGO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"AL203"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"SI02"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"K20"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"CAO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"BAO"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"FE203"
 	,	"Separator"		:","
-	,	"IsContinu"		:true
-	,	"Type"			:"real"
 	},{
 		"Name"			:"TYPE"
-	,	"IsContinu"		:true
 	,	"Type"			:"integer"
 	}]
 }
