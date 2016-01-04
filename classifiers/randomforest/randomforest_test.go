@@ -16,13 +16,13 @@ import (
 
 const (
 	// NTREE number of tree to generate.
-	NTREE = 1
+	NTREE = 200
 	// NBOOTSTRAP percentage of sample used as subsample.
-	NBOOTSTRAP = 63
+	NBOOTSTRAP = 66
 	// FEATSTART number of feature to begin with.
-	FEATSTART = 3
+	FEATSTART = 1
 	// FEATEND maximum number of feature to test
-	FEATEND = 4
+	FEATEND = -1
 )
 
 func runRandomForest(t *testing.T, sampledsv string,
@@ -73,7 +73,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 			t.Fatal(e)
 		}
 
-		glog.V(2).Info(forest)
+		glog.V(3).Info(forest)
 	}
 
 	// write oob data to file

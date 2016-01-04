@@ -15,6 +15,7 @@ package randomforest
 import (
 	"errors"
 	"github.com/golang/glog"
+	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/classifiers/cart"
 	"github.com/shuLhan/go-mining/dataset"
 )
@@ -46,6 +47,8 @@ type Ensemble struct {
 	NTree int
 	// OOBErrMeanVal contain the average out-of-back error value.
 	OOBErrMeanVal float64
+	// bagIndices contain list of selected samples at bootstraping.
+	bagIndices [][]int
 }
 
 /*
@@ -90,6 +93,13 @@ func (forest *Ensemble) AddCartTree(tree cart.Input) {
 }
 
 /*
+AddBagIndex add bagging index for book keeping.
+*/
+func (forest *Ensemble) AddBagIndex(bagIndex []int) {
+	forest.bagIndices = append(forest.bagIndices, bagIndex)
+}
+
+/*
 Ensembling the forest using samples dataset.
 
 - samples: as original dataset.
@@ -118,15 +128,15 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 	// create trees
 	for t := 0; t < ntree; t++ {
 		// select random samples with replacement.
-		bootstrap, oob, _, _, e := samples.RandomPickRows(
+		bootstrap, oob, bagIdx, oobIdx, e := samples.RandomPickRows(
 			forest.NSubsample, true)
 
 		if e != nil {
 			return forest, ooberrsteps, e
 		}
 
-		glog.V(2).Info(">>> picked rows:", bootstrap)
-		glog.V(2).Info(">>> unpicked rows:", oob)
+		glog.V(3).Info(">>> picked rows:", bootstrap)
+		glog.V(3).Info(">>> unpicked rows:", oob)
 
 		// build tree.
 		cart := cart.Input{
@@ -139,25 +149,22 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 			return forest, ooberrsteps, e
 		}
 
-		glog.V(2).Info(">>> TREE:", &cart)
+		glog.V(3).Info(">>> TREE:", &cart)
 
-		// run OOB on tree.
-		ooberr, e := cart.CountOOBError(oob)
+		// Add tree to forest.
+		forest.AddCartTree(cart)
+		forest.AddBagIndex(bagIdx)
 
-		if e != nil {
-			return forest, ooberrsteps, e
-		}
+		// run OOB on current tree.
+		ooberr := forest.ClassifySet(&oob, oobIdx)
 
 		// calculate error.
 		totalOOBErr += ooberr
-
 		ooberrsteps[t] = totalOOBErr / float64(t+1)
 
 		glog.V(2).Info(">>> tree #", t, " - OOB error: ", ooberr,
 			" total OOB error: ", ooberrsteps[t])
 
-		// Add tree to forest.
-		forest.AddCartTree(cart)
 	}
 
 	forest.OOBErrMeanVal = totalOOBErr / float64(ntree)
@@ -165,4 +172,54 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 	glog.V(1).Info(">>> OOB error mean: ", forest.OOBErrMeanVal)
 
 	return forest, ooberrsteps, nil
+}
+
+/*
+ClassifySet given a dataset predict their class by running each sample in
+forest. Return miss classification rate:
+
+	(number of missed class / number of samples).
+*/
+func (forest *Ensemble) ClassifySet(dataset *dataset.Reader, dsIdx []int) (
+	missrate float64,
+) {
+	var class string
+	targetClass := dataset.GetTargetClass()
+	targetAttr := dataset.GetTarget()
+	origTarget := targetAttr.ToStringSlice()
+	indexlen := len(dsIdx)
+
+	targetAttr.ClearValues()
+
+	for x, row := range dataset.Rows {
+		var votes []string
+
+		for y, tree := range forest.Trees {
+			if indexlen > 0 {
+				// check if sample index is used to build the
+				// tree
+				exist := util.IntIsExist(forest.bagIndices[y],
+					dsIdx[x])
+				if exist {
+					continue
+				}
+			}
+
+			class = tree.Classify(row)
+			votes = append(votes, class)
+		}
+
+		class = util.StringsGetMajority(votes, targetClass)
+		(*targetAttr).Records[x].V = class
+	}
+
+	glog.V(2).Info(">>> target    : ", origTarget)
+	glog.V(2).Info(">>> prediction: ", targetAttr.ToStringSlice())
+
+	missrate = util.CountMissRate(origTarget, targetAttr.ToStringSlice())
+
+	// set original target values back.
+	targetAttr.SetValues(origTarget)
+
+	return missrate
 }
