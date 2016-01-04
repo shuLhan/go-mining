@@ -181,18 +181,18 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 
 	// Set the flag to parent in attribute referenced by
 	// MaxGainIdx, so it will not computed again in the next round.
-	for x, col := range splitL.Columns {
+	for x := range splitL.Columns {
 		if x == MaxGainIdx {
-			col.Flag = ColFlagParent
+			splitL.Columns[x].Flag = ColFlagParent
 		} else {
-			col.Flag = 0
+			splitL.Columns[x].Flag = 0
 		}
 	}
-	for x, col := range splitR.Columns {
+	for x := range splitR.Columns {
 		if x == MaxGainIdx {
-			col.Flag = ColFlagParent
+			splitR.Columns[x].Flag = ColFlagParent
 		} else {
-			col.Flag = 0
+			splitR.Columns[x].Flag = 0
 		}
 	}
 
@@ -219,14 +219,22 @@ func (in *Input) SelectRandomFeature(D *dataset.Reader) {
 		// all features selected
 		return
 	}
+	// count all features minus class
+	nfeature := D.GetNColumn() - 1
+	if in.NRandomFeature >= nfeature {
+		// number of random feature equal or greater than number of
+		// feature in dataset
+		return
+	}
 
 	// exclude class index and parent node index
 	excludeIdx := []int{D.ClassIndex}
 	for x, col := range (*D).Columns {
 		if (col.Flag & ColFlagParent) == ColFlagParent {
 			excludeIdx = append(excludeIdx, x)
+		} else {
+			D.Columns[x].Flag |= ColFlagSkip
 		}
-		D.Columns[x].Flag |= ColFlagSkip
 	}
 
 	var pickedIdx []int
@@ -235,6 +243,7 @@ func (in *Input) SelectRandomFeature(D *dataset.Reader) {
 			excludeIdx)
 		pickedIdx = append(pickedIdx, idx)
 
+		// Remove skip flag on selected column
 		D.Columns[idx].Flag = D.Columns[idx].Flag &^ ColFlagSkip
 	}
 
@@ -300,45 +309,49 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 }
 
 /*
+Classify return the prediction of one sample.
+*/
+func (in *Input) Classify(data dsv.Row) (class string) {
+	node := in.Tree.Root
+	nodev := node.Value.(NodeValue)
+
+	for !nodev.IsLeaf {
+		if nodev.IsContinu {
+			splitV := nodev.SplitV.(float64)
+			attrV := data[nodev.SplitAttrIdx].Float()
+
+			if attrV < splitV {
+				node = node.Left
+			} else {
+				node = node.Right
+			}
+		} else {
+			splitV := nodev.SplitV.(set.Strings)
+			attrV := data[nodev.SplitAttrIdx].String()
+
+			if set.IsStringsContain(splitV, attrV) {
+				node = node.Left
+			} else {
+				node = node.Right
+			}
+		}
+		nodev = node.Value.(NodeValue)
+	}
+
+	return nodev.Class
+}
+
+/*
 ClassifySet set the class attribute based on tree classification.
 */
 func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
-	var node *binary.BTNode
-	var nodev NodeValue
-
 	nrow := data.GetNRow()
 	targetAttr := data.GetTarget()
 
 	for i := 0; i < nrow; i++ {
-		node = in.Tree.Root
-		nodev = node.Value.(NodeValue)
+		class := in.Classify((*data).GetRow(i))
 
-		for !nodev.IsLeaf {
-			if nodev.IsContinu {
-				splitV := nodev.SplitV.(float64)
-				attrV := (*data).Columns[nodev.SplitAttrIdx].
-					Records[i].Float()
-
-				if attrV < splitV {
-					node = node.Left
-				} else {
-					node = node.Right
-				}
-			} else {
-				splitV := nodev.SplitV.(set.Strings)
-				attrV := (*data).Columns[nodev.SplitAttrIdx].
-					Records[i].String()
-
-				if set.IsStringsContain(splitV, attrV) {
-					node = node.Left
-				} else {
-					node = node.Right
-				}
-			}
-			nodev = node.Value.(NodeValue)
-		}
-
-		(*targetAttr).Records[i].V = nodev.Class
+		(*targetAttr).Records[i].V = class
 	}
 
 	return
@@ -348,8 +361,6 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 CountOOBError process out-of-bag data on tree and return error value.
 */
 func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
-	n := float64(oob.GetNRow())
-
 	// save the original target to be compared later.
 	origTarget := oob.GetTarget().ToStringSlice()
 
@@ -367,23 +378,13 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 		return
 	}
 
-	// count how many target value is miss-classified.
-	var miss float64
-
 	target := oob.GetTarget().ToStringSlice()
 
 	glog.V(2).Info(">>> original target:", origTarget)
 	glog.V(2).Info(">>> classify target:", target)
 
-	for x, row := range target {
-		if row != origTarget[x] {
-			glog.V(1).Info(">>> miss ", oob.Rows[x],
-				" expecting ", origTarget[x])
-			miss++
-		}
-	}
-
-	in.OOBErrVal = float64(miss / n)
+	// count how many target value is miss-classified.
+	in.OOBErrVal = util.CountMissRate(origTarget, target)
 
 	// set original target values back.
 	oob.GetTarget().SetValues(origTarget)
