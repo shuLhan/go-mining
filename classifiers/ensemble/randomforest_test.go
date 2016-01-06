@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifiers/randomforest"
+	"github.com/shuLhan/go-mining/classifiers/ensemble"
 	"github.com/shuLhan/go-mining/dataset"
 	"io"
 	"testing"
