@@ -68,10 +68,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		col := dsv.NewColumnReal(oobsteps, colName)
 
-		e = dataooberr.PushColumn(*col)
-		if e != nil {
-			t.Fatal(e)
-		}
+		dataooberr.PushColumn(*col)
 
 		glog.V(3).Info(forest)
 	}

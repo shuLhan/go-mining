@@ -140,7 +140,10 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	}
 
 	// using the sorted index in MaxGain, sort all field in dataset
-	D.SortColumnsByIndex(MaxGain.SortedIndex)
+	e = D.SortColumnsByIndex(MaxGain.SortedIndex)
+	if e != nil {
+		return nil, e
+	}
 
 	glog.V(2).Infoln(">>> maxgain:", MaxGain)
 
@@ -349,7 +352,7 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 	targetAttr := data.GetTarget()
 
 	for i := 0; i < nrow; i++ {
-		class := in.Classify((*data).GetRow(i))
+		class := in.Classify(*(*data).GetRow(i))
 
 		(*targetAttr).Records[i].V = class
 	}
