@@ -139,10 +139,7 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 		glog.V(3).Info(">>> unpicked rows:", oob)
 
 		// build tree.
-		cart := cart.Input{
-			SplitMethod:    cart.SplitMethodGini,
-			NRandomFeature: nfeature,
-		}
+		cart := cart.New(cart.SplitMethodGini, nfeature)
 
 		e = cart.BuildTree(&bootstrap)
 		if e != nil {
@@ -152,7 +149,7 @@ func Ensembling(samples *dataset.Reader, ntree int, nfeature int,
 		glog.V(3).Info(">>> TREE:", &cart)
 
 		// Add tree to forest.
-		forest.AddCartTree(cart)
+		forest.AddCartTree(*cart)
 		forest.AddBagIndex(bagIdx)
 
 		// run OOB on current tree.

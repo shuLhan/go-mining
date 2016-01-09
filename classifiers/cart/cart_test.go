@@ -33,7 +33,7 @@ func TestCART(t *testing.T) {
 	assert.Equal(t, NRows, ds.GetNRow())
 
 	// Build CART tree.
-	CART := cart.NewInput(cart.SplitMethodGini)
+	CART := cart.New(cart.SplitMethodGini, 0)
 
 	e = CART.BuildTree(ds)
 

@@ -60,10 +60,11 @@ type Input struct {
 /*
 NewInput create new Input object.
 */
-func NewInput(SplitMethod int) *Input {
+func New(splitMethod, nRandomFeature int) *Input {
 	return &Input{
-		SplitMethod: SplitMethod,
-		Tree:        binary.Tree{},
+		SplitMethod:    splitMethod,
+		NRandomFeature: nRandomFeature,
+		Tree:           binary.Tree{},
 	}
 }
 
