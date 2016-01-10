@@ -69,9 +69,9 @@ func New(splitMethod, nRandomFeature int) *Input {
 }
 
 /*
-BuildTree will create a tree using CART algorithm.
+Build will create a tree using CART algorithm.
 */
-func (in *Input) BuildTree(D *dataset.Reader) (e error) {
+func (in *Input) Build(D *dataset.Reader) (e error) {
 	in.Tree.Root, e = in.splitTreeByGain(D)
 
 	return
@@ -141,10 +141,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	}
 
 	// using the sorted index in MaxGain, sort all field in dataset
-	e = D.SortColumnsByIndex(MaxGain.SortedIndex)
-	if e != nil {
-		return nil, e
-	}
+	D.SortColumnsByIndex(MaxGain.SortedIndex)
 
 	glog.V(2).Infoln(">>> maxgain:", MaxGain)
 
@@ -388,7 +385,7 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	glog.V(2).Info(">>> classify target:", target)
 
 	// count how many target value is miss-classified.
-	in.OOBErrVal = util.CountMissRate(origTarget, target)
+	in.OOBErrVal, _, _ = util.CountMissRate(origTarget, target)
 
 	// set original target values back.
 	oob.GetTarget().SetValues(origTarget)

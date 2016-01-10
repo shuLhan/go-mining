@@ -35,7 +35,7 @@ func TestCART(t *testing.T) {
 	// Build CART tree.
 	CART := cart.New(cart.SplitMethodGini, 0)
 
-	e = CART.BuildTree(ds)
+	e = CART.Build(ds)
 
 	if e != nil {
 		t.Fatal(e)
