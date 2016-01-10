@@ -215,9 +215,8 @@ func (reader *Reader) RandomPickRows(n int, dup bool) (
 	unpicked Reader,
 	pickedIdx []int,
 	unpickedIdx []int,
-	e error,
 ) {
-	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx, e =
+	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx =
 		reader.Reader.RandomPickRows(n, dup)
 
 	picked.ReaderCopy(reader)
@@ -239,17 +238,12 @@ func (reader *Reader) RandomPickColumns(n int, dup bool) (
 	unpicked Reader,
 	pickedIdx []int,
 	unpickedIdx []int,
-	e error,
 ) {
 	// exclude target column
 	excludeIdx := []int{reader.ClassIndex}
 
-	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx, e =
+	picked.Dataset, unpicked.Dataset, pickedIdx, unpickedIdx =
 		reader.Reader.RandomPickColumns(n, dup, excludeIdx)
-
-	if e != nil {
-		return
-	}
 
 	// set picked metadata
 	var mds []dsv.Metadata
@@ -298,13 +292,8 @@ SelectColumnsByIdx return new dataset with selected columns index.
 */
 func (reader *Reader) SelectColumnsByIdx(colsIdx []int) (
 	newset Reader,
-	e error,
 ) {
-	newset.Dataset, e = reader.Dataset.SelectColumnsByIdx(colsIdx)
-
-	if e != nil {
-		return
-	}
+	newset.Dataset = reader.Dataset.SelectColumnsByIdx(colsIdx)
 
 	// Copy metadata
 	for x, v := range colsIdx {
