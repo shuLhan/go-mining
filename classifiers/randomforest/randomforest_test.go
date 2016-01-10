@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifiers/ensemble"
+	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/go-mining/dataset"
 	"io"
 	"testing"
@@ -16,7 +16,7 @@ import (
 
 const (
 	// NTREE number of tree to generate.
-	NTREE = 200
+	NTREE = 10
 	// NBOOTSTRAP percentage of sample used as subsample.
 	NBOOTSTRAP = 66
 	// FEATSTART number of feature to begin with.
@@ -45,20 +45,17 @@ func runRandomForest(t *testing.T, sampledsv string,
 	}
 
 	// dataset to save each oob error in each feature iteration.
-	dataooberr, e := dsv.NewDataset(dsv.DatasetModeColumns, nil, nil)
-
-	if e != nil {
-		t.Fatal(e)
-	}
+	dataooberr := dsv.NewDataset(dsv.DatasetModeColumns, nil, nil)
 
 	if nEnd < 0 {
 		nEnd = samples.GetNColumn()
 	}
 
 	for ; nStart < nEnd; nStart++ {
-		// generate random forest.
-		forest, oobsteps, e := randomforest.Ensembling(samples, ntree,
-			nStart, npercent)
+		// create random forest.
+		forest := randomforest.New(ntree, nStart, npercent)
+
+		e := forest.Build(samples)
 
 		if e != nil {
 			t.Fatal(e)
@@ -66,7 +63,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		colName := fmt.Sprintf("M%d", nStart)
 
-		col := dsv.NewColumnReal(oobsteps, colName)
+		col := dsv.NewColumnReal(forest.OobErrSteps, colName)
 
 		dataooberr.PushColumn(*col)
 
