@@ -2,13 +2,16 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+/*
+Package knn implement the K Nearest Neighbor using Euclidian to compute the
+distance between samples.
+*/
 package knn
 
 import (
+	"github.com/shuLhan/dsv"
 	"math"
 	"sort"
-
-	"github.com/shuLhan/dsv"
 )
 
 const (
@@ -20,8 +23,6 @@ const (
 Input parameters for KNN processing.
 */
 type Input struct {
-	// Dataset training data.
-	Dataset dsv.Rows
 	// DistanceMethod define how the distance between sample will be
 	// measured.
 	DistanceMethod int
@@ -32,59 +33,70 @@ type Input struct {
 }
 
 /*
-ComputeEuclidianDistance of instance with each sample in dataset.
+ComputeEuclidianDistance compute the distance of sample in index
+`instanceIdx` with each sample in dataset `samples` and return it.
 */
-func (input *Input) ComputeEuclidianDistance(instanceIdx int) (
-	distances DistanceSlice, e error) {
-	instance := input.Dataset[instanceIdx]
+func (input *Input) ComputeEuclidianDistance(samples dsv.Rows, instanceIdx int) (
+	neighbors Neighbors,
+) {
+	instance := samples[instanceIdx]
 
-	for rowIdx, row := range input.Dataset {
-		if instanceIdx == rowIdx {
+	for x, row := range samples {
+		if instanceIdx == x {
 			continue
 		}
 
 		// compute euclidian distance
 		d := 0.0
-		for i := range row {
-			if i == input.ClassIdx {
+		for y, rec := range row {
+			if y == input.ClassIdx {
 				// skip class attribute
 				continue
 			}
 
-			ir := instance[i]
-			sr := row[i]
+			ir := instance[y]
+			diff := 0.0
 
 			switch ir.V.(type) {
 			case float64:
-				d += math.Abs(ir.Value().(float64) - sr.Value().(float64))
+				diff = ir.Value().(float64) -
+					rec.Value().(float64)
 			case int64:
-				d += math.Abs(float64(ir.Value().(int64) - sr.Value().(int64)))
+				diff = float64(ir.Value().(int64) -
+					rec.Value().(int64))
 			}
+
+			d += math.Abs(diff)
 		}
 
-		distances = append(distances, Distance{row, math.Sqrt(d)})
+		neighbors = append(neighbors, Neighbor{row, math.Sqrt(d)})
 	}
 
-	sort.Sort(&distances)
+	sort.Sort(&neighbors)
 
 	return
 }
 
 /*
-Neighbors return the nearest neighbors as a slice of distance.
+FindNeighbors Given sample set and instance index, return the nearest neighbors as
+a slice of distance.
 */
-func (input *Input) Neighbors(instanceIdx int) (kneighbors DistanceSlice,
-	e error) {
+func (input *Input) FindNeighbors(samples dsv.Rows, instanceIdx int) (
+	kneighbors Neighbors,
+) {
 	switch input.DistanceMethod {
 	case TEuclidianDistance:
-		kneighbors, e = input.ComputeEuclidianDistance(instanceIdx)
+		kneighbors = input.ComputeEuclidianDistance(samples,
+			instanceIdx)
 	}
 
-	if nil != e {
-		return nil, e
+	// Make sure number of neighbors is greater than request.
+	minK := len(kneighbors)
+	if minK > input.K {
+		minK = input.K
 	}
 
-	kneighbors = kneighbors[0:input.K]
+	kneighbors = kneighbors[0:minK]
 
 	return
 }
