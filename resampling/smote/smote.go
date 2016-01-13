@@ -14,7 +14,6 @@ For more information, see
 package smote
 
 import (
-	"errors"
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
 	"math/rand"
@@ -45,27 +44,21 @@ const (
 /*
 Init parameter, set to default value if it not valid.
 */
-func (smote *SMOTE) Init() error {
+func (smote *SMOTE) Init() {
 	rand.Seed(time.Now().UnixNano())
 
-	if smote.Dataset == nil {
-		return errors.New("No input dataset.")
-	}
 	if smote.K <= 0 {
 		smote.K = DefaultK
 	}
 	if smote.PercentOver <= 0 {
 		smote.PercentOver = DefaultPercentOver
 	}
-	smote.Synthetic = dsv.Rows{}
-
-	return nil
 }
 
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
+func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.Neighbors) {
 	var i, n, lenAttr, attr int
 	var iv, sv, dif, gap, newAttr float64
 	var sample dsv.Row
@@ -112,31 +105,24 @@ func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.DistanceSlice) {
 Resampling will run SMOTE algorithm using parameters that has been defined in
 struct and return list of synthetic samples.
 */
-func (smote *SMOTE) Resampling() (dsv.Rows, error) {
-	e := smote.Init()
-
-	if e != nil {
-		return nil, e
-	}
+func (smote *SMOTE) Resampling(dataset dsv.Rows) dsv.Rows {
+	smote.Init()
 
 	if smote.PercentOver < 100 {
 		// Randomize minority class sample by percentage.
-		smote.n = (smote.PercentOver / 100.0) * len(smote.Dataset)
-		smote.Dataset, _, _, _ = smote.Dataset.RandomPick(smote.n, false)
+		smote.n = (smote.PercentOver / 100.0) * len(dataset)
+		dataset, _, _, _ = dataset.RandomPick(smote.n, false)
 		smote.PercentOver = 100
 	}
 	smote.n = smote.PercentOver / 100.0
 
 	// for each sample in dataset, generate their synthetic samples.
-	for i := range smote.Dataset {
+	for i := range dataset {
 		// Compute k nearest neighbors for instance
-		neighbors, e := smote.Input.Neighbors(i)
-		if nil != e {
-			break
-		}
+		neighbors := smote.FindNeighbors(dataset, i)
 
-		smote.populate(&smote.Dataset[i], neighbors)
+		smote.populate(&dataset[i], neighbors)
 	}
 
-	return smote.Synthetic, e
+	return smote.Synthetic
 }

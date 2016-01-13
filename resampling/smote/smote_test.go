@@ -18,10 +18,9 @@ const (
 	fcfg = "../../testdata/phoneme/phoneme.dsv"
 )
 
-func doSmote(reader *dsv.Reader) (smot *smote.SMOTE, e error) {
+func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
 	smot = &smote.SMOTE{
 		Input: knn.Input{
-			Dataset:        nil,
 			DistanceMethod: knn.TEuclidianDistance,
 			ClassIdx:       5,
 			K:              5,
@@ -35,16 +34,11 @@ func doSmote(reader *dsv.Reader) (smot *smote.SMOTE, e error) {
 
 	fmt.Println("minority samples:", len(minClass))
 
-	smot.Dataset = minClass
-	synthetic, e := smot.Resampling()
-
-	if e != nil {
-		return nil, e
-	}
+	synthetic := smot.Resampling(minClass)
 
 	fmt.Println("Synthetic:", len(synthetic))
 
-	return smot, e
+	return smot
 }
 
 func TestSmote(t *testing.T) {
@@ -67,22 +61,23 @@ func TestSmote(t *testing.T) {
 
 	fmt.Println("Total samples:", n)
 
-	smot, e := doSmote(reader)
-
-	if e != nil {
-		t.Fatal(e)
-	}
+	smot := doSmote(reader)
 
 	reader.Close()
 
 	// write synthetic samples.
-	writer, e = dsv.NewWriter(fcfg)
+	writer, e = dsv.NewWriter("")
 
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	writer.WriteRows(smot.Synthetic, reader.GetInputMetadata())
+	e = writer.OpenOutput("synthetic.csv")
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	writer.WriteRawRows(&smot.Synthetic, ",")
 
 	writer.Close()
 }
