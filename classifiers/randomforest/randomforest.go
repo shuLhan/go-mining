@@ -86,6 +86,19 @@ func New(ntree, nfeature, percentboot int) (forest *Input) {
 }
 
 /*
+Init initialize the forest.
+*/
+func (forest *Input) Init(samples *dataset.Reader) {
+	// calculate number of subsample.
+	forest.NSubsample = int(float32(samples.GetNRow()) *
+		(float32(forest.PercentBoot) / 100.0))
+
+	forest.OobErrSteps = make([]float64, forest.NTree)
+
+	glog.V(1).Info(">>> forest:", forest)
+}
+
+/*
 AddCartTree add tree to forest
 */
 func (forest *Input) AddCartTree(tree cart.Input) {
@@ -117,55 +130,15 @@ func (forest *Input) Build(samples *dataset.Reader) (e error) {
 		return ErrNoInput
 	}
 
-	// calculate number of subsample.
-	forest.NSubsample = int(float32(samples.GetNRow()) *
-		(float32(forest.PercentBoot) / 100.0))
+	forest.Init(samples)
 
-	glog.V(1).Info(">>> forest:", forest)
-
-	forest.OobErrSteps = make([]float64, forest.NTree)
 	totalOOBErr := 0.0
+	oobErr := 0.0
 
 	// create trees
 	for t := 0; t < forest.NTree; t++ {
-		// select random samples with replacement.
-		bootstrap, oob, bagIdx, oobIdx := samples.RandomPickRows(
-			forest.NSubsample, true)
-
-		glog.V(3).Info(">>> picked rows:", bootstrap)
-		glog.V(3).Info(">>> unpicked rows:", oob)
-
-		// build tree.
-		cart := cart.New(cart.SplitMethodGini, forest.NFeature)
-
-		e = cart.Build(&bootstrap)
-		if e != nil {
-			return e
-		}
-
-		glog.V(3).Info(">>> TREE:", &cart)
-
-		// Add tree to forest.
-		forest.AddCartTree(*cart)
-		forest.AddBagIndex(bagIdx)
-
-		// Run OOB on current forest.
-		testStats := forest.ClassifySet(&oob, oobIdx)
-
-		// calculate error.
-		ooberr := testStats.GetFPRate()
-		totalOOBErr += ooberr
-		forest.OobErrSteps[t] = totalOOBErr / float64(t+1)
-
-		forest.AddOobStats(testStats)
-
-		if glog.V(1) {
-			fmt.Printf(">>> tree #%4d OOB error: %.4f, total OOB error: %.4f, tp-rate %.4f, tn-rate %.4f\n",
-				t, ooberr,
-				forest.OobErrSteps[t],
-				testStats.GetTPRate(),
-				testStats.GetTNRate())
-		}
+		oobErr, e = forest.GrowTree(t, samples, totalOOBErr)
+		totalOOBErr += oobErr
 	}
 
 	forest.OobErrMeanVal = totalOOBErr / float64(forest.NTree)
@@ -173,6 +146,49 @@ func (forest *Input) Build(samples *dataset.Reader) (e error) {
 	glog.V(1).Info(">>> OOB error mean: ", forest.OobErrMeanVal)
 
 	return nil
+}
+
+func (forest *Input) GrowTree(t int, samples *dataset.Reader,
+	totalOobErr float64) (
+	oobErr float64,
+	e error,
+) {
+	// select random samples with replacement.
+	bootstrap, oob, bagIdx, oobIdx := samples.RandomPickRows(
+		forest.NSubsample, true)
+
+	// build tree.
+	cart := cart.New(cart.SplitMethodGini, forest.NFeature)
+
+	e = cart.Build(&bootstrap)
+	if e != nil {
+		return
+	}
+
+	// Add tree to forest.
+	forest.AddCartTree(*cart)
+	forest.AddBagIndex(bagIdx)
+
+	// Run OOB on current forest.
+	testStats := forest.ClassifySet(&oob, oobIdx)
+
+	// calculate error.
+	oobErr = testStats.GetFPRate()
+	totalOobErr += oobErr
+	forest.OobErrSteps[t] = totalOobErr / float64(t+1)
+
+	forest.AddOobStats(testStats)
+
+	if glog.V(1) {
+		fmt.Printf(">>> tree #%4d OOB error: %.4f, "+
+			"total OOB error: %.4f, tp-rate %.4f, tn-rate %.4f\n",
+			t, oobErr,
+			forest.OobErrSteps[t],
+			testStats.GetTPRate(),
+			testStats.GetTNRate())
+	}
+
+	return
 }
 
 /*
