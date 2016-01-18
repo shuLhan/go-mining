@@ -9,33 +9,30 @@ import (
 )
 
 /*
-Neighbor is a mapping between sample and their distance.
+Neighbors is a mapping between sample and their distance.
 This type implement the sort interface.
 */
-type Neighbor struct {
-	// Sample of data
-	Sample dsv.Row
+type Neighbors struct {
+	// Dataset contain the data in neighbors
+	dsv.Dataset
 	// Distance value
-	Distance float64
+	Distances []float64
 }
 
 /*
-Neighbors is a slice of Neighbor
+Len return the number of neighbors.
+This is for sort interface.
 */
-type Neighbors []Neighbor
-
-/*
-Len return length of slice.
-*/
-func (jarak *Neighbors) Len() int {
-	return len(*jarak)
+func (neighbors *Neighbors) Len() int {
+	return len(neighbors.Distances)
 }
 
 /*
 Less return true if i < j.
+This is for sort interface.
 */
-func (jarak *Neighbors) Less(i, j int) bool {
-	if (*jarak)[i].Distance < (*jarak)[j].Distance {
+func (neighbors *Neighbors) Less(i, j int) bool {
+	if neighbors.Distances[i] < neighbors.Distances[j] {
 		return true
 	}
 	return false
@@ -43,16 +40,43 @@ func (jarak *Neighbors) Less(i, j int) bool {
 
 /*
 Swap content of object in index i with index j.
+This is for sort interface.
 */
-func (jarak *Neighbors) Swap(i, j int) {
-	var tmp = &Neighbor{}
+func (neighbors *Neighbors) Swap(i, j int) {
+	row := neighbors.Rows[i]
+	distance := neighbors.Distances[i]
 
-	tmp.Sample = (*jarak)[i].Sample
-	tmp.Distance = (*jarak)[i].Distance
+	neighbors.Rows[i] = neighbors.Rows[j]
+	neighbors.Distances[i] = neighbors.Distances[j]
 
-	(*jarak)[i].Sample = (*jarak)[j].Sample
-	(*jarak)[i].Distance = (*jarak)[j].Distance
+	neighbors.Rows[j] = row
+	neighbors.Distances[j] = distance
+}
 
-	(*jarak)[j].Sample = tmp.Sample
-	(*jarak)[j].Distance = tmp.Distance
+/*
+Add new neighbor.
+*/
+func (neighbors *Neighbors) Add(row dsv.Row, distance float64) {
+	neighbors.PushRow(row)
+	neighbors.Distances = append(neighbors.Distances, distance)
+}
+
+/*
+SelectRange select all neighbors from index `start` to `end`.
+Return an empty set if start or end is out of range.
+*/
+func (neighbors *Neighbors) SelectRange(start, end int) (newn Neighbors) {
+	if start < 0 {
+		return
+	}
+
+	if end > neighbors.Len() {
+		return
+	}
+
+	for x := start; x < end; x++ {
+		row := neighbors.GetRow(x)
+		newn.Add(*row, neighbors.Distances[x])
+	}
+	return
 }

@@ -9,6 +9,7 @@ distance between samples.
 package knn
 
 import (
+	"github.com/golang/glog"
 	"github.com/shuLhan/dsv"
 	"math"
 	"sort"
@@ -30,26 +31,20 @@ type Input struct {
 	ClassIdx int
 	// K define number of nearset neighbors that will be searched.
 	K int
+	// AllNeighbors contain all neighbours
+	AllNeighbors Neighbors
 }
 
 /*
-ComputeEuclidianDistance compute the distance of sample in index
-`instanceIdx` with each sample in dataset `samples` and return it.
+ComputeEuclidianDistance compute the distance of instance with each sample in
+dataset `samples` and return it.
 */
-func (input *Input) ComputeEuclidianDistance(samples dsv.Rows, instanceIdx int) (
-	neighbors Neighbors,
-) {
-	instance := samples[instanceIdx]
-
-	for x, row := range samples {
-		if instanceIdx == x {
-			continue
-		}
-
+func (in *Input) ComputeEuclidianDistance(samples dsv.Rows, instance dsv.Row) {
+	for _, row := range samples {
 		// compute euclidian distance
 		d := 0.0
 		for y, rec := range row {
-			if y == input.ClassIdx {
+			if y == in.ClassIdx {
 				// skip class attribute
 				continue
 			}
@@ -69,34 +64,42 @@ func (input *Input) ComputeEuclidianDistance(samples dsv.Rows, instanceIdx int) 
 			d += math.Abs(diff)
 		}
 
-		neighbors = append(neighbors, Neighbor{row, math.Sqrt(d)})
+		// only add sample distance which is not zero (its probably
+		// we calculating with the instance itself)
+		if d != 0 {
+			in.AllNeighbors.Add(row, math.Sqrt(d))
+		}
 	}
 
-	sort.Sort(&neighbors)
-
-	return
+	sort.Sort(&in.AllNeighbors)
 }
 
 /*
-FindNeighbors Given sample set and instance index, return the nearest neighbors as
-a slice of distance.
+FindNeighbors Given sample set and an instance, return the nearest neighbors as
+a slice of neighbours.
 */
-func (input *Input) FindNeighbors(samples dsv.Rows, instanceIdx int) (
+func (in *Input) FindNeighbors(samples dsv.Rows, instance dsv.Row) (
 	kneighbors Neighbors,
 ) {
-	switch input.DistanceMethod {
+	// Reset current input neighbours
+	in.AllNeighbors = Neighbors{}
+
+	switch in.DistanceMethod {
 	case TEuclidianDistance:
-		kneighbors = input.ComputeEuclidianDistance(samples,
-			instanceIdx)
+		in.ComputeEuclidianDistance(samples, instance)
 	}
 
 	// Make sure number of neighbors is greater than request.
-	minK := len(kneighbors)
-	if minK > input.K {
-		minK = input.K
+	minK := in.AllNeighbors.Len()
+	if minK > in.K {
+		minK = in.K
 	}
 
-	kneighbors = kneighbors[0:minK]
+	glog.V(2).Info(">>> all neighbors:", in.AllNeighbors.Len())
+
+	kneighbors = in.AllNeighbors.SelectRange(0, minK)
+
+	glog.V(2).Info(">>> k neighbors:", kneighbors.Len())
 
 	return
 }

@@ -58,44 +58,37 @@ func (smote *SMOTE) Init() {
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *SMOTE) populate(instance *dsv.Row, neighbors knn.Neighbors) {
-	var i, n, lenAttr, attr int
-	var iv, sv, dif, gap, newAttr float64
-	var sample dsv.Row
-	var ir *dsv.Record
-	var sr *dsv.Record
+func (smote *SMOTE) populate(instance dsv.Row, neighbors knn.Neighbors) {
+	lenAttr := len(instance)
 
-	lenAttr = len(*instance)
-
-	for i = 0; i < smote.n; i++ {
+	for x := 0; x < smote.n; x++ {
 		// choose one of the K nearest neighbors
-		n = rand.Intn(len(neighbors))
-		sample = neighbors[n].Sample
+		n := rand.Intn(neighbors.Len())
+		sample := neighbors.GetRow(n)
 
 		newSynt := make(dsv.Row, lenAttr)
 
 		// Compute new synthetic attributes.
-		for attr = range sample {
+		for attr, sr := range *sample {
 			if attr == smote.ClassIdx {
 				continue
 			}
 
-			ir = (*instance)[attr]
-			sr = sample[attr]
+			ir := instance[attr]
 
-			iv = ir.Value().(float64)
-			sv = sr.Value().(float64)
+			iv := ir.Value().(float64)
+			sv := sr.Value().(float64)
 
-			dif = sv - iv
-			gap = rand.Float64()
-			newAttr = iv + (gap * dif)
+			dif := sv - iv
+			gap := rand.Float64()
+			newAttr := iv + (gap * dif)
 
 			record := &dsv.Record{}
 			record.SetFloat(newAttr)
 			newSynt[attr] = record
 		}
 
-		newSynt[smote.ClassIdx] = (*instance)[attr]
+		newSynt[smote.ClassIdx] = instance[smote.ClassIdx]
 
 		smote.Synthetic.PushBack(newSynt)
 	}
@@ -117,11 +110,12 @@ func (smote *SMOTE) Resampling(dataset dsv.Rows) dsv.Rows {
 	smote.n = smote.PercentOver / 100.0
 
 	// for each sample in dataset, generate their synthetic samples.
-	for i := range dataset {
+	for _, sample := range dataset {
 		// Compute k nearest neighbors for instance
-		neighbors := smote.FindNeighbors(dataset, i)
+		neighbors := smote.FindNeighbors(dataset, sample)
 
-		smote.populate(&dataset[i], neighbors)
+		// generate synthetic samples.
+		smote.populate(sample, neighbors)
 	}
 
 	return smote.Synthetic
