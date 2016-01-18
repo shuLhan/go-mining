@@ -137,11 +137,14 @@ func (in *Input) safeLevel(p dsv.Row) dsv.Dataset {
 func (in *Input) safeLevel2(p, n dsv.Row) dsv.Dataset {
 	neighbors := in.FindNeighbors(in.dataset.Rows, n)
 
+	// check if n is in minority class.
+	nIsMinor := n[in.ClassIdx].IsEqual(in.ClassMinor)
+
 	// check if p is in neighbors.
-	ispin, pidx := neighbors.Rows.Contain(p)
+	pInNeighbors, pidx := neighbors.Rows.Contain(p)
 
 	// if p in neighbors, replace it with neighbours in K+1
-	if ispin {
+	if nIsMinor && pInNeighbors {
 		glog.V(1).Info(">>> Replacing ", pidx)
 		glog.V(2).Info(">>> Replacing ", pidx, " in ", neighbors)
 
