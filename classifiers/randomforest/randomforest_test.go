@@ -14,7 +14,7 @@ import (
 	"testing"
 )
 
-const (
+var (
 	// NTREE number of tree to generate.
 	NTREE = 10
 	// NBOOTSTRAP percentage of sample used as subsample.
@@ -103,6 +103,45 @@ func TestEnsemblingIris(t *testing.T) {
 	sampledsv := "../../testdata/iris/iris.dsv"
 	// oob file output
 	oobFile := "oobiris"
+
+	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
+}
+
+func TestEnsemblingPhoneme(t *testing.T) {
+	// input data
+	sampledsv := "../../testdata/phoneme/phoneme.dsv"
+	// oob file output
+	oobFile := "oobphoneme"
+
+	FEATSTART = 3
+	FEATEND = 4
+
+	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
+}
+
+func TestEnsemblingPhonemeSMOTE(t *testing.T) {
+	// input data
+	sampledsv := "../../resampling/smote/phoneme_smote.dsv"
+	// oob file output
+	oobFile := "oobphonemesmote"
+
+	FEATSTART = 3
+	FEATEND = 4
+
+	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
+}
+
+func TestEnsemblingPhonemeLNSMOTE(t *testing.T) {
+	// input data
+	sampledsv := "../../resampling/lnsmote/phoneme_lnsmote.dsv"
+	// oob file output
+	oobFile := "oobphonemelnsmote"
+
+	FEATSTART = 3
+	FEATEND = 4
 
 	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)

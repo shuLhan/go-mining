@@ -1,6 +1,9 @@
 classifiers/randomforest/oob
 classifiers/randomforest/oobglass
 classifiers/randomforest/oobiris
+classifiers/randomforest/oobphoneme
+classifiers/randomforest/oobphonemelnsmote
+classifiers/randomforest/oobphonemesmote
 *.rej
 resampling/lnsmote/phoneme_lnsmote.csv
 resampling/lnsmote/synthetic.csv
