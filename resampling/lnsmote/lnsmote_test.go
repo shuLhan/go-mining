@@ -35,6 +35,20 @@ func TestLNSmote(t *testing.T) {
 
 	fmt.Println(">>> Total samples:", n)
 
+	// write synthetic samples.
+	writer, e := dsv.NewWriter("")
+
+	if nil != e {
+		t.Fatal(e)
+	}
+
+	e = writer.OpenOutput("phoneme_lnsmote.csv")
+	if e != nil {
+		t.Fatal(e)
+	}
+
+	writer.WriteRawRows(&reader.Rows, ",")
+
 	// Initialize LN-SMOTE.
 	lnsmote := &lnsmote.Input{
 		Input: knn.Input{
@@ -43,24 +57,12 @@ func TestLNSmote(t *testing.T) {
 			K:              5,
 		},
 		ClassMinor:  "1",
-		PercentOver: 200,
+		PercentOver: 100,
 	}
 
 	synthetics := lnsmote.Resampling(reader.Dataset)
 
 	fmt.Println(">>> n synthetic:", synthetics.Len())
-
-	// write synthetic samples.
-	writer, e := dsv.NewWriter("")
-
-	if nil != e {
-		t.Fatal(e)
-	}
-
-	e = writer.OpenOutput("synthetic.csv")
-	if e != nil {
-		t.Fatal(e)
-	}
 
 	writer.WriteRawRows(&synthetics.Rows, ",")
 

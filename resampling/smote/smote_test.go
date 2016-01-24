@@ -14,8 +14,10 @@ import (
 	"github.com/shuLhan/go-mining/resampling/smote"
 )
 
-const (
-	fcfg = "../../testdata/phoneme/phoneme.dsv"
+var (
+	fcfg        = "../../testdata/phoneme/phoneme.dsv"
+	PercentOver = 100
+	K           = 5
 )
 
 func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
@@ -23,9 +25,9 @@ func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
 		Input: knn.Input{
 			DistanceMethod: knn.TEuclidianDistance,
 			ClassIdx:       5,
-			K:              5,
+			K:              K,
 		},
-		PercentOver: 200,
+		PercentOver: PercentOver,
 		Synthetic:   nil,
 	}
 
@@ -61,23 +63,24 @@ func TestSmote(t *testing.T) {
 
 	fmt.Println("Total samples:", n)
 
-	smot := doSmote(reader)
-
-	reader.Close()
-
-	// write synthetic samples.
+	// Open writer synthetic samples.
 	writer, e = dsv.NewWriter("")
 
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	e = writer.OpenOutput("synthetic.csv")
+	e = writer.OpenOutput("phoneme_smote.csv")
 	if e != nil {
 		t.Fatal(e)
 	}
 
+	writer.WriteRawRows(&reader.Rows, ",")
+
+	smot := doSmote(reader)
+
 	writer.WriteRawRows(&smot.Synthetic, ",")
 
+	reader.Close()
 	writer.Close()
 }

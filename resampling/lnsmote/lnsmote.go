@@ -73,7 +73,7 @@ func (in *Input) Resampling(dataset dsv.Dataset) (synthetics dsv.Dataset) {
 			}
 		}
 
-		glog.Infof(">>> %4d n synthetics: %v", x, in.Synthetic.Len())
+		glog.Infof(">>> %-4d n synthetics: %v", x, in.Synthetic.Len())
 
 		if glog.V(2) {
 			time.Sleep(5000 * time.Millisecond)
