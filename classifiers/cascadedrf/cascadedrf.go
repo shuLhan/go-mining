@@ -67,9 +67,9 @@ func (crf *Input) Train(samples *dataset.Reader) {
 		totalOobErr := 0.0
 
 		for t := 0; t < crf.NTree; t++ {
-			oobErr, e = forest.GrownTree(t, samples, totalOOBErr)
-			totalOOBErr += oobErr
-			tprate := 1 - (float64(totalOOBErr) / float64(t+1))
+			oobErr, _ := forest.GrowTree(t, samples, totalOobErr)
+			totalOobErr += oobErr
+			tprate := 1 - (float64(totalOobErr) / float64(t+1))
 
 			if tprate > crf.TPR {
 				break

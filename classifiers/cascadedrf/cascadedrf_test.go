@@ -14,6 +14,7 @@ func TestCascadedRF(t *testing.T) {
 	nstage := 10
 	ntree := 1
 	percentboot := 66
+	nfeature := 3
 	tprate := 0.6
 	tnrate := 0.6
 	sampledsv := "../../testdata/iris/iris.dsv"
@@ -25,7 +26,7 @@ func TestCascadedRF(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	crf := cascadedrf.New(nstage, ntree, percentboot, tprate, tnrate)
+	crf := cascadedrf.New(nstage, ntree, percentboot, nfeature, tprate, tnrate)
 
 	crf.Train(samples)
 }
