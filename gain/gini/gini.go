@@ -14,7 +14,7 @@ import (
 	"fmt"
 	"github.com/golang/glog"
 	"github.com/shuLhan/dsv/util"
-	"github.com/shuLhan/go-mining/set"
+	"github.com/shuLhan/tekstus"
 )
 
 /*
@@ -46,7 +46,7 @@ type Gini struct {
 	// ContinuPart contain list of partition value for continuous attribute.
 	ContinuPart []float64
 	// DiscretePart contain the possible combination of discrete values.
-	DiscretePart set.TableStrings
+	DiscretePart tekstus.TableStrings
 	// Index contain list of Gini Index for each partition.
 	Index []float64
 	// Gain contain information gain for each partition.
@@ -161,7 +161,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 createDiscretePartition will create possible combination for discrete value
 in DiscretePart.
 */
-func (gini *Gini) createDiscretePartition(discval []string) {
+func (gini *Gini) createDiscretePartition(discval tekstus.Strings) {
 	// no discrete values ?
 	if len(discval) <= 0 {
 		return
@@ -169,7 +169,7 @@ func (gini *Gini) createDiscretePartition(discval []string) {
 
 	// use set partition function to group the discrete values into two
 	// subset.
-	gini.DiscretePart = set.PartitioningTableStrings(discval, 2)
+	gini.DiscretePart = discval.Partitioning(2)
 }
 
 /*

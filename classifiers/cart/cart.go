@@ -22,8 +22,8 @@ import (
 	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
-	"github.com/shuLhan/go-mining/set"
 	"github.com/shuLhan/go-mining/tree/binary"
+	"github.com/shuLhan/tekstus"
 )
 
 const (
@@ -158,7 +158,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		splitV = MaxGain.GetMaxPartGainValue()
 	} else {
 		attrPartV := MaxGain.GetMaxPartGainValue()
-		attrSubV := attrPartV.(set.ListStrings)
+		attrSubV := attrPartV.(tekstus.ListStrings)
 		splitV = attrSubV[0]
 	}
 
@@ -327,10 +327,10 @@ func (in *Input) Classify(data dsv.Row) (class string) {
 				node = node.Right
 			}
 		} else {
-			splitV := nodev.SplitV.(set.Strings)
+			splitV := nodev.SplitV.(tekstus.Strings)
 			attrV := data[nodev.SplitAttrIdx].String()
 
-			if set.IsStringsContain(splitV, attrV) {
+			if splitV.IsContain(attrV) {
 				node = node.Left
 			} else {
 				node = node.Right
