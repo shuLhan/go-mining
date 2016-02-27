@@ -14,8 +14,8 @@ For more information, see
 package smote
 
 import (
-	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
+	"github.com/shuLhan/tabula"
 	"math/rand"
 	"time"
 )
@@ -31,7 +31,7 @@ type SMOTE struct {
 	// n input for number of new synthetic per sample.
 	n int
 	// Synthetic output for new sample.
-	Synthetic dsv.Rows
+	Synthetic tabula.Rows
 }
 
 const (
@@ -58,7 +58,7 @@ func (smote *SMOTE) Init() {
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *SMOTE) populate(instance dsv.Row, neighbors knn.Neighbors) {
+func (smote *SMOTE) populate(instance tabula.Row, neighbors knn.Neighbors) {
 	lenAttr := len(instance)
 
 	for x := 0; x < smote.n; x++ {
@@ -66,7 +66,7 @@ func (smote *SMOTE) populate(instance dsv.Row, neighbors knn.Neighbors) {
 		n := rand.Intn(neighbors.Len())
 		sample := neighbors.GetRow(n)
 
-		newSynt := make(dsv.Row, lenAttr)
+		newSynt := make(tabula.Row, lenAttr)
 
 		// Compute new synthetic attributes.
 		for attr, sr := range *sample {
@@ -83,7 +83,7 @@ func (smote *SMOTE) populate(instance dsv.Row, neighbors knn.Neighbors) {
 			gap := rand.Float64()
 			newAttr := iv + (gap * dif)
 
-			record := &dsv.Record{}
+			record := &tabula.Record{}
 			record.SetFloat(newAttr)
 			newSynt[attr] = record
 		}
@@ -98,7 +98,7 @@ func (smote *SMOTE) populate(instance dsv.Row, neighbors knn.Neighbors) {
 Resampling will run SMOTE algorithm using parameters that has been defined in
 struct and return list of synthetic samples.
 */
-func (smote *SMOTE) Resampling(dataset dsv.Rows) dsv.Rows {
+func (smote *SMOTE) Resampling(dataset tabula.Rows) tabula.Rows {
 	smote.Init()
 
 	if smote.PercentOver < 100 {

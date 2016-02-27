@@ -10,7 +10,7 @@ package knn
 
 import (
 	"github.com/golang/glog"
-	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/tabula"
 	"math"
 	"sort"
 )
@@ -39,7 +39,8 @@ type Input struct {
 ComputeEuclidianDistance compute the distance of instance with each sample in
 dataset `samples` and return it.
 */
-func (in *Input) ComputeEuclidianDistance(samples dsv.Rows, instance dsv.Row) {
+func (in *Input) ComputeEuclidianDistance(samples tabula.Rows,
+	instance tabula.Row) {
 	for _, row := range samples {
 		// compute euclidian distance
 		d := 0.0
@@ -78,7 +79,7 @@ func (in *Input) ComputeEuclidianDistance(samples dsv.Rows, instance dsv.Row) {
 FindNeighbors Given sample set and an instance, return the nearest neighbors as
 a slice of neighbours.
 */
-func (in *Input) FindNeighbors(samples dsv.Rows, instance dsv.Row) (
+func (in *Input) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
 	kneighbors Neighbors,
 ) {
 	// Reset current input neighbours

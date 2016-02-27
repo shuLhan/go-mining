@@ -6,11 +6,21 @@ package dataset_test
 
 import (
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/dsv/util/assert"
 	"github.com/shuLhan/go-mining/dataset"
 	"io"
+	"reflect"
+	"runtime/debug"
 	"testing"
 )
+
+func assert(t *testing.T, exp, got interface{}, equal bool) {
+	if reflect.DeepEqual(exp, got) != equal {
+		debug.PrintStack()
+		t.Fatalf("\n"+
+			">>> Expecting '%v'\n"+
+			"          got '%v'\n", exp, got)
+	}
+}
 
 const (
 	NRecords  = 150
@@ -30,7 +40,7 @@ func TestReader(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	assert.Equal(t, NRecords, ds.GetNRow())
+	assert(t, NRecords, ds.GetNRow(), true)
 
 	// Split the iris-setosa
 	setosa, _, e := ds.SplitRowsByValue(4, []string{ClassName})
@@ -40,10 +50,10 @@ func TestReader(t *testing.T) {
 	}
 
 	singleClass, name := ds.IsInSingleClass()
-	assert.Equal(t, false, singleClass)
-	assert.Equal(t, "", name)
+	assert(t, false, singleClass, true)
+	assert(t, "", name, true)
 
 	singleClass, name = setosa.IsInSingleClass()
-	assert.Equal(t, true, singleClass)
-	assert.Equal(t, ClassName, name)
+	assert(t, true, singleClass, true)
+	assert(t, ClassName, name, true)
 }

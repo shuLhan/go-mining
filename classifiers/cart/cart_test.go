@@ -6,16 +6,26 @@ package cart_test
 
 import (
 	"fmt"
-	"github.com/shuLhan/dsv/util/assert"
 	"github.com/shuLhan/go-mining/classifiers/cart"
 	"github.com/shuLhan/go-mining/dataset"
 	"io"
+	"reflect"
+	"runtime/debug"
 	"testing"
 )
 
 const (
 	NRows = 150
 )
+
+func assert(t *testing.T, exp, got interface{}, equal bool) {
+	if reflect.DeepEqual(exp, got) != equal {
+		debug.PrintStack()
+		t.Fatalf("\n"+
+			">>> Expecting '%v'\n"+
+			"          got '%v'\n", exp, got)
+	}
+}
 
 func TestCART(t *testing.T) {
 	ds, e := dataset.NewReader("../../testdata/iris/iris.dsv")
@@ -30,7 +40,7 @@ func TestCART(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	assert.Equal(t, NRows, ds.GetNRow())
+	assert(t, NRows, ds.GetNRow(), true)
 
 	// Build CART tree.
 	CART := cart.New(cart.SplitMethodGini, 0)
@@ -70,5 +80,5 @@ func TestCART(t *testing.T) {
 	// Classifiy test set
 	CART.ClassifySet(testset)
 
-	assert.Equal(t, ds.GetTarget(), testset.GetTarget())
+	assert(t, ds.GetTarget(), testset.GetTarget(), true)
 }

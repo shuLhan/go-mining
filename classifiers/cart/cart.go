@@ -18,11 +18,11 @@ package cart
 
 import (
 	"github.com/golang/glog"
-	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/tree/binary"
+	"github.com/shuLhan/tabula"
+	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
 )
 
@@ -289,7 +289,7 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 		copy(target, targetV)
 
 		// compute gain.
-		if col.GetType() == dsv.TReal {
+		if col.GetType() == tabula.TReal {
 			attr := col.ToFloatSlice()
 
 			gains[x].ComputeContinu(&attr, &target, &classes)
@@ -312,7 +312,7 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 /*
 Classify return the prediction of one sample.
 */
-func (in *Input) Classify(data dsv.Row) (class string) {
+func (in *Input) Classify(data tabula.Row) (class string) {
 	node := in.Tree.Root
 	nodev := node.Value.(NodeValue)
 
@@ -385,7 +385,7 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	glog.V(2).Info(">>> classify target:", target)
 
 	// count how many target value is miss-classified.
-	in.OOBErrVal, _, _ = util.CountMissRate(origTarget, target)
+	in.OOBErrVal, _, _ = tekstus.WordsCountMissRate(origTarget, target)
 
 	// set original target values back.
 	oob.GetTarget().SetValues(origTarget)

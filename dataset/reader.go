@@ -12,7 +12,8 @@ package dataset
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/dsv/util"
+	"github.com/shuLhan/tabula"
+	"github.com/shuLhan/tekstus"
 	"io"
 )
 
@@ -105,10 +106,10 @@ func (reader *Reader) CountMajorMinorClass() {
 	targetV := reader.GetTarget().ToStringSlice()
 	classV := reader.GetTargetClass()
 
-	classCount := util.StringCountBy(targetV, classV)
+	classCount := tekstus.WordsCountTokens(targetV, classV, false)
 
-	_, maxIdx := util.IntFindMax(classCount)
-	_, minIdx := util.IntFindMin(classCount)
+	_, maxIdx := tekstus.IntFindMax(classCount)
+	_, minIdx := tekstus.IntFindMin(classCount)
 	reader.MajorityClass = classV[maxIdx]
 	reader.MinorityClass = classV[minIdx]
 }
@@ -146,7 +147,7 @@ func (reader *Reader) GetTargetClass() []string {
 /*
 GetTarget return the target values in column.
 */
-func (reader *Reader) GetTarget() *dsv.Column {
+func (reader *Reader) GetTarget() *tabula.Column {
 	return &reader.Columns[reader.ClassIndex]
 }
 
@@ -326,7 +327,7 @@ func (reader *Reader) PrintTable() (s string) {
 		s += fmt.Sprintf("[%d]", i)
 
 		for a, md := range reader.InputMetadata {
-			if md.GetType() == dsv.TReal {
+			if md.GetType() == tabula.TReal {
 				s += fmt.Sprint("\t",
 					reader.Columns[a].Records[i].Float())
 			} else {

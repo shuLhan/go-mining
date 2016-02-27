@@ -14,8 +14,8 @@ package lnsmote
 
 import (
 	"github.com/golang/glog"
-	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
+	"github.com/shuLhan/tabula"
 	"math/rand"
 	"time"
 )
@@ -33,14 +33,14 @@ type Input struct {
 	// n input for number of new synthetic per sample.
 	n int
 	// Synthetic output for new sample.
-	Synthetic dsv.Dataset
+	Synthetic tabula.Dataset
 	// minority contain minor class in samples.
-	minority dsv.Dataset
+	minority tabula.Dataset
 	// dataset contain all samples
-	dataset dsv.Dataset
+	dataset tabula.Dataset
 }
 
-func (in *Input) Init(dataset dsv.Dataset) {
+func (in *Input) Init(dataset tabula.Dataset) {
 	// Count number of sythetic sample that will be created.
 	if in.PercentOver < 100 {
 		in.PercentOver = 100
@@ -55,7 +55,9 @@ func (in *Input) Init(dataset dsv.Dataset) {
 	glog.V(1).Info(">>> n minority: ", in.minority.Len())
 }
 
-func (in *Input) Resampling(dataset dsv.Dataset) (synthetics dsv.Dataset) {
+func (in *Input) Resampling(dataset tabula.Dataset) (
+	synthetics tabula.Dataset,
+) {
 	in.Init(dataset)
 
 	for x, p := range in.minority.Rows {
@@ -83,8 +85,8 @@ func (in *Input) Resampling(dataset dsv.Dataset) (synthetics dsv.Dataset) {
 	return in.Synthetic
 }
 
-func (in *Input) createSynthetic(p dsv.Row, neighbors knn.Neighbors) (
-	synthetic dsv.Row,
+func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
+	synthetic tabula.Row,
 ) {
 	rand.Seed(time.Now().UnixNano())
 
@@ -117,7 +119,9 @@ func (in *Input) createSynthetic(p dsv.Row, neighbors knn.Neighbors) (
 	return
 }
 
-func (in *Input) canCreate(p, n dsv.Row) (bool, dsv.Dataset, dsv.Dataset) {
+func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.Dataset,
+	tabula.Dataset,
+) {
 	slp := in.safeLevel(p)
 	sln := in.safeLevel2(p, n)
 
@@ -127,14 +131,14 @@ func (in *Input) canCreate(p, n dsv.Row) (bool, dsv.Dataset, dsv.Dataset) {
 	return slp.Len() != 0 || sln.Len() != 0, slp, sln
 }
 
-func (in *Input) safeLevel(p dsv.Row) dsv.Dataset {
+func (in *Input) safeLevel(p tabula.Row) tabula.Dataset {
 	neighbors := in.FindNeighbors(in.dataset.Rows, p)
 	minorNeighbors := neighbors.SelectRowsWhere(in.ClassIdx, in.ClassMinor)
 
 	return minorNeighbors
 }
 
-func (in *Input) safeLevel2(p, n dsv.Row) dsv.Dataset {
+func (in *Input) safeLevel2(p, n tabula.Row) tabula.Dataset {
 	neighbors := in.FindNeighbors(in.dataset.Rows, n)
 
 	// check if n is in minority class.
@@ -159,7 +163,9 @@ func (in *Input) safeLevel2(p, n dsv.Row) dsv.Dataset {
 	return minorNeighbors
 }
 
-func (in *Input) randomGap(p, n dsv.Row, lenslp, lensln int) (delta float64) {
+func (in *Input) randomGap(p, n tabula.Row, lenslp, lensln int) (
+	delta float64,
+) {
 	if lensln == 0 && lenslp > 0 {
 		return
 	}

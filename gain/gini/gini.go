@@ -13,7 +13,7 @@ package gini
 import (
 	"fmt"
 	"github.com/golang/glog"
-	"github.com/shuLhan/dsv/util"
+	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
 )
 

@@ -5,7 +5,7 @@
 package knn
 
 import (
-	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/tabula"
 )
 
 /*
@@ -14,7 +14,7 @@ This type implement the sort interface.
 */
 type Neighbors struct {
 	// Dataset contain the data in neighbors
-	dsv.Dataset
+	tabula.Dataset
 	// Distance value
 	Distances []float64
 }
@@ -56,7 +56,7 @@ func (neighbors *Neighbors) Swap(i, j int) {
 /*
 Add new neighbor.
 */
-func (neighbors *Neighbors) Add(row dsv.Row, distance float64) {
+func (neighbors *Neighbors) Add(row tabula.Row, distance float64) {
 	neighbors.PushRow(row)
 	neighbors.Distances = append(neighbors.Distances, distance)
 }

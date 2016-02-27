@@ -6,13 +6,22 @@ package knn_test
 
 import (
 	"fmt"
-	"io"
-	"testing"
-
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/dsv/util/assert"
 	"github.com/shuLhan/go-mining/knn"
+	"io"
+	"reflect"
+	"runtime/debug"
+	"testing"
 )
+
+func assert(t *testing.T, exp, got interface{}, equal bool) {
+	if reflect.DeepEqual(exp, got) != equal {
+		debug.PrintStack()
+		t.Fatalf("\n"+
+			">>> Expecting '%v'\n"+
+			"          got '%v'\n", exp, got)
+	}
+}
 
 func TestComputeEuclidianDistance(t *testing.T) {
 	var exp = []string{
@@ -60,8 +69,8 @@ func TestComputeEuclidianDistance(t *testing.T) {
 	kneighbors := knnIn.FindNeighbors(minoritySet, minoritySet[0])
 	got := fmt.Sprint(kneighbors.Rows)
 
-	assert.Equal(t, exp[1], got)
+	assert(t, exp[1], got, true)
 
 	got = fmt.Sprint(kneighbors.Distances)
-	assert.Equal(t, expDistances, got)
+	assert(t, expDistances, got, true)
 }

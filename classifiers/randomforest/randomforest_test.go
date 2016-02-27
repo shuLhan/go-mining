@@ -10,6 +10,7 @@ import (
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/tabula"
 	"io"
 	"testing"
 )
@@ -45,7 +46,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 	}
 
 	// dataset to save each oob error in each feature iteration.
-	dataooberr := dsv.NewDataset(dsv.DatasetModeColumns, nil, nil)
+	dataooberr := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
 
 	if nEnd < 0 {
 		nEnd = samples.GetNColumn()
@@ -63,7 +64,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		colName := fmt.Sprintf("M%d", nStart)
 
-		col := dsv.NewColumnReal(forest.OobErrSteps, colName)
+		col := tabula.NewColumnReal(forest.OobErrSteps, colName)
 
 		dataooberr.PushColumn(*col)
 
@@ -83,7 +84,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 		t.Fatal(e)
 	}
 
-	_, e = writer.WriteDataset(dataooberr, nil)
+	_, e = writer.WriteRawDataset(dataooberr, nil)
 	if e != nil {
 		t.Fatal(e)
 	}

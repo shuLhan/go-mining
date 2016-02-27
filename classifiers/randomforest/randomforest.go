@@ -16,10 +16,11 @@ import (
 	"errors"
 	"fmt"
 	"github.com/golang/glog"
-	"github.com/shuLhan/dsv/util"
 	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/cart"
 	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/tabula/util"
+	"github.com/shuLhan/tekstus"
 )
 
 const (
@@ -226,14 +227,14 @@ func (forest *Input) ClassifySet(dataset *dataset.Reader, dsIdx []int) (
 			votes = append(votes, class)
 		}
 
-		class = util.StringsGetMajority(votes, targetClass)
+		class = tekstus.WordsMaxCountOf(votes, targetClass, false)
 		(*targetAttr).Records[x].V = class
 	}
 
 	glog.V(2).Info(">>> target    : ", origTarget)
 	glog.V(2).Info(">>> prediction: ", targetAttr.ToStringSlice())
 
-	_, testStats.NNegative, testStats.NSample = util.CountMissRate(
+	_, testStats.NNegative, testStats.NSample = tekstus.WordsCountMissRate(
 		origTarget, targetAttr.ToStringSlice())
 
 	testStats.NPositive = testStats.NSample - testStats.NNegative

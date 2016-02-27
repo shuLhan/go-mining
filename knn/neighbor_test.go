@@ -5,9 +5,8 @@
 package knn_test
 
 import (
-	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/dsv/util/assert"
 	"github.com/shuLhan/go-mining/knn"
+	"github.com/shuLhan/tabula"
 	"math/rand"
 	"sort"
 	"testing"
@@ -26,10 +25,10 @@ var distances = []int{4, 3, 2, 1, 0}
 
 func createNeigbours() (neighbors knn.Neighbors) {
 	for x, d := range dataFloat64 {
-		row := dsv.Row{}
+		row := tabula.Row{}
 
 		for _, v := range d {
-			rec := dsv.NewRecordReal(v)
+			rec := tabula.NewRecordReal(v)
 			row.PushBack(rec)
 		}
 
@@ -40,10 +39,10 @@ func createNeigbours() (neighbors knn.Neighbors) {
 
 func createNeigboursByIdx(indices []int) (neighbors knn.Neighbors) {
 	for x, idx := range indices {
-		row := dsv.Row{}
+		row := tabula.Row{}
 
 		for _, v := range dataFloat64[idx] {
-			rec := dsv.NewRecordReal(v)
+			rec := tabula.NewRecordReal(v)
 			row.PushBack(rec)
 		}
 
@@ -63,15 +62,15 @@ func TestContain(t *testing.T) {
 
 	isin, idx := neighbors.Rows.Contain(randSample)
 
-	assert.Equal(t, true, isin)
-	assert.Equal(t, pickIdx, idx)
+	assert(t, true, isin, true)
+	assert(t, pickIdx, idx, true)
 
 	// change one of record value to check for false.
 	randSample[0].SetFloat(0)
 
 	isin, _ = neighbors.Rows.Contain(randSample)
 
-	assert.Equal(t, false, isin)
+	assert(t, false, isin, true)
 }
 
 func TestSort(t *testing.T) {
@@ -80,5 +79,5 @@ func TestSort(t *testing.T) {
 
 	sort.Sort(&neighbors)
 
-	assert.Equal(t, exp.Rows, neighbors.Rows)
+	assert(t, exp.Rows, neighbors.Rows, true)
 }
