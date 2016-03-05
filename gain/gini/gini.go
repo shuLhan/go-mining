@@ -12,9 +12,15 @@ package gini
 
 import (
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
+	"os"
+	"strconv"
+)
+
+var (
+	// GINI_DEBUG debug level, set from environment.
+	GINI_DEBUG = 0
 )
 
 /*
@@ -53,6 +59,15 @@ type Gini struct {
 	Gain []float64
 }
 
+func init() {
+	v := os.Getenv("GINI_DEBUG")
+	if v == "" {
+		GINI_DEBUG = 0
+	} else {
+		GINI_DEBUG, _ = strconv.Atoi(v)
+	}
+}
+
 /*
 ComputeDiscrete Given an attribute A with discreate value 'discval', and the
 target attribute T which contain N classes in C, compute the information gain
@@ -67,7 +82,9 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 	// create partition for possible combination of discrete values.
 	gini.createDiscretePartition((*discval))
 
-	glog.V(2).Infoln("part : ", gini.DiscretePart)
+	if GINI_DEBUG >= 2 {
+		fmt.Println("[gini] part :", gini.DiscretePart)
+	}
 
 	gini.Index = make([]float64, len(gini.DiscretePart))
 	gini.Gain = make([]float64, len(gini.DiscretePart))
@@ -86,9 +103,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 	// number of samples
 	nsample := float64(len(*A))
 
-	if glog.V(3) {
-		glog.Infoln("sample:", T)
-		glog.Infof("Gini(a=%s) = %f\n", (*A), gini.Value)
+	if GINI_DEBUG >= 3 {
+		fmt.Println("[gini] sample:", T)
+		fmt.Printf("[gini] Gini(a=%s) = %f\n", (*A), gini.Value)
 	}
 
 	// compute gini index for each discrete values
@@ -127,9 +144,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 			// sum all probabilities times gini index.
 			sumGI += probIndex
 
-			if glog.V(3) {
-				glog.Infoln("subsample:", subT)
-				glog.Infof("Gini(a=%s) = %f/%f * %f = %f\n",
+			if GINI_DEBUG >= 3 {
+				fmt.Printf("[gini] subsample: %v\n", subT)
+				fmt.Printf("[gini] Gini(a=%s) = %f/%f * %f = %f\n",
 					part, ndisc, nsample,
 					giniIndex, probIndex)
 			}
@@ -138,9 +155,9 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 		gini.Index[i] = sumGI
 		gini.Gain[i] = gini.Value - sumGI
 
-		if glog.V(3) {
-			glog.Infoln("sample:", subPart)
-			glog.Infof("Gain(a=%s) = %f - %f = %f\n",
+		if GINI_DEBUG >= 3 {
+			fmt.Printf("[gini] sample: %v\n", subPart)
+			fmt.Printf("[gini] Gain(a=%s) = %f - %f = %f\n",
 				subPart, gini.Value, sumGI,
 				gini.Gain[i])
 		}
@@ -191,7 +208,9 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 
 	gini.SortedIndex = util.IndirectSortFloat64(A2)
 
-	glog.V(1).Infoln(">>> attr sorted :", A2)
+	if GINI_DEBUG >= 1 {
+		fmt.Println("[gini] attr sorted :", A2)
+	}
 
 	// sort the target attribute using sorted index.
 	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
@@ -274,8 +293,8 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 		p = float64(classCount[i]) / n
 		sump2 += (p * p)
 
-		if glog.V(3) {
-			glog.Infof(" compute (%s): (%f/%f)^2 = %f\n", *T,
+		if GINI_DEBUG >= 3 {
+			fmt.Printf("[gini] compute (%s): (%f/%f)^2 = %f\n", *T,
 				float64(classCount[i]), n, p*p)
 		}
 
@@ -302,9 +321,9 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 
 	nsample := len(*A)
 
-	if glog.V(2) {
-		glog.Infoln("sorted data:", A)
-		glog.Infoln("Gini.Value:", gini.Value)
+	if GINI_DEBUG >= 2 {
+		fmt.Println("[gini] sorted data:", A)
+		fmt.Println("[gini] Gini.Value:", gini.Value)
 	}
 
 	for p, contVal := range gini.ContinuPart {
@@ -342,11 +361,11 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		gini.Index[p] = ((pleft * gleft) + (pright * gright))
 		gini.Gain[p] = gini.Value - gini.Index[p]
 
-		if glog.V(3) {
-			glog.Infoln(tleft)
-			glog.Infoln(tright)
+		if GINI_DEBUG >= 3 {
+			fmt.Println("[gini] tleft:", tleft)
+			fmt.Println("[gini] tright:", tright)
 
-			glog.Infof("GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
+			fmt.Printf("[gini] GiniGain(%v) = %f - (%f * %f) + (%f * %f) = %f\n",
 				contVal, gini.Value, pleft, gleft,
 				pright, gright, gini.Gain[p])
 		}

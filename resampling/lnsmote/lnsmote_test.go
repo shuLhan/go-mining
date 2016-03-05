@@ -33,7 +33,7 @@ func TestLNSmote(t *testing.T) {
 
 	reader.Close()
 
-	fmt.Println(">>> Total samples:", n)
+	fmt.Println("[lnsmote_test] Total samples:", n)
 
 	// write synthetic samples.
 	writer, e := dsv.NewWriter("")
@@ -62,7 +62,7 @@ func TestLNSmote(t *testing.T) {
 
 	synthetics := lnsmote.Resampling(reader.Dataset)
 
-	fmt.Println(">>> n synthetic:", synthetics.Len())
+	fmt.Println("[lnsmote_test] n synthetic:", synthetics.Len())
 
 	writer.WriteRawRows(&synthetics.Rows, ",")
 

@@ -13,11 +13,18 @@ Package lnsmote implement the Local-Neighborhood algorithm from the paper,
 package lnsmote
 
 import (
-	"github.com/golang/glog"
+	"fmt"
 	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/tabula"
 	"math/rand"
+	"os"
+	"strconv"
 	"time"
+)
+
+var (
+	// LNSMOTE_DEBUG debug level, set from environment.
+	LNSMOTE_DEBUG = 0
 )
 
 /*
@@ -40,6 +47,15 @@ type Input struct {
 	dataset tabula.Dataset
 }
 
+func init() {
+	v := os.Getenv("LNSMOTE_DEBUG")
+	if v == "" {
+		LNSMOTE_DEBUG = 0
+	} else {
+		LNSMOTE_DEBUG, _ = strconv.Atoi(v)
+	}
+}
+
 func (in *Input) Init(dataset tabula.Dataset) {
 	// Count number of sythetic sample that will be created.
 	if in.PercentOver < 100 {
@@ -51,8 +67,10 @@ func (in *Input) Init(dataset tabula.Dataset) {
 
 	in.minority = dataset.SelectRowsWhere(in.ClassIdx, in.ClassMinor)
 
-	glog.V(1).Info(">>> n: ", in.n)
-	glog.V(1).Info(">>> n minority: ", in.minority.Len())
+	if LNSMOTE_DEBUG >= 1 {
+		fmt.Println("[lnsmote] n:", in.n)
+		fmt.Println("[lnsmote] n minority:", in.minority.Len())
+	}
 }
 
 func (in *Input) Resampling(dataset tabula.Dataset) (
@@ -63,7 +81,9 @@ func (in *Input) Resampling(dataset tabula.Dataset) (
 	for x, p := range in.minority.Rows {
 		neighbors := in.FindNeighbors(in.dataset.Rows, p)
 
-		glog.V(3).Info(">>> neighbors:", neighbors.Rows)
+		if LNSMOTE_DEBUG >= 3 {
+			fmt.Println("[lnsmote] neighbors:", neighbors.Rows)
+		}
 
 		for y := 0; y < in.n; y++ {
 			syn := in.createSynthetic(p, neighbors)
@@ -75,9 +95,12 @@ func (in *Input) Resampling(dataset tabula.Dataset) (
 			}
 		}
 
-		glog.Infof(">>> %-4d n synthetics: %v", x, in.Synthetic.Len())
+		if LNSMOTE_DEBUG >= 1 {
+			fmt.Printf("[lnsmote] %-4d n synthetics: %v", x,
+				in.Synthetic.Len())
+		}
 
-		if glog.V(2) {
+		if LNSMOTE_DEBUG >= 2 {
 			time.Sleep(5000 * time.Millisecond)
 		}
 	}
@@ -97,7 +120,9 @@ func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 	// Check if synthetic sample can be created from p and n.
 	canit, slp, sln := in.canCreate(p, *n)
 	if !canit {
-		glog.V(2).Info(">>> can not create synthetic")
+		if LNSMOTE_DEBUG >= 2 {
+			fmt.Println("[lnsmote] can not create synthetic")
+		}
 		// we can not create from p and synthetic.
 		return nil
 	}
@@ -125,8 +150,10 @@ func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.Dataset,
 	slp := in.safeLevel(p)
 	sln := in.safeLevel2(p, n)
 
-	glog.V(2).Info(">>> slp : ", slp.Len())
-	glog.V(2).Info(">>> sln : ", sln.Len())
+	if LNSMOTE_DEBUG >= 2 {
+		fmt.Println("[lnsmote] slp : ", slp.Len())
+		fmt.Println("[lnsmote] sln : ", sln.Len())
+	}
 
 	return slp.Len() != 0 || sln.Len() != 0, slp, sln
 }
@@ -149,13 +176,19 @@ func (in *Input) safeLevel2(p, n tabula.Row) tabula.Dataset {
 
 	// if p in neighbors, replace it with neighbours in K+1
 	if nIsMinor && pInNeighbors {
-		glog.V(1).Info(">>> Replacing ", pidx)
-		glog.V(2).Info(">>> Replacing ", pidx, " in ", neighbors)
+		if LNSMOTE_DEBUG >= 1 {
+			fmt.Println("[lnsmote] Replacing ", pidx)
+		}
+		if LNSMOTE_DEBUG >= 2 {
+			fmt.Println("[lnsmote] Replacing ", pidx, " in ", neighbors)
+		}
 
 		repl := in.AllNeighbors.GetRow(in.K + 1)
 		neighbors.Rows[pidx] = *repl
 
-		glog.V(2).Info(">>> Replacement ", neighbors)
+		if LNSMOTE_DEBUG >= 2 {
+			fmt.Println("[lnsmote] Replacement ", neighbors)
+		}
 	}
 
 	minorNeighbors := neighbors.SelectRowsWhere(in.ClassIdx, in.ClassMinor)

@@ -9,15 +9,22 @@ distance between samples.
 package knn
 
 import (
-	"github.com/golang/glog"
+	"fmt"
 	"github.com/shuLhan/tabula"
 	"math"
+	"os"
 	"sort"
+	"strconv"
 )
 
 const (
 	// TEuclidianDistance used in Input.DistanceMethod.
 	TEuclidianDistance = 0
+)
+
+var (
+	// KNN_DEBUG debug level for this package, set from environment.
+	KNN_DEBUG = 0
 )
 
 /*
@@ -33,6 +40,15 @@ type Input struct {
 	K int
 	// AllNeighbors contain all neighbours
 	AllNeighbors Neighbors
+}
+
+func init() {
+	v := os.Getenv("KNN_DEBUG")
+	if v == "" {
+		KNN_DEBUG = 0
+	} else {
+		KNN_DEBUG, _ = strconv.Atoi(v)
+	}
 }
 
 /*
@@ -96,11 +112,15 @@ func (in *Input) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
 		minK = in.K
 	}
 
-	glog.V(2).Info(">>> all neighbors:", in.AllNeighbors.Len())
+	if KNN_DEBUG >= 2 {
+		fmt.Println("[knn] all neighbors:", in.AllNeighbors.Len())
+	}
 
 	kneighbors = in.AllNeighbors.SelectRange(0, minK)
 
-	glog.V(2).Info(">>> k neighbors:", kneighbors.Len())
+	if KNN_DEBUG >= 2 {
+		fmt.Println("[knn] k neighbors:", kneighbors.Len())
+	}
 
 	return
 }
