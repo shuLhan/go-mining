@@ -17,13 +17,15 @@ The implementation is based on Data Mining book,
 package cart
 
 import (
-	"github.com/golang/glog"
+	"fmt"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/tree/binary"
 	"github.com/shuLhan/tabula"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
+	"os"
+	"strconv"
 )
 
 const (
@@ -41,6 +43,11 @@ const (
 	ColFlagSkip = 2
 )
 
+var (
+	// CART_DEBUG level, set from environment.
+	CART_DEBUG = 0
+)
+
 /*
 Input data for building CART.
 */
@@ -53,12 +60,21 @@ type Input struct {
 	NRandomFeature int
 	// OOBErrVal is the last out-of-bag error value in the tree.
 	OOBErrVal float64
-	// tree in classification.
+	// Tree in classification.
 	Tree binary.Tree
 }
 
+func init() {
+	v := os.Getenv("CART_DEBUG")
+	if v == "" {
+		CART_DEBUG = 0
+	} else {
+		CART_DEBUG, _ = strconv.Atoi(v)
+	}
+}
+
 /*
-NewInput create new Input object.
+New create new Input object.
 */
 func New(splitMethod, nRandomFeature int) *Input {
 	return &Input{
@@ -93,8 +109,11 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	nrow := D.GetNRow()
 
 	if nrow <= 0 {
-		glog.V(2).Info(">>> empty dataset (", D.GetMajorityClass(),
-			") : ", D)
+		if CART_DEBUG >= 2 {
+			fmt.Printf("[cart] empty dataset (%s) : %v\n",
+				D.GetMajorityClass(), D)
+		}
+
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  D.GetMajorityClass(),
@@ -107,7 +126,11 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// is set to that class.
 	single, name := D.IsInSingleClass()
 	if single {
-		glog.V(2).Info(">>> in single class (", name, "): ", D.Columns)
+		if CART_DEBUG >= 2 {
+			fmt.Printf("[cart] in single class (%s): %v\n", name,
+				D.Columns)
+		}
+
 		node.Value = NodeValue{
 			IsLeaf: true,
 			Class:  name,
@@ -116,7 +139,9 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		return node, nil
 	}
 
-	glog.V(2).Infoln(">>> D:", D)
+	if CART_DEBUG >= 2 {
+		fmt.Println("[cart] D:", D)
+	}
 
 	// calculate the Gini gain for each attribute.
 	gains := in.computeGiniGain(D)
@@ -128,9 +153,11 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// if maxgain value is 0, use majority class as node and terminate
 	// the process
 	if MaxGain.GetMaxGainValue() == 0 {
-		glog.V(2).Infoln(">>> max gain 0 with target",
-			D.GetTarget(), " and majority class is ",
-			D.GetMajorityClass())
+		if CART_DEBUG >= 2 {
+			fmt.Println("[cart] max gain 0 with target",
+				D.GetTarget(), " and majority class is ",
+				D.GetMajorityClass())
+		}
 
 		node.Value = NodeValue{
 			IsLeaf: true,
@@ -143,7 +170,9 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	// using the sorted index in MaxGain, sort all field in dataset
 	D.SortColumnsByIndex(MaxGain.SortedIndex)
 
-	glog.V(2).Infoln(">>> maxgain:", MaxGain)
+	if CART_DEBUG >= 2 {
+		fmt.Println("[cart] maxgain:", MaxGain)
+	}
 
 	// Now that we have attribute with max gain in MaxGainIdx, and their
 	// gain dan partition value in Gains[MaxGainIdx] and
@@ -162,8 +191,10 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		splitV = attrSubV[0]
 	}
 
-	glog.V(2).Infoln(">>> maxgainindex:", MaxGainIdx)
-	glog.V(2).Infoln(">>> split v:", splitV)
+	if CART_DEBUG >= 2 {
+		fmt.Println("[cart] maxgainindex:", MaxGainIdx)
+		fmt.Println("[cart] split v:", splitV)
+	}
 
 	node.Value = NodeValue{
 		SplitAttrName: D.Columns[MaxGainIdx].GetName(),
@@ -248,8 +279,10 @@ func (in *Input) SelectRandomFeature(D *dataset.Reader) {
 		D.Columns[idx].Flag = D.Columns[idx].Flag &^ ColFlagSkip
 	}
 
-	glog.V(1).Info(">>> selected random features: ", pickedIdx)
-	glog.V(1).Info(">>> selected columns        : ", D.Columns)
+	if CART_DEBUG >= 1 {
+		fmt.Println("[cart] selected random features: ", pickedIdx)
+		fmt.Println("[cart] selected columns        : ", D.Columns)
+	}
 }
 
 /*
@@ -297,14 +330,18 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 			attr := col.ToStringSlice()
 			attrV := col.ValueSpace
 
-			glog.V(2).Infoln(">>> attr :", attr)
-			glog.V(2).Infoln(">>> attrV:", attrV)
+			if CART_DEBUG >= 2 {
+				fmt.Println("[cart] attr :", attr)
+				fmt.Println("[cart] attrV:", attrV)
+			}
 
 			gains[x].ComputeDiscrete(&attr, &attrV, &target,
 				&classes)
 		}
 
-		glog.V(2).Infoln(">>> gain :", gains[x])
+		if CART_DEBUG >= 2 {
+			fmt.Println("[cart] gain :", gains[x])
+		}
 	}
 	return
 }
@@ -365,8 +402,10 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	// save the original target to be compared later.
 	origTarget := oob.GetTarget().ToStringSlice()
 
-	glog.V(2).Info(">>> OOB:", oob.Columns)
-	glog.V(2).Info(">>> TREE:", &in.Tree)
+	if CART_DEBUG >= 2 {
+		fmt.Println("[cart] OOB:", oob.Columns)
+		fmt.Println("[cart] TREE:", &in.Tree)
+	}
 
 	// reset the target.
 	oob.GetTarget().ClearValues()
@@ -381,8 +420,10 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 
 	target := oob.GetTarget().ToStringSlice()
 
-	glog.V(2).Info(">>> original target:", origTarget)
-	glog.V(2).Info(">>> classify target:", target)
+	if CART_DEBUG >= 2 {
+		fmt.Println("[cart] original target:", origTarget)
+		fmt.Println("[cart] classify target:", target)
+	}
 
 	// count how many target value is miss-classified.
 	in.OOBErrVal, _, _ = tekstus.WordsCountMissRate(origTarget, target)
