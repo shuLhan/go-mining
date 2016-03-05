@@ -15,12 +15,13 @@ package randomforest
 import (
 	"errors"
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/cart"
 	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
+	"os"
+	"strconv"
 )
 
 const (
@@ -32,6 +33,8 @@ const (
 )
 
 var (
+	// RANDOMFOREST_DEBUG level, set it from environment variable.
+	RANDOMFOREST_DEBUG = 0
 	// ErrNoInput will tell you when no input is given.
 	ErrNoInput = errors.New("randomforest: input reader is empty")
 )
@@ -59,6 +62,15 @@ type Input struct {
 	Trees []cart.Input
 	// bagIndices contain list of selected samples at bootstraping.
 	bagIndices [][]int
+}
+
+func init() {
+	v := os.Getenv("RANDOMFOREST_DEBUG")
+	if v == "" {
+		RANDOMFOREST_DEBUG = 0
+	} else {
+		RANDOMFOREST_DEBUG, _ = strconv.Atoi(v)
+	}
 }
 
 /*
@@ -96,7 +108,9 @@ func (forest *Input) Init(samples *dataset.Reader) {
 
 	forest.OobErrSteps = make([]float64, forest.NTree)
 
-	glog.V(1).Info(">>> forest:", forest)
+	if RANDOMFOREST_DEBUG >= 1 {
+		fmt.Println("[randomforest] forest:", forest)
+	}
 }
 
 /*
@@ -144,7 +158,9 @@ func (forest *Input) Build(samples *dataset.Reader) (e error) {
 
 	forest.OobErrMeanVal = totalOOBErr / float64(forest.NTree)
 
-	glog.V(1).Info(">>> OOB error mean: ", forest.OobErrMeanVal)
+	if RANDOMFOREST_DEBUG >= 1 {
+		fmt.Println("[randomforest] OOB error mean: ", forest.OobErrMeanVal)
+	}
 
 	return nil
 }
@@ -180,8 +196,8 @@ func (forest *Input) GrowTree(t int, samples *dataset.Reader,
 
 	forest.AddOobStats(testStats)
 
-	if glog.V(1) {
-		fmt.Printf(">>> tree #%4d OOB error: %.4f, "+
+	if RANDOMFOREST_DEBUG >= 1 {
+		fmt.Printf("[randomforest] tree #%4d OOB error: %.4f, "+
 			"total OOB error: %.4f, tp-rate %.4f, tn-rate %.4f\n",
 			t, oobErr,
 			forest.OobErrSteps[t],
@@ -231,8 +247,10 @@ func (forest *Input) ClassifySet(dataset *dataset.Reader, dsIdx []int) (
 		(*targetAttr).Records[x].V = class
 	}
 
-	glog.V(2).Info(">>> target    : ", origTarget)
-	glog.V(2).Info(">>> prediction: ", targetAttr.ToStringSlice())
+	if RANDOMFOREST_DEBUG >= 2 {
+		fmt.Println("[randomforest] target    : ", origTarget)
+		fmt.Println("[randomforest] prediction: ", targetAttr.ToStringSlice())
+	}
 
 	_, testStats.NNegative, testStats.NSample = tekstus.WordsCountMissRate(
 		origTarget, targetAttr.ToStringSlice())

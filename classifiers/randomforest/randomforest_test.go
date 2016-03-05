@@ -6,7 +6,6 @@ package randomforest_test
 
 import (
 	"fmt"
-	"github.com/golang/glog"
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/go-mining/dataset"
@@ -68,7 +67,9 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		dataooberr.PushColumn(*col)
 
-		glog.V(3).Info(forest)
+		if randomforest.RANDOMFOREST_DEBUG >= 3 {
+			fmt.Println("[randomforest_test] ", forest)
+		}
 	}
 
 	// write oob data to file
