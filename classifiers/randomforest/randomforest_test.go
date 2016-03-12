@@ -8,9 +8,7 @@ import (
 	"fmt"
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
-	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/tabula"
-	"io"
 	"testing"
 )
 
@@ -30,17 +28,9 @@ func runRandomForest(t *testing.T, sampledsv string,
 	oobFile string,
 ) {
 	// read data.
-	samples, e := dataset.NewReader(sampledsv)
-
+	samples := tabula.Claset{}
+	_, e := dsv.SimpleRead(sampledsv, &samples)
 	if nil != e {
-		t.Fatal(e)
-	}
-
-	defer samples.Close()
-
-	e = samples.Read()
-
-	if nil != e && e != io.EOF {
 		t.Fatal(e)
 	}
 
@@ -55,7 +45,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 		// create random forest.
 		forest := randomforest.New(ntree, nStart, npercent)
 
-		e := forest.Build(samples)
+		e := forest.Build(&samples)
 
 		if e != nil {
 			t.Fatal(e)

@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/cart"
-	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/tabula"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
 	"os"
@@ -101,7 +101,7 @@ func New(ntree, nfeature, percentboot int) (forest *Input) {
 /*
 Init initialize the forest.
 */
-func (forest *Input) Init(samples *dataset.Reader) {
+func (forest *Input) Init(samples tabula.ClasetInterface) {
 	// calculate number of subsample.
 	forest.NSubsample = int(float32(samples.GetNRow()) *
 		(float32(forest.PercentBoot) / 100.0))
@@ -139,7 +139,7 @@ Build the forest using samples dataset.
 
 - samples: as original dataset.
 */
-func (forest *Input) Build(samples *dataset.Reader) (e error) {
+func (forest *Input) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
 	if samples == nil {
 		return ErrNoInput
@@ -165,19 +165,20 @@ func (forest *Input) Build(samples *dataset.Reader) (e error) {
 	return nil
 }
 
-func (forest *Input) GrowTree(t int, samples *dataset.Reader,
+func (forest *Input) GrowTree(t int, samples tabula.ClasetInterface,
 	totalOobErr float64) (
 	oobErr float64,
 	e error,
 ) {
 	// select random samples with replacement.
-	bootstrap, oob, bagIdx, oobIdx := samples.RandomPickRows(
+	bootstrap, oob, bagIdx, oobIdx := tabula.RandomPickRows(
+		samples.(tabula.DatasetInterface),
 		forest.NSubsample, true)
 
 	// build tree.
 	cart := cart.New(cart.SplitMethodGini, forest.NFeature)
 
-	e = cart.Build(&bootstrap)
+	e = cart.Build(bootstrap.(tabula.ClasetInterface))
 	if e != nil {
 		return
 	}
@@ -187,7 +188,7 @@ func (forest *Input) GrowTree(t int, samples *dataset.Reader,
 	forest.AddBagIndex(bagIdx)
 
 	// Run OOB on current forest.
-	testStats := forest.ClassifySet(&oob, oobIdx)
+	testStats := forest.ClassifySet(oob.(tabula.ClasetInterface), oobIdx)
 
 	// calculate error.
 	oobErr = testStats.GetFPRate()
@@ -214,18 +215,19 @@ forest. Return miss classification rate:
 
 	(number of missed class / number of samples).
 */
-func (forest *Input) ClassifySet(dataset *dataset.Reader, dsIdx []int) (
+func (forest *Input) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
 	testStats classifiers.TestStats,
 ) {
 	var class string
-	targetClass := dataset.GetTargetClass()
-	targetAttr := dataset.GetTarget()
+	targetClass := dataset.GetClassValueSpace()
+	targetAttr := dataset.GetClassColumn()
 	origTarget := targetAttr.ToStringSlice()
 	indexlen := len(dsIdx)
 
 	targetAttr.ClearValues()
 
-	for x, row := range dataset.Rows {
+	rows := dataset.GetRows()
+	for x, row := range *rows {
 		var votes []string
 
 		for y, tree := range forest.Trees {

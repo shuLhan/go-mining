@@ -9,7 +9,7 @@ import (
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/go-mining/resampling/lnsmote"
-	"io"
+	"github.com/shuLhan/tabula"
 	"testing"
 )
 
@@ -19,21 +19,13 @@ const (
 
 func TestLNSmote(t *testing.T) {
 	// Read sample dataset.
-	reader, e := dsv.NewReader(fcfg)
-
+	dataset := tabula.Dataset{}
+	_, e := dsv.SimpleRead(fcfg, &dataset)
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	n, e := dsv.Read(reader)
-
-	if nil != e && e != io.EOF {
-		t.Fatal(e)
-	}
-
-	reader.Close()
-
-	fmt.Println("[lnsmote_test] Total samples:", n)
+	fmt.Println("[lnsmote_test] Total samples:", dataset.GetNRow())
 
 	// write synthetic samples.
 	writer, e := dsv.NewWriter("")
@@ -47,7 +39,7 @@ func TestLNSmote(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	writer.WriteRawRows(&reader.Rows, ",")
+	writer.WriteRawRows(dataset.GetRows(), ",")
 
 	// Initialize LN-SMOTE.
 	lnsmote := &lnsmote.Input{
@@ -60,11 +52,11 @@ func TestLNSmote(t *testing.T) {
 		PercentOver: 100,
 	}
 
-	synthetics := lnsmote.Resampling(reader.Dataset)
+	synthetics := lnsmote.Resampling(&dataset)
 
 	fmt.Println("[lnsmote_test] n synthetic:", synthetics.Len())
 
-	writer.WriteRawRows(&synthetics.Rows, ",")
+	writer.WriteRawRows(synthetics.GetRows(), ",")
 
 	writer.Close()
 }

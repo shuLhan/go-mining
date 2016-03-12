@@ -18,7 +18,6 @@ package cart
 
 import (
 	"fmt"
-	"github.com/shuLhan/go-mining/dataset"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/tree/binary"
 	"github.com/shuLhan/tabula"
@@ -87,7 +86,7 @@ func New(splitMethod, nRandomFeature int) *Input {
 /*
 Build will create a tree using CART algorithm.
 */
-func (in *Input) Build(D *dataset.Reader) (e error) {
+func (in *Input) Build(D tabula.ClasetInterface) (e error) {
 	in.Tree.Root, e = in.splitTreeByGain(D)
 
 	return
@@ -99,10 +98,12 @@ left and right.
 
 Return node with the split information.
 */
-func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
+func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	e error,
 ) {
 	node = &binary.BTNode{}
+
+	D.RecountMajorMinor()
 
 	// if dataset is empty return node labeled with majority classes in
 	// dataset.
@@ -111,12 +112,12 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	if nrow <= 0 {
 		if CART_DEBUG >= 2 {
 			fmt.Printf("[cart] empty dataset (%s) : %v\n",
-				D.GetMajorityClass(), D)
+				D.MajorityClass(), D)
 		}
 
 		node.Value = NodeValue{
 			IsLeaf: true,
-			Class:  D.GetMajorityClass(),
+			Class:  D.MajorityClass(),
 			Size:   0,
 		}
 		return node, nil
@@ -128,7 +129,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	if single {
 		if CART_DEBUG >= 2 {
 			fmt.Printf("[cart] in single class (%s): %v\n", name,
-				D.Columns)
+				D.GetColumns())
 		}
 
 		node.Value = NodeValue{
@@ -155,20 +156,20 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	if MaxGain.GetMaxGainValue() == 0 {
 		if CART_DEBUG >= 2 {
 			fmt.Println("[cart] max gain 0 with target",
-				D.GetTarget(), " and majority class is ",
-				D.GetMajorityClass())
+				D.GetClassAsStrings(), " and majority class is ",
+				D.MajorityClass())
 		}
 
 		node.Value = NodeValue{
 			IsLeaf: true,
-			Class:  D.GetMajorityClass(),
+			Class:  D.MajorityClass(),
 			Size:   0,
 		}
 		return node, nil
 	}
 
 	// using the sorted index in MaxGain, sort all field in dataset
-	D.SortColumnsByIndex(MaxGain.SortedIndex)
+	tabula.SortColumnsByIndex(D, MaxGain.SortedIndex)
 
 	if CART_DEBUG >= 2 {
 		fmt.Println("[cart] maxgain:", MaxGain)
@@ -188,7 +189,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	} else {
 		attrPartV := MaxGain.GetMaxPartGainValue()
 		attrSubV := attrPartV.(tekstus.ListStrings)
-		splitV = attrSubV[0]
+		splitV = attrSubV[0].Normalize()
 	}
 
 	if CART_DEBUG >= 2 {
@@ -197,7 +198,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 	}
 
 	node.Value = NodeValue{
-		SplitAttrName: D.Columns[MaxGainIdx].GetName(),
+		SplitAttrName: D.GetColumn(MaxGainIdx).GetName(),
 		IsLeaf:        false,
 		IsContinu:     MaxGain.IsContinu,
 		Size:          nrow,
@@ -205,26 +206,32 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 		SplitV:        splitV,
 	}
 
-	splitL, splitR, e := D.SplitRowsByValue(MaxGainIdx, splitV)
+	dsL, dsR, e := tabula.SplitRowsByValue(D, MaxGainIdx, splitV)
 
 	if e != nil {
 		return node, e
 	}
 
+	splitL := dsL.(tabula.ClasetInterface)
+	splitR := dsR.(tabula.ClasetInterface)
+
 	// Set the flag to parent in attribute referenced by
 	// MaxGainIdx, so it will not computed again in the next round.
-	for x := range splitL.Columns {
+	cols := splitL.GetColumns()
+	for x := range *cols {
 		if x == MaxGainIdx {
-			splitL.Columns[x].Flag = ColFlagParent
+			(*cols)[x].Flag = ColFlagParent
 		} else {
-			splitL.Columns[x].Flag = 0
+			(*cols)[x].Flag = 0
 		}
 	}
-	for x := range splitR.Columns {
+
+	cols = splitR.GetColumns()
+	for x := range *cols {
 		if x == MaxGainIdx {
-			splitR.Columns[x].Flag = ColFlagParent
+			(*cols)[x].Flag = ColFlagParent
 		} else {
-			splitR.Columns[x].Flag = 0
+			(*cols)[x].Flag = 0
 		}
 	}
 
@@ -246,7 +253,7 @@ func (in *Input) splitTreeByGain(D *dataset.Reader) (node *binary.BTNode,
 
 // SelectRandomFeature if NRandomFeature is greater than zero, select and
 // compute gain in n random features instead of in all features
-func (in *Input) SelectRandomFeature(D *dataset.Reader) {
+func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 	if in.NRandomFeature <= 0 {
 		// all features selected
 		return
@@ -260,12 +267,13 @@ func (in *Input) SelectRandomFeature(D *dataset.Reader) {
 	}
 
 	// exclude class index and parent node index
-	excludeIdx := []int{D.ClassIndex}
-	for x, col := range (*D).Columns {
+	excludeIdx := []int{D.GetClassIndex()}
+	cols := D.GetColumns()
+	for x, col := range *cols {
 		if (col.Flag & ColFlagParent) == ColFlagParent {
 			excludeIdx = append(excludeIdx, x)
 		} else {
-			D.Columns[x].Flag |= ColFlagSkip
+			(*cols)[x].Flag |= ColFlagSkip
 		}
 	}
 
@@ -276,19 +284,20 @@ func (in *Input) SelectRandomFeature(D *dataset.Reader) {
 		pickedIdx = append(pickedIdx, idx)
 
 		// Remove skip flag on selected column
-		D.Columns[idx].Flag = D.Columns[idx].Flag &^ ColFlagSkip
+		col := D.GetColumn(idx)
+		col.Flag = col.Flag &^ ColFlagSkip
 	}
 
 	if CART_DEBUG >= 1 {
 		fmt.Println("[cart] selected random features: ", pickedIdx)
-		fmt.Println("[cart] selected columns        : ", D.Columns)
+		fmt.Println("[cart] selected columns        : ", D.GetColumns())
 	}
 }
 
 /*
 computeGiniGain calculate the gini index for each value in each attribute.
 */
-func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
+func (in *Input) computeGiniGain(D tabula.ClasetInterface) (gains []gini.Gini) {
 	switch in.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
@@ -297,12 +306,12 @@ func (in *Input) computeGiniGain(D *dataset.Reader) (gains []gini.Gini) {
 
 	in.SelectRandomFeature(D)
 
-	targetV := D.GetTarget().ToStringSlice()
-	classes := D.GetTargetClass()
+	targetV := D.GetClassAsStrings()
+	classes := D.GetClassValueSpace()
 
-	for x, col := range (*D).Columns {
+	for x, col := range *D.GetColumns() {
 		// skip class attribute.
-		if x == D.ClassIndex {
+		if x == D.GetClassIndex() {
 			continue
 		}
 
@@ -364,10 +373,10 @@ func (in *Input) Classify(data tabula.Row) (class string) {
 				node = node.Right
 			}
 		} else {
-			splitV := nodev.SplitV.(tekstus.Strings)
+			splitV := nodev.SplitV.([]string)
 			attrV := data[nodev.SplitAttrIdx].String()
 
-			if splitV.IsContain(attrV) {
+			if tekstus.StringsIsContain(splitV, attrV) {
 				node = node.Left
 			} else {
 				node = node.Right
@@ -382,12 +391,12 @@ func (in *Input) Classify(data tabula.Row) (class string) {
 /*
 ClassifySet set the class attribute based on tree classification.
 */
-func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
+func (in *Input) ClassifySet(data tabula.ClasetInterface) (e error) {
 	nrow := data.GetNRow()
-	targetAttr := data.GetTarget()
+	targetAttr := data.GetClassColumn()
 
 	for i := 0; i < nrow; i++ {
-		class := in.Classify(*(*data).GetRow(i))
+		class := in.Classify(*data.GetRow(i))
 
 		(*targetAttr).Records[i].V = class
 	}
@@ -398,9 +407,9 @@ func (in *Input) ClassifySet(data *dataset.Reader) (e error) {
 /*
 CountOOBError process out-of-bag data on tree and return error value.
 */
-func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
+func (in *Input) CountOOBError(oob tabula.Claset) (errval float64, e error) {
 	// save the original target to be compared later.
-	origTarget := oob.GetTarget().ToStringSlice()
+	origTarget := oob.GetClassAsStrings()
 
 	if CART_DEBUG >= 2 {
 		fmt.Println("[cart] OOB:", oob.Columns)
@@ -408,17 +417,18 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	}
 
 	// reset the target.
-	oob.GetTarget().ClearValues()
+	oobtarget := oob.GetClassColumn()
+	oobtarget.ClearValues()
 
 	e = in.ClassifySet(&oob)
 
 	if e != nil {
 		// set original target values back.
-		oob.GetTarget().SetValues(origTarget)
+		oobtarget.SetValues(origTarget)
 		return
 	}
 
-	target := oob.GetTarget().ToStringSlice()
+	target := oobtarget.ToStringSlice()
 
 	if CART_DEBUG >= 2 {
 		fmt.Println("[cart] original target:", origTarget)
@@ -429,7 +439,7 @@ func (in *Input) CountOOBError(oob dataset.Reader) (errval float64, e error) {
 	in.OOBErrVal, _, _ = tekstus.WordsCountMissRate(origTarget, target)
 
 	// set original target values back.
-	oob.GetTarget().SetValues(origTarget)
+	oobtarget.SetValues(origTarget)
 
 	return in.OOBErrVal, nil
 }

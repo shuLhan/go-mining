@@ -6,9 +6,9 @@ package cart_test
 
 import (
 	"fmt"
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/cart"
-	"github.com/shuLhan/go-mining/dataset"
-	"io"
+	"github.com/shuLhan/tabula"
 	"reflect"
 	"runtime/debug"
 	"testing"
@@ -28,24 +28,26 @@ func assert(t *testing.T, exp, got interface{}, equal bool) {
 }
 
 func TestCART(t *testing.T) {
-	ds, e := dataset.NewReader("../../testdata/iris/iris.dsv")
+	fds := "../../testdata/iris/iris.dsv"
 
+	ds := tabula.Claset{}
+
+	_, e := dsv.SimpleRead(fds, &ds)
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	e = ds.Read()
+	fmt.Println("class index:", ds.GetClassIndex())
 
-	if nil != e && e != io.EOF {
-		t.Fatal(e)
-	}
+	// copy target to be compared later.
+	targetv := ds.GetClassAsStrings()
 
 	assert(t, NRows, ds.GetNRow(), true)
 
 	// Build CART tree.
 	CART := cart.New(cart.SplitMethodGini, 0)
 
-	e = CART.Build(ds)
+	e = CART.Build(&ds)
 
 	if e != nil {
 		t.Fatal(e)
@@ -53,32 +55,18 @@ func TestCART(t *testing.T) {
 
 	fmt.Println("CART Tree:\n", CART)
 
-	// Reread the data
-	ds.Reset()
-	ds.Open()
-
-	e = ds.Read()
-	if nil != e && e != io.EOF {
-		t.Fatal(e)
-	}
-
 	// Create test set
-	testset, e := dataset.NewReader("../../testdata/iris/iris.dsv")
+	testset := tabula.Claset{}
+	_, e = dsv.SimpleRead(fds, &testset)
 
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	e = testset.Read()
-
-	if nil != e && e != io.EOF {
-		t.Fatal(e)
-	}
-
-	testset.GetTarget().ClearValues()
+	testset.GetClassColumn().ClearValues()
 
 	// Classifiy test set
-	CART.ClassifySet(testset)
+	CART.ClassifySet(&testset)
 
-	assert(t, ds.GetTarget(), testset.GetTarget(), true)
+	assert(t, targetv, testset.GetClassAsStrings(), true)
 }

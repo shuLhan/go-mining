@@ -5,8 +5,9 @@
 package cascadedrf_test
 
 import (
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/cascadedrf"
-	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/tabula"
 	"testing"
 )
 
@@ -20,7 +21,8 @@ func TestCascadedRF(t *testing.T) {
 	sampledsv := "../../testdata/iris/iris.dsv"
 
 	// read samples.
-	samples, e := dataset.NewReader(sampledsv)
+	samples := tabula.Claset{}
+	_, e := dsv.SimpleRead(sampledsv, &samples)
 
 	if nil != e {
 		t.Fatal(e)
@@ -28,5 +30,5 @@ func TestCascadedRF(t *testing.T) {
 
 	crf := cascadedrf.New(nstage, ntree, percentboot, nfeature, tprate, tnrate)
 
-	crf.Train(samples)
+	crf.Train(&samples)
 }

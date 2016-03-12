@@ -56,16 +56,17 @@ func init() {
 	}
 }
 
-func (in *Input) Init(dataset tabula.Dataset) {
+func (in *Input) Init(dataset tabula.DatasetInterface) {
 	// Count number of sythetic sample that will be created.
 	if in.PercentOver < 100 {
 		in.PercentOver = 100
 	}
 
 	in.n = in.PercentOver / 100.0
-	in.dataset = dataset
+	in.dataset = *(dataset.(*tabula.Dataset))
 
-	in.minority = dataset.SelectRowsWhere(in.ClassIdx, in.ClassMinor)
+	in.minority = *tabula.SelectRowsWhere(dataset, in.ClassIdx,
+		in.ClassMinor).(*tabula.Dataset)
 
 	if LNSMOTE_DEBUG >= 1 {
 		fmt.Println("[lnsmote] n:", in.n)
@@ -73,8 +74,8 @@ func (in *Input) Init(dataset tabula.Dataset) {
 	}
 }
 
-func (in *Input) Resampling(dataset tabula.Dataset) (
-	synthetics tabula.Dataset,
+func (in *Input) Resampling(dataset tabula.DatasetInterface) (
+	synthetics tabula.DatasetInterface,
 ) {
 	in.Init(dataset)
 
@@ -105,7 +106,7 @@ func (in *Input) Resampling(dataset tabula.Dataset) (
 		}
 	}
 
-	return in.Synthetic
+	return &in.Synthetic
 }
 
 func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
@@ -144,8 +145,8 @@ func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 	return
 }
 
-func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.Dataset,
-	tabula.Dataset,
+func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
+	tabula.DatasetInterface,
 ) {
 	slp := in.safeLevel(p)
 	sln := in.safeLevel2(p, n)
@@ -158,14 +159,15 @@ func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.Dataset,
 	return slp.Len() != 0 || sln.Len() != 0, slp, sln
 }
 
-func (in *Input) safeLevel(p tabula.Row) tabula.Dataset {
+func (in *Input) safeLevel(p tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, p)
-	minorNeighbors := neighbors.SelectRowsWhere(in.ClassIdx, in.ClassMinor)
+	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIdx,
+		in.ClassMinor)
 
 	return minorNeighbors
 }
 
-func (in *Input) safeLevel2(p, n tabula.Row) tabula.Dataset {
+func (in *Input) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, n)
 
 	// check if n is in minority class.
@@ -191,7 +193,8 @@ func (in *Input) safeLevel2(p, n tabula.Row) tabula.Dataset {
 		}
 	}
 
-	minorNeighbors := neighbors.SelectRowsWhere(in.ClassIdx, in.ClassMinor)
+	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIdx,
+		in.ClassMinor)
 
 	return minorNeighbors
 }

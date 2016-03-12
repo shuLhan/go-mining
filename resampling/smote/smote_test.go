@@ -6,12 +6,11 @@ package smote_test
 
 import (
 	"fmt"
-	"io"
-	"testing"
-
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/go-mining/resampling/smote"
+	"github.com/shuLhan/tabula"
+	"testing"
 )
 
 var (
@@ -20,7 +19,7 @@ var (
 	K           = 5
 )
 
-func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
+func doSmote(dataset tabula.DatasetInterface) (smot *smote.SMOTE) {
 	smot = &smote.SMOTE{
 		Input: knn.Input{
 			DistanceMethod: knn.TEuclidianDistance,
@@ -31,7 +30,7 @@ func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
 		Synthetic:   nil,
 	}
 
-	classes := reader.Rows.GroupByValue(smot.ClassIdx)
+	classes := dataset.GetRows().GroupByValue(smot.ClassIdx)
 	_, minClass := classes.GetMinority()
 
 	fmt.Println("minority samples:", len(minClass))
@@ -44,27 +43,18 @@ func doSmote(reader *dsv.Reader) (smot *smote.SMOTE) {
 }
 
 func TestSmote(t *testing.T) {
-	var e error
-	var n int
-	var reader *dsv.Reader
-	var writer *dsv.Writer
+	dataset := tabula.Dataset{}
 
-	reader, e = dsv.NewReader(fcfg)
+	_, e := dsv.SimpleRead(fcfg, &dataset)
 
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	n, e = dsv.Read(reader)
-
-	if nil != e && e != io.EOF {
-		t.Fatal(e)
-	}
-
-	fmt.Println("Total samples:", n)
+	fmt.Println("Total samples:", dataset.Len())
 
 	// Open writer synthetic samples.
-	writer, e = dsv.NewWriter("")
+	writer, e := dsv.NewWriter("")
 
 	if nil != e {
 		t.Fatal(e)
@@ -75,12 +65,11 @@ func TestSmote(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	writer.WriteRawRows(&reader.Rows, ",")
+	writer.WriteRawRows(dataset.GetRows(), ",")
 
-	smot := doSmote(reader)
+	smot := doSmote(&dataset)
 
 	writer.WriteRawRows(&smot.Synthetic, ",")
 
-	reader.Close()
 	writer.Close()
 }

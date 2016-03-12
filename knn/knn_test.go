@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
-	"io"
+	"github.com/shuLhan/tabula"
 	"reflect"
 	"runtime/debug"
 	"testing"
@@ -39,20 +39,11 @@ func TestComputeEuclidianDistance(t *testing.T) {
 		" 0.672666336306493]"
 
 	// Reading data
-	reader, e := dsv.NewReader("../testdata/phoneme/phoneme.dsv")
-
+	dataset := tabula.Dataset{}
+	_, e := dsv.SimpleRead("../testdata/phoneme/phoneme.dsv",
+		&dataset)
 	if nil != e {
 		return
-	}
-
-	_, e = dsv.Read(reader)
-	if e != nil && e != io.EOF {
-		t.Fatal(e)
-	}
-
-	e = reader.Close()
-	if e != nil {
-		t.Fatal(e)
 	}
 
 	// Processing
@@ -62,7 +53,7 @@ func TestComputeEuclidianDistance(t *testing.T) {
 		K:              5,
 	}
 
-	classes := reader.Rows.GroupByValue(knnIn.ClassIdx)
+	classes := dataset.GetRows().GroupByValue(knnIn.ClassIdx)
 
 	_, minoritySet := classes.GetMinority()
 

@@ -14,7 +14,7 @@ package cascadedrf
 
 import (
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
-	"github.com/shuLhan/go-mining/dataset"
+	"github.com/shuLhan/tabula"
 )
 
 /*
@@ -57,7 +57,7 @@ func New(nstage, ntree, percentboot, nfeature int, tprate, tnrate float64) (
 /*
 Train given a sample dataset, build the stage and random forest.
 */
-func (crf *Input) Train(samples *dataset.Reader) {
+func (crf *Input) Train(samples tabula.ClasetInterface) {
 	for x := 0; x < crf.NStage; x++ {
 		forest := randomforest.New(crf.NTree, crf.NFeature,
 			crf.PercentBoot)
