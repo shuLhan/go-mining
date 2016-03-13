@@ -57,7 +57,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		dataooberr.PushColumn(*col)
 
-		if randomforest.RANDOMFOREST_DEBUG >= 3 {
+		if randomforest.DEBUG >= 3 {
 			fmt.Println("[randomforest_test] ", forest)
 		}
 	}

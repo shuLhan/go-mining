@@ -33,8 +33,8 @@ const (
 )
 
 var (
-	// RANDOMFOREST_DEBUG level, set it from environment variable.
-	RANDOMFOREST_DEBUG = 0
+	// DEBUG level, set it from environment variable.
+	DEBUG = 0
 	// ErrNoInput will tell you when no input is given.
 	ErrNoInput = errors.New("randomforest: input reader is empty")
 )
@@ -67,9 +67,9 @@ type Input struct {
 func init() {
 	v := os.Getenv("RANDOMFOREST_DEBUG")
 	if v == "" {
-		RANDOMFOREST_DEBUG = 0
+		DEBUG = 0
 	} else {
-		RANDOMFOREST_DEBUG, _ = strconv.Atoi(v)
+		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -108,7 +108,7 @@ func (forest *Input) Init(samples tabula.ClasetInterface) {
 
 	forest.OobErrSteps = make([]float64, forest.NTree)
 
-	if RANDOMFOREST_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Println("[randomforest] forest:", forest)
 	}
 }
@@ -158,7 +158,7 @@ func (forest *Input) Build(samples tabula.ClasetInterface) (e error) {
 
 	forest.OobErrMeanVal = totalOOBErr / float64(forest.NTree)
 
-	if RANDOMFOREST_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Println("[randomforest] OOB error mean: ", forest.OobErrMeanVal)
 	}
 
@@ -188,7 +188,8 @@ func (forest *Input) GrowTree(t int, samples tabula.ClasetInterface,
 	forest.AddBagIndex(bagIdx)
 
 	// Run OOB on current forest.
-	testStats := forest.ClassifySet(oob.(tabula.ClasetInterface), oobIdx)
+	oobset := oob.(tabula.ClasetInterface)
+	testStats := forest.ClassifySet(oobset, oobIdx)
 
 	// calculate error.
 	oobErr = testStats.GetFPRate()
@@ -197,7 +198,7 @@ func (forest *Input) GrowTree(t int, samples tabula.ClasetInterface,
 
 	forest.AddOobStats(testStats)
 
-	if RANDOMFOREST_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] tree #%4d OOB error: %.4f, "+
 			"total OOB error: %.4f, tp-rate %.4f, tn-rate %.4f\n",
 			t, oobErr,
@@ -249,7 +250,7 @@ func (forest *Input) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
 		(*targetAttr).Records[x].V = class
 	}
 
-	if RANDOMFOREST_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[randomforest] target    : ", origTarget)
 		fmt.Println("[randomforest] prediction: ", targetAttr.ToStringSlice())
 	}
