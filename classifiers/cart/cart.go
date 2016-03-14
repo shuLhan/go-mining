@@ -28,10 +28,10 @@ import (
 )
 
 const (
-	// SplitMethodGini if defined in Input, the dataset will be splitted
+	// SplitMethodGini if defined in Runtime, the dataset will be splitted
 	// using Gini gain for each possible value or partition.
 	//
-	// This option is used in Input.SplitMethod.
+	// This option is used in Runtime.SplitMethod.
 	SplitMethodGini = 0
 )
 
@@ -48,9 +48,9 @@ var (
 )
 
 /*
-Input data for building CART.
+Runtime data for building CART.
 */
-type Input struct {
+type Runtime struct {
 	// SplitMethod define the criteria to used for splitting.
 	SplitMethod int
 	// NRandomFeature if less or equal to zero compute gain on all feature,
@@ -73,10 +73,10 @@ func init() {
 }
 
 /*
-New create new Input object.
+New create new Runtime object.
 */
-func New(splitMethod, nRandomFeature int) *Input {
-	return &Input{
+func New(splitMethod, nRandomFeature int) *Runtime {
+	return &Runtime{
 		SplitMethod:    splitMethod,
 		NRandomFeature: nRandomFeature,
 		Tree:           binary.Tree{},
@@ -86,8 +86,8 @@ func New(splitMethod, nRandomFeature int) *Input {
 /*
 Build will create a tree using CART algorithm.
 */
-func (in *Input) Build(D tabula.ClasetInterface) (e error) {
-	in.Tree.Root, e = in.splitTreeByGain(D)
+func (runtime *Runtime) Build(D tabula.ClasetInterface) (e error) {
+	runtime.Tree.Root, e = runtime.splitTreeByGain(D)
 
 	return
 }
@@ -98,7 +98,8 @@ left and right.
 
 Return node with the split information.
 */
-func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
+func (runtime *Runtime) splitTreeByGain(D tabula.ClasetInterface) (
+	node *binary.BTNode,
 	e error,
 ) {
 	node = &binary.BTNode{}
@@ -145,7 +146,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	}
 
 	// calculate the Gini gain for each attribute.
-	gains := in.computeGain(D)
+	gains := runtime.computeGain(D)
 
 	// get attribute with maximum Gini gain.
 	MaxGainIdx := gini.FindMaxGain(&gains)
@@ -156,8 +157,8 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	if MaxGain.GetMaxGainValue() == 0 {
 		if DEBUG >= 2 {
 			fmt.Println("[cart] max gain 0 with target",
-				D.GetClassAsStrings(), " and majority class is ",
-				D.MajorityClass())
+				D.GetClassAsStrings(),
+				" and majority class is ", D.MajorityClass())
 		}
 
 		node.Value = NodeValue{
@@ -235,12 +236,12 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 		}
 	}
 
-	nodeLeft, e := in.splitTreeByGain(splitL)
+	nodeLeft, e := runtime.splitTreeByGain(splitL)
 	if e != nil {
 		return node, e
 	}
 
-	nodeRight, e := in.splitTreeByGain(splitR)
+	nodeRight, e := runtime.splitTreeByGain(splitR)
 	if e != nil {
 		return node, e
 	}
@@ -253,14 +254,17 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 
 // SelectRandomFeature if NRandomFeature is greater than zero, select and
 // compute gain in n random features instead of in all features
-func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
-	if in.NRandomFeature <= 0 {
+func (runtime *Runtime) SelectRandomFeature(D tabula.ClasetInterface) {
+	if runtime.NRandomFeature <= 0 {
 		// all features selected
 		return
 	}
+
+	ncols := D.GetNColumn()
+
 	// count all features minus class
-	nfeature := D.GetNColumn() - 1
-	if in.NRandomFeature >= nfeature {
+	nfeature := ncols - 1
+	if runtime.NRandomFeature >= nfeature {
 		// Do nothing if number of random feature equal or greater than
 		// number of feature in dataset.
 		return
@@ -279,8 +283,8 @@ func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 
 	// Select random features excluding feature in `excludeIdx`.
 	var pickedIdx []int
-	for x := 0; x < in.NRandomFeature; x++ {
-		idx := util.GetRandomInteger(D.GetNColumn(), false, pickedIdx,
+	for x := 0; x < runtime.NRandomFeature; x++ {
+		idx := util.GetRandomInteger(ncols, false, pickedIdx,
 			excludeIdx)
 		pickedIdx = append(pickedIdx, idx)
 
@@ -298,14 +302,14 @@ func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 /*
 computeGain calculate the gini index for each value in each attribute.
 */
-func (in *Input) computeGain(D tabula.ClasetInterface) (gains []gini.Gini) {
-	switch in.SplitMethod {
+func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (gains []gini.Gini) {
+	switch runtime.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
 		gains = make([]gini.Gini, D.GetNColumn())
 	}
 
-	in.SelectRandomFeature(D)
+	runtime.SelectRandomFeature(D)
 
 	classV := D.GetClassAsStrings()
 	classVS := D.GetClassValueSpace()
@@ -360,8 +364,8 @@ func (in *Input) computeGain(D tabula.ClasetInterface) (gains []gini.Gini) {
 /*
 Classify return the prediction of one sample.
 */
-func (in *Input) Classify(data tabula.Row) (class string) {
-	node := in.Tree.Root
+func (runtime *Runtime) Classify(data tabula.Row) (class string) {
+	node := runtime.Tree.Root
 	nodev := node.Value.(NodeValue)
 
 	for !nodev.IsLeaf {
@@ -393,12 +397,12 @@ func (in *Input) Classify(data tabula.Row) (class string) {
 /*
 ClassifySet set the class attribute based on tree classification.
 */
-func (in *Input) ClassifySet(data tabula.ClasetInterface) (e error) {
+func (runtime *Runtime) ClassifySet(data tabula.ClasetInterface) (e error) {
 	nrow := data.GetNRow()
 	targetAttr := data.GetClassColumn()
 
 	for i := 0; i < nrow; i++ {
-		class := in.Classify(*data.GetRow(i))
+		class := runtime.Classify(*data.GetRow(i))
 
 		(*targetAttr).Records[i].V = class
 	}
@@ -409,20 +413,20 @@ func (in *Input) ClassifySet(data tabula.ClasetInterface) (e error) {
 /*
 CountOOBError process out-of-bag data on tree and return error value.
 */
-func (in *Input) CountOOBError(oob tabula.Claset) (errval float64, e error) {
+func (runtime *Runtime) CountOOBError(oob tabula.Claset) (errval float64, e error) {
 	// save the original target to be compared later.
 	origTarget := oob.GetClassAsStrings()
 
 	if DEBUG >= 2 {
 		fmt.Println("[cart] OOB:", oob.Columns)
-		fmt.Println("[cart] TREE:", &in.Tree)
+		fmt.Println("[cart] TREE:", &runtime.Tree)
 	}
 
 	// reset the target.
 	oobtarget := oob.GetClassColumn()
 	oobtarget.ClearValues()
 
-	e = in.ClassifySet(&oob)
+	e = runtime.ClassifySet(&oob)
 
 	if e != nil {
 		// set original target values back.
@@ -438,18 +442,18 @@ func (in *Input) CountOOBError(oob tabula.Claset) (errval float64, e error) {
 	}
 
 	// count how many target value is miss-classified.
-	in.OOBErrVal, _, _ = tekstus.WordsCountMissRate(origTarget, target)
+	runtime.OOBErrVal, _, _ = tekstus.WordsCountMissRate(origTarget, target)
 
 	// set original target values back.
 	oobtarget.SetValues(origTarget)
 
-	return in.OOBErrVal, nil
+	return runtime.OOBErrVal, nil
 }
 
 /*
 String yes, it will print it JSON like format.
 */
-func (in *Input) String() (s string) {
-	s = in.Tree.String()
+func (runtime *Runtime) String() (s string) {
+	s = runtime.Tree.String()
 	return s
 }

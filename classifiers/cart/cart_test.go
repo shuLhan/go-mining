@@ -37,7 +37,7 @@ func TestCART(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	fmt.Println("class index:", ds.GetClassIndex())
+	fmt.Println("[cart_test] class index:", ds.GetClassIndex())
 
 	// copy target to be compared later.
 	targetv := ds.GetClassAsStrings()
@@ -53,7 +53,7 @@ func TestCART(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	fmt.Println("CART Tree:\n", CART)
+	fmt.Println("[cart_test] CART Tree:\n", CART)
 
 	// Create test set
 	testset := tabula.Claset{}
