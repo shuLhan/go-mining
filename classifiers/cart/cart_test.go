@@ -45,10 +45,7 @@ func TestCART(t *testing.T) {
 	assert(t, NRows, ds.GetNRow(), true)
 
 	// Build CART tree.
-	CART := cart.New(cart.SplitMethodGini, 0)
-
-	e = CART.Build(&ds)
-
+	CART, e := cart.New(&ds, cart.SplitMethodGini, 0)
 	if e != nil {
 		t.Fatal(e)
 	}

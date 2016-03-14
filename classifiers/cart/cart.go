@@ -32,7 +32,7 @@ const (
 	// using Gini gain for each possible value or partition.
 	//
 	// This option is used in Runtime.SplitMethod.
-	SplitMethodGini = 0
+	SplitMethodGini = "gini"
 )
 
 const (
@@ -52,11 +52,11 @@ Runtime data for building CART.
 */
 type Runtime struct {
 	// SplitMethod define the criteria to used for splitting.
-	SplitMethod int
+	SplitMethod string `json:"SplitMethod"`
 	// NRandomFeature if less or equal to zero compute gain on all feature,
 	// otherwise select n random feature and compute gain only on selected
 	// features.
-	NRandomFeature int
+	NRandomFeature int `json:"NRandomFeature"`
 	// OOBErrVal is the last out-of-bag error value in the tree.
 	OOBErrVal float64
 	// Tree in classification.
@@ -75,18 +75,36 @@ func init() {
 /*
 New create new Runtime object.
 */
-func New(splitMethod, nRandomFeature int) *Runtime {
-	return &Runtime{
+func New(D tabula.ClasetInterface, splitMethod string, nRandomFeature int) (
+	*Runtime, error,
+) {
+	runtime := &Runtime{
 		SplitMethod:    splitMethod,
 		NRandomFeature: nRandomFeature,
 		Tree:           binary.Tree{},
 	}
+
+	e := runtime.Build(D)
+	if e != nil {
+		return nil, e
+	}
+
+	return runtime, nil
 }
 
 /*
 Build will create a tree using CART algorithm.
 */
 func (runtime *Runtime) Build(D tabula.ClasetInterface) (e error) {
+	// Re-check input configuration.
+	switch runtime.SplitMethod {
+	case SplitMethodGini:
+		// Do nothing.
+	default:
+		// Set default split method to Gini index.
+		runtime.SplitMethod = SplitMethodGini
+	}
+
 	runtime.Tree.Root, e = runtime.splitTreeByGain(D)
 
 	return
@@ -294,15 +312,17 @@ func (runtime *Runtime) SelectRandomFeature(D tabula.ClasetInterface) {
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[cart] selected random features: ", pickedIdx)
-		fmt.Println("[cart] selected columns        : ", D.GetColumns())
+		fmt.Println("[cart] selected random features:", pickedIdx)
+		fmt.Println("[cart] selected columns        :", D.GetColumns())
 	}
 }
 
 /*
 computeGain calculate the gini index for each value in each attribute.
 */
-func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (gains []gini.Gini) {
+func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (
+	gains []gini.Gini,
+) {
 	switch runtime.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
@@ -413,7 +433,10 @@ func (runtime *Runtime) ClassifySet(data tabula.ClasetInterface) (e error) {
 /*
 CountOOBError process out-of-bag data on tree and return error value.
 */
-func (runtime *Runtime) CountOOBError(oob tabula.Claset) (errval float64, e error) {
+func (runtime *Runtime) CountOOBError(oob tabula.Claset) (
+	errval float64,
+	e error,
+) {
 	// save the original target to be compared later.
 	origTarget := oob.GetClassAsStrings()
 
@@ -454,6 +477,10 @@ func (runtime *Runtime) CountOOBError(oob tabula.Claset) (errval float64, e erro
 String yes, it will print it JSON like format.
 */
 func (runtime *Runtime) String() (s string) {
-	s = runtime.Tree.String()
+	s = fmt.Sprintf("NRandomFeature: %d\n"+
+		" SplitMethod   : %s\n"+
+		" Tree          :\n%v", runtime.NRandomFeature,
+		runtime.SplitMethod,
+		runtime.Tree.String())
 	return s
 }
