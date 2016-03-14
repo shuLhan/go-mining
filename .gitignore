@@ -4,10 +4,11 @@ classifiers/randomforest/oobiris
 classifiers/randomforest/oobphoneme
 classifiers/randomforest/oobphonemelnsmote
 classifiers/randomforest/oobphonemesmote
-*.rej
+cmd/cart/cart
 resampling/lnsmote/phoneme_lnsmote.csv
 resampling/lnsmote/synthetic.csv
 resampling/smote/phoneme_smote.csv
 resampling/smote/synthetic.csv
 resampling/smote/testdata/phoneme.csv
 testdata/phoneme/phoneme.csv
+*.rej
