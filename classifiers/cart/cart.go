@@ -43,8 +43,8 @@ const (
 )
 
 var (
-	// CART_DEBUG level, set from environment.
-	CART_DEBUG = 0
+	// DEBUG level, set from environment.
+	DEBUG = 0
 )
 
 /*
@@ -66,9 +66,9 @@ type Input struct {
 func init() {
 	v := os.Getenv("CART_DEBUG")
 	if v == "" {
-		CART_DEBUG = 0
+		DEBUG = 0
 	} else {
-		CART_DEBUG, _ = strconv.Atoi(v)
+		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -110,7 +110,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	nrow := D.GetNRow()
 
 	if nrow <= 0 {
-		if CART_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Printf("[cart] empty dataset (%s) : %v\n",
 				D.MajorityClass(), D)
 		}
@@ -127,7 +127,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	// is set to that class.
 	single, name := D.IsInSingleClass()
 	if single {
-		if CART_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Printf("[cart] in single class (%s): %v\n", name,
 				D.GetColumns())
 		}
@@ -140,12 +140,12 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 		return node, nil
 	}
 
-	if CART_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[cart] D:", D)
 	}
 
 	// calculate the Gini gain for each attribute.
-	gains := in.computeGiniGain(D)
+	gains := in.computeGain(D)
 
 	// get attribute with maximum Gini gain.
 	MaxGainIdx := gini.FindMaxGain(&gains)
@@ -154,7 +154,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	// if maxgain value is 0, use majority class as node and terminate
 	// the process
 	if MaxGain.GetMaxGainValue() == 0 {
-		if CART_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Println("[cart] max gain 0 with target",
 				D.GetClassAsStrings(), " and majority class is ",
 				D.MajorityClass())
@@ -171,7 +171,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 	// using the sorted index in MaxGain, sort all field in dataset
 	tabula.SortColumnsByIndex(D, MaxGain.SortedIndex)
 
-	if CART_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[cart] maxgain:", MaxGain)
 	}
 
@@ -192,7 +192,7 @@ func (in *Input) splitTreeByGain(D tabula.ClasetInterface) (node *binary.BTNode,
 		splitV = attrSubV[0].Normalize()
 	}
 
-	if CART_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[cart] maxgainindex:", MaxGainIdx)
 		fmt.Println("[cart] split v:", splitV)
 	}
@@ -261,8 +261,8 @@ func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 	// count all features minus class
 	nfeature := D.GetNColumn() - 1
 	if in.NRandomFeature >= nfeature {
-		// number of random feature equal or greater than number of
-		// feature in dataset
+		// Do nothing if number of random feature equal or greater than
+		// number of feature in dataset.
 		return
 	}
 
@@ -277,6 +277,7 @@ func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 		}
 	}
 
+	// Select random features excluding feature in `excludeIdx`.
 	var pickedIdx []int
 	for x := 0; x < in.NRandomFeature; x++ {
 		idx := util.GetRandomInteger(D.GetNColumn(), false, pickedIdx,
@@ -288,16 +289,16 @@ func (in *Input) SelectRandomFeature(D tabula.ClasetInterface) {
 		col.Flag = col.Flag &^ ColFlagSkip
 	}
 
-	if CART_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Println("[cart] selected random features: ", pickedIdx)
 		fmt.Println("[cart] selected columns        : ", D.GetColumns())
 	}
 }
 
 /*
-computeGiniGain calculate the gini index for each value in each attribute.
+computeGain calculate the gini index for each value in each attribute.
 */
-func (in *Input) computeGiniGain(D tabula.ClasetInterface) (gains []gini.Gini) {
+func (in *Input) computeGain(D tabula.ClasetInterface) (gains []gini.Gini) {
 	switch in.SplitMethod {
 	case SplitMethodGini:
 		// create gains value for all attribute minus target class.
@@ -306,12 +307,13 @@ func (in *Input) computeGiniGain(D tabula.ClasetInterface) (gains []gini.Gini) {
 
 	in.SelectRandomFeature(D)
 
-	targetV := D.GetClassAsStrings()
-	classes := D.GetClassValueSpace()
+	classV := D.GetClassAsStrings()
+	classVS := D.GetClassValueSpace()
+	classIdx := D.GetClassIndex()
 
 	for x, col := range *D.GetColumns() {
 		// skip class attribute.
-		if x == D.GetClassIndex() {
+		if x == classIdx {
 			continue
 		}
 
@@ -327,28 +329,28 @@ func (in *Input) computeGiniGain(D tabula.ClasetInterface) (gains []gini.Gini) {
 			continue
 		}
 
-		target := make([]string, len(targetV))
-		copy(target, targetV)
+		target := make([]string, len(classV))
+		copy(target, classV)
 
 		// compute gain.
 		if col.GetType() == tabula.TReal {
 			attr := col.ToFloatSlice()
 
-			gains[x].ComputeContinu(&attr, &target, &classes)
+			gains[x].ComputeContinu(&attr, &target, &classVS)
 		} else {
 			attr := col.ToStringSlice()
 			attrV := col.ValueSpace
 
-			if CART_DEBUG >= 2 {
+			if DEBUG >= 2 {
 				fmt.Println("[cart] attr :", attr)
 				fmt.Println("[cart] attrV:", attrV)
 			}
 
 			gains[x].ComputeDiscrete(&attr, &attrV, &target,
-				&classes)
+				&classVS)
 		}
 
-		if CART_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Println("[cart] gain :", gains[x])
 		}
 	}
@@ -411,7 +413,7 @@ func (in *Input) CountOOBError(oob tabula.Claset) (errval float64, e error) {
 	// save the original target to be compared later.
 	origTarget := oob.GetClassAsStrings()
 
-	if CART_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[cart] OOB:", oob.Columns)
 		fmt.Println("[cart] TREE:", &in.Tree)
 	}
@@ -430,7 +432,7 @@ func (in *Input) CountOOBError(oob tabula.Claset) (errval float64, e error) {
 
 	target := oobtarget.ToStringSlice()
 
-	if CART_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[cart] original target:", origTarget)
 		fmt.Println("[cart] classify target:", target)
 	}
