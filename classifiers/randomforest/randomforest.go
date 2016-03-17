@@ -47,13 +47,13 @@ Runtime contains input and output configuration when generating random forest.
 */
 type Runtime struct {
 	// NTree number of tree in forest.
-	NTree int
-	// NFeature number of feature randomly selected for each tree.
-	NFeature int
+	NTree int `json:"NTree"`
+	// NRandomFeature number of feature randomly selected for each tree.
+	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of sample for bootstraping.
-	PercentBoot int
-	// NSubsample number of samples used for bootstraping.
-	NSubsample int
+	PercentBoot int `json:"PercentBoot"`
+	// nSubsample number of samples used for bootstraping.
+	nSubsample int
 	// OobErrMeanVal contain the average out-of-bag error value.
 	OobErrMeanVal float64
 	// OobErrSteps contain OOB error for each steps building a forest from
@@ -94,10 +94,10 @@ func New(ntree, nfeature, percentboot int) (forest *Runtime) {
 	}
 
 	forest = &Runtime{
-		NTree:       ntree,
-		NFeature:    nfeature,
-		PercentBoot: percentboot,
-		OobErrSteps: make([]float64, ntree),
+		NTree:          ntree,
+		NRandomFeature: nfeature,
+		PercentBoot:    percentboot,
+		OobErrSteps:    make([]float64, ntree),
 	}
 
 	return forest
@@ -131,6 +131,18 @@ func (forest *Runtime) AddOobStats(stats classifiers.TestStats) {
 	forest.OobStats = append(forest.OobStats, stats)
 }
 
+func (forest *Runtime) Init() {
+	if forest.NTree <= 0 {
+		forest.NTree = DefNumTree
+	}
+	if forest.PercentBoot <= 0 {
+		forest.PercentBoot = DefPercentBoot
+	}
+	if forest.OobErrSteps == nil {
+		forest.OobErrSteps = make([]float64, forest.NTree)
+	}
+}
+
 /*
 Build the forest using samples dataset.
 
@@ -142,9 +154,11 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return ErrNoInput
 	}
 
+	forest.Init()
+
 	// Calculate number of subsample that will be used randomly in each
 	// tree.
-	forest.NSubsample = int(float32(samples.GetNRow()) *
+	forest.nSubsample = int(float32(samples.GetNRow()) *
 		(float32(forest.PercentBoot) / 100.0))
 
 	if DEBUG >= 1 {
@@ -160,7 +174,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		totalOobErr += oobErr
 		forest.OobErrSteps[t] = totalOobErr / float64(t+1)
 
-		if DEBUG >= 1 {
+		if DEBUG >= 2 {
 			fmt.Printf("[randomforest] tree #%4d"+
 				" OOB error: %.4f,"+
 				" total OOB error: %.4f\n",
@@ -186,11 +200,11 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	// Select random samples with replacement.
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
 		samples.(tabula.DatasetInterface),
-		forest.NSubsample, true)
+		forest.nSubsample, true)
 
 	// Build tree using CART.
 	ds := bag.(tabula.ClasetInterface)
-	cart, e := cart.New(ds, cart.SplitMethodGini, forest.NFeature)
+	cart, e := cart.New(ds, cart.SplitMethodGini, forest.NRandomFeature)
 	if e != nil {
 		return
 	}
