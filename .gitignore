@@ -5,6 +5,7 @@ classifiers/randomforest/oobphoneme
 classifiers/randomforest/oobphonemelnsmote
 classifiers/randomforest/oobphonemesmote
 cmd/cart/cart
+cmd/randomforest/randomforest
 resampling/lnsmote/phoneme_lnsmote.csv
 resampling/lnsmote/synthetic.csv
 resampling/smote/phoneme_smote.csv
