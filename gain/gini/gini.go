@@ -230,7 +230,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 }
 
 /*
-createContinuPart for dividing class and computing Gini index.
+createContinuPartition for dividing class and computing Gini index.
 
 This is assuming that the data `A` has been sorted in ascending order.
 */
