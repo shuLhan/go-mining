@@ -68,6 +68,10 @@ func createCart(fcfg string) (*cart.Runtime, error) {
 		return nil, e
 	}
 
+	if nRandomFeature > 0 {
+		cartrt.NRandomFeature = nRandomFeature
+	}
+
 	return cartrt, nil
 }
 
@@ -83,7 +87,7 @@ func main() {
 
 	fcfg := flag.Arg(0)
 
-	// Parsing config file.
+	// Parsing config file and check command parameter values.
 	cartrt, e := createCart(fcfg)
 	if e != nil {
 		panic(e)
