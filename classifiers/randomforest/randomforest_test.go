@@ -24,7 +24,7 @@ var (
 )
 
 func runRandomForest(t *testing.T, sampledsv string,
-	ntree, npercent, nStart, nEnd int,
+	ntree, npercent, nfeature, maxFeature int,
 	oobFile string,
 ) {
 	// read data.
@@ -37,13 +37,13 @@ func runRandomForest(t *testing.T, sampledsv string,
 	// dataset to save each oob error in each feature iteration.
 	dataooberr := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
 
-	if nEnd < 0 {
-		nEnd = samples.GetNColumn()
+	if maxFeature < 0 {
+		maxFeature = samples.GetNColumn()
 	}
 
-	for ; nStart < nEnd; nStart++ {
+	for ; nfeature < maxFeature; nfeature++ {
 		// create random forest.
-		forest := randomforest.New(ntree, nStart, npercent)
+		forest := randomforest.New(ntree, nfeature, npercent)
 
 		e := forest.Build(&samples)
 
@@ -51,7 +51,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 			t.Fatal(e)
 		}
 
-		colName := fmt.Sprintf("M%d", nStart)
+		colName := fmt.Sprintf("M%d", nfeature)
 
 		col := tabula.NewColumnReal(forest.OobErrSteps, colName)
 
