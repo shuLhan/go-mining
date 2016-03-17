@@ -43,9 +43,9 @@ var (
 )
 
 /*
-Input contains input and output configuration when generating random forest.
+Runtime contains input and output configuration when generating random forest.
 */
-type Input struct {
+type Runtime struct {
 	// NTree number of tree in forest.
 	NTree int
 	// NFeature number of feature randomly selected for each tree.
@@ -61,8 +61,8 @@ type Input struct {
 	OobErrSteps []float64
 	// OobStats contain OOB statistics from the first tree until NTree.
 	OobStats []classifiers.TestStats
-	// Trees contain all tree in the forest.
-	Trees []cart.Runtime
+	// trees contain all tree in the forest.
+	trees []cart.Runtime
 	// bagIndices contain list of index of selected samples at bootstraping
 	// for book-keeping.
 	bagIndices [][]int
@@ -85,7 +85,7 @@ New check and initialize forest input and attributes.
 `percentboot` is percentage of sample that will be taken randomly for
 generating a tree.
 */
-func New(ntree, nfeature, percentboot int) (forest *Input) {
+func New(ntree, nfeature, percentboot int) (forest *Runtime) {
 	if ntree <= 0 {
 		ntree = DefNumTree
 	}
@@ -93,7 +93,7 @@ func New(ntree, nfeature, percentboot int) (forest *Input) {
 		percentboot = DefPercentBoot
 	}
 
-	forest = &Input{
+	forest = &Runtime{
 		NTree:       ntree,
 		NFeature:    nfeature,
 		PercentBoot: percentboot,
@@ -104,23 +104,30 @@ func New(ntree, nfeature, percentboot int) (forest *Input) {
 }
 
 /*
+Trees return all tree in forest.
+*/
+func (forest *Runtime) Trees() []cart.Runtime {
+	return forest.trees
+}
+
+/*
 AddCartTree add tree to forest
 */
-func (forest *Input) AddCartTree(tree cart.Runtime) {
-	forest.Trees = append(forest.Trees, tree)
+func (forest *Runtime) AddCartTree(tree cart.Runtime) {
+	forest.trees = append(forest.trees, tree)
 }
 
 /*
 AddBagIndex add bagging index for book keeping.
 */
-func (forest *Input) AddBagIndex(bagIndex []int) {
+func (forest *Runtime) AddBagIndex(bagIndex []int) {
 	forest.bagIndices = append(forest.bagIndices, bagIndex)
 }
 
 /*
 AddOOBStats will append new result of OOB statistics.
 */
-func (forest *Input) AddOobStats(stats classifiers.TestStats) {
+func (forest *Runtime) AddOobStats(stats classifiers.TestStats) {
 	forest.OobStats = append(forest.OobStats, stats)
 }
 
@@ -129,7 +136,7 @@ Build the forest using samples dataset.
 
 - samples: as original dataset.
 */
-func (forest *Input) Build(samples tabula.ClasetInterface) (e error) {
+func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
 	if samples == nil {
 		return ErrNoInput
@@ -172,7 +179,7 @@ func (forest *Input) Build(samples tabula.ClasetInterface) (e error) {
 	return nil
 }
 
-func (forest *Input) GrowTree(samples tabula.ClasetInterface) (
+func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	oobErr float64,
 	e error,
 ) {
@@ -210,7 +217,7 @@ forest. Return miss classification rate:
 
 	(number of missed class / number of samples).
 */
-func (forest *Input) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
+func (forest *Runtime) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
 	testStats classifiers.TestStats,
 ) {
 	var class string
@@ -225,7 +232,7 @@ func (forest *Input) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
 	for x, row := range *rows {
 		var votes []string
 
-		for y, tree := range forest.Trees {
+		for y, tree := range forest.trees {
 			if indexlen > 0 {
 				// check if sample index is used to build the
 				// tree
