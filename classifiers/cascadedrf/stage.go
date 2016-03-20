@@ -10,7 +10,7 @@ import (
 
 type Stage struct {
 	// RandomForest contain all tree in the forest.
-	RandomForest []randomforest.Input
+	RandomForest []randomforest.Runtime
 	// Weight
 	Weight float64
 }

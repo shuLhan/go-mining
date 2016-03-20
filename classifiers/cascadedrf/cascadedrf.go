@@ -62,12 +62,10 @@ func (crf *Input) Train(samples tabula.ClasetInterface) {
 		forest := randomforest.New(crf.NTree, crf.NFeature,
 			crf.PercentBoot)
 
-		forest.Init(samples)
-
 		totalOobErr := 0.0
 
 		for t := 0; t < crf.NTree; t++ {
-			oobErr, _ := forest.GrowTree(t, samples, totalOobErr)
+			oobErr, _ := forest.GrowTree(samples)
 			totalOobErr += oobErr
 			tprate := 1 - (float64(totalOobErr) / float64(t+1))
 
