@@ -5,7 +5,15 @@
 package classifiers
 
 import (
+	"fmt"
 	"github.com/shuLhan/tabula"
+	"os"
+	"strconv"
+)
+
+var (
+	// DEBUG level.
+	DEBUG = 0
 )
 
 /*
@@ -23,10 +31,63 @@ type ConfusionMatrix struct {
 	nFalse int64
 }
 
+func init() {
+	v := os.Getenv("CONFUSIONMATRIX_DEBUG")
+	if v == "" {
+		DEBUG = 0
+	} else {
+		DEBUG, _ = strconv.Atoi(v)
+	}
+}
+
 /*
-Init will initialize confusion matrix using value space.
+NewConfusionMatrix create and return new confusion matrix using `valueSpace`,
+`targets`, and `predictions`.
 */
-func (cm *ConfusionMatrix) Init(valueSpace []string) {
+func NewConfusionMatrix(valueSpace, targets, predictions []string) (
+	cm *ConfusionMatrix,
+) {
+	cm = &ConfusionMatrix{}
+
+	cm.compute(valueSpace, targets, predictions)
+
+	return cm
+}
+
+/*
+compute will calculate confusion matrix using targets and predictions
+class values.
+*/
+func (cm *ConfusionMatrix) compute(valueSpace, targets, predictions []string) {
+	cm.init(valueSpace)
+
+	for x, target := range valueSpace {
+		col := cm.GetColumn(x)
+
+		for _, predict := range valueSpace {
+			cnt := cm.countTargetPrediction(target, predict,
+				targets, predictions)
+
+			rec := tabula.Record{V: cnt}
+			col.PushBack(&rec)
+		}
+
+		cm.PushColumnToRows(*col)
+	}
+
+	cm.computeClassError()
+
+	if DEBUG >= 2 {
+		fmt.Println("[randomforest]", &cm)
+	}
+
+	return
+}
+
+/*
+create will initialize confusion matrix using value space.
+*/
+func (cm *ConfusionMatrix) init(valueSpace []string) {
 	var colTypes []int
 	var colNames []string
 
@@ -44,17 +105,36 @@ func (cm *ConfusionMatrix) Init(valueSpace []string) {
 }
 
 /*
-GetColumnClassError return the last column which is the column that contain
-the error of classification.
+countTargetPrediction will count and return number of true positive or false
+positive in predictions using targets values.
 */
-func (cm *ConfusionMatrix) GetColumnClassError() *tabula.Column {
-	return cm.GetColumn(cm.GetNColumn() - 1)
+func (cm *ConfusionMatrix) countTargetPrediction(target, predict string,
+	targets, predictions []string,
+) (
+	cnt int64,
+) {
+	predictslen := len(predictions)
+
+	for x, v := range targets {
+		// In case out of range, where predictions length less than
+		// targets length.
+		if x > predictslen {
+			break
+		}
+		if v != target {
+			continue
+		}
+		if predict == predictions[x] {
+			cnt++
+		}
+	}
+	return
 }
 
 /*
-ComputeClassError will compute the classification error in matrix.
+computeClassError will compute the classification error in matrix.
 */
-func (cm *ConfusionMatrix) ComputeClassError() {
+func (cm *ConfusionMatrix) computeClassError() {
 	var tp, fp int64
 
 	cm.nSamples = 0
@@ -86,6 +166,14 @@ func (cm *ConfusionMatrix) ComputeClassError() {
 	}
 
 	cm.PushColumnToRows(*col)
+}
+
+/*
+GetColumnClassError return the last column which is the column that contain
+the error of classification.
+*/
+func (cm *ConfusionMatrix) GetColumnClassError() *tabula.Column {
+	return cm.GetColumn(cm.GetNColumn() - 1)
 }
 
 /*

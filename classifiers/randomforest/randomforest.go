@@ -131,8 +131,8 @@ func (forest *Runtime) AddBagIndex(bagIndex []int) {
 /*
 AddOobErrorStats will append new result of OOB statistics.
 */
-func (forest *Runtime) AddOobErrorStats(stats classifiers.ConfusionMatrix) {
-	forest.oobErrorStats = append(forest.oobErrorStats, stats)
+func (forest *Runtime) AddOobErrorStats(stats *classifiers.ConfusionMatrix) {
+	forest.oobErrorStats = append(forest.oobErrorStats, *stats)
 }
 
 /*
@@ -143,9 +143,9 @@ func (forest *Runtime) OobErrorTotal() float64 {
 }
 
 /*
-GetOobErrMean return mean of all OOB errors.
+OobErrorTotalMean return mean of all OOB errors.
 */
-func (forest *Runtime) GetOobErrMean() float64 {
+func (forest *Runtime) OobErrorTotalMean() float64 {
 	return forest.oobErrorTotal / float64(forest.NTree)
 }
 
@@ -233,7 +233,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 
 	if DEBUG >= 1 {
 		fmt.Println("[randomforest] OOB error mean: ",
-			forest.GetOobErrMean())
+			forest.OobErrorTotalMean())
 	}
 
 	return nil
@@ -306,7 +306,7 @@ Algorithm,
 */
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	testsetIdx []int, uniq bool) (
-	cm classifiers.ConfusionMatrix,
+	cm *classifiers.ConfusionMatrix,
 ) {
 	// (0)
 	targetVS := testset.GetClassValueSpace()
@@ -360,72 +360,11 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	// (4)
 	predictions := targetAttr.ToStringSlice()
 
-	cm = forest.computeConfusionMatrix(targetVS, targetValues,
+	cm = classifiers.NewConfusionMatrix(targetVS, targetValues,
 		predictions)
 
 	// (5)
 	targetAttr.SetValues(targetValues)
 
 	return cm
-}
-
-/*
-computeConfusionMatrix compute confusion matrix between actual and prediction
-class values.
-*/
-func (forest *Runtime) computeConfusionMatrix(targetVS, targets,
-	predictions []string,
-) (
-	cm classifiers.ConfusionMatrix,
-) {
-	cm.Init(targetVS)
-
-	for x, target := range targetVS {
-		col := cm.GetColumn(x)
-
-		for _, predict := range targetVS {
-			cnt := forest.countTargetPrediction(target, predict,
-				targets, predictions)
-
-			rec := tabula.Record{V: cnt}
-			col.PushBack(&rec)
-		}
-
-		cm.PushColumnToRows(*col)
-	}
-
-	cm.ComputeClassError()
-
-	if DEBUG >= 2 {
-		fmt.Println("[randomforest]", &cm)
-	}
-
-	return
-}
-
-/*
-countTargetPrediction will count and return number of true positive or false
-positive in predictions using targets values.
-*/
-func (forest *Runtime) countTargetPrediction(target, predict string,
-	targets, predictions []string,
-) (
-	cnt int64,
-) {
-	predictslen := len(predictions)
-
-	for x, v := range targets {
-		// In case out of range, where predictions length less than
-		// targets length.
-		if x > predictslen {
-			break
-		}
-		if v != target {
-			continue
-		}
-		if predict == predictions[x] {
-			cnt++
-		}
-	}
-	return
 }
