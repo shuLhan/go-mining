@@ -78,7 +78,7 @@ func (cm *ConfusionMatrix) compute(valueSpace, targets, predictions []string) {
 	cm.computeClassError()
 
 	if DEBUG >= 2 {
-		fmt.Println("[randomforest]", &cm)
+		fmt.Println("[randomforest]", cm)
 	}
 
 	return
