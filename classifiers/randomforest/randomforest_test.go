@@ -57,12 +57,6 @@ func runRandomForest(t *testing.T, sampledsv string,
 			colName)
 
 		dataooberr.PushColumn(*col)
-
-		if randomforest.DEBUG >= 3 {
-			fmt.Println("[randomforest_test] ", forest)
-		}
-
-		fmt.Println("oob error steps:", forest.OobErrorSteps())
 	}
 
 	// write oob data to file
@@ -116,7 +110,7 @@ func TestEnsemblingPhoneme(t *testing.T) {
 		oobFile)
 }
 
-func TestEnsemblingPhonemeSMOTE(t *testing.T) {
+func TestEnsemblingSmotePhoneme(t *testing.T) {
 	// input data
 	sampledsv := "../../resampling/smote/phoneme_smote.dsv"
 	// oob file output
@@ -129,7 +123,7 @@ func TestEnsemblingPhonemeSMOTE(t *testing.T) {
 		oobFile)
 }
 
-func TestEnsemblingPhonemeLNSMOTE(t *testing.T) {
+func TestEnsemblingLnsmotePhoneme(t *testing.T) {
 	// input data
 	sampledsv := "../../resampling/lnsmote/phoneme_lnsmote.dsv"
 	// oob file output

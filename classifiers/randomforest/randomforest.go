@@ -69,8 +69,6 @@ type Runtime struct {
 	// bagIndices contain list of index of selected samples at bootstraping
 	// for book-keeping.
 	bagIndices [][]int
-	// cm contain class error.
-	cm classifiers.ConfusionMatrix
 }
 
 func init() {
@@ -185,10 +183,8 @@ Algorithm,
 
 	number-of-sample * percentage-of-bootstrap
 
-(2) Grow trees
-(2.1) Create new tree
-(2.2) Save current tree OOB error value.
-(2.3) Recalculate total OOB error and total error mean.
+(2) Grow tree in forest
+(2.1) Create new tree, repeat until success.
 */
 func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
@@ -207,32 +203,29 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		fmt.Println("[randomforest] forest:", forest)
 	}
 
-	oobErr := 0.0
-
 	// (2)
+	var cm *classifiers.ConfusionMatrix
+
 	for t := 0; t < forest.NTree; t++ {
 		// (2.1)
-		oobErr, e = forest.GrowTree(samples)
+		for {
+			cm, e = forest.GrowTree(samples)
+			if e == nil {
+				break
+			}
+		}
 
-		// (2.2)
-		forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
-
-		// (2.3)
-		forest.oobErrorTotal += oobErr
-
-		oobErrStepMean := forest.oobErrorTotal / float64(t+1)
-		forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
-			oobErrStepMean)
-
-		if DEBUG >= 2 {
-			fmt.Printf("[randomforest] tree #%4d"+
-				" OOB error: %.4f,total OOB error: %.4f\n",
-				t, oobErr, forest.oobErrorSteps[t])
+		if DEBUG >= 1 {
+			fmt.Printf("[randomforest] tree #%4d -"+
+				" OOB error rate: %.4f, total: %.4f, mean %.4f,"+
+				" true rate: %.4f\n",
+				t, cm.GetFalseRate(), forest.oobErrorTotal,
+				forest.OobErrorTotalMean(), cm.GetTrueRate())
 		}
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[randomforest] OOB error mean: ",
+		fmt.Println("[randomforest] OOB error total mean:",
 			forest.OobErrorTotalMean())
 	}
 
@@ -253,8 +246,7 @@ Algorithm,
 (6) Calculate OOB error rate.
 */
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
-	oobErr float64,
-	e error,
+	cm *classifiers.ConfusionMatrix, e error,
 ) {
 	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
@@ -263,9 +255,10 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	// (2)
 	bagset := bag.(tabula.ClasetInterface)
-	cart, e := cart.New(bagset, cart.SplitMethodGini, forest.NRandomFeature)
+	cart, e := cart.New(bagset, cart.SplitMethodGini,
+		forest.NRandomFeature)
 	if e != nil {
-		return
+		return nil, e
 	}
 
 	// (3)
@@ -276,13 +269,22 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	// (5)
 	oobset := oob.(tabula.ClasetInterface)
-	cm := forest.ClassifySet(oobset, oobIdx, false)
+	cm = forest.ClassifySet(oobset, oobIdx, true)
 	forest.AddOobErrorStats(cm)
 
 	// (6)
-	oobErr = cm.GetFalseRate()
+	oobErr := cm.GetFalseRate()
 
-	return
+	forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
+
+	forest.oobErrorTotal += oobErr
+
+	oobErrTotalMean := forest.oobErrorTotal /
+		float64(len(forest.oobErrorSteps))
+	forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
+		oobErrTotalMean)
+
+	return cm, nil
 }
 
 /*
@@ -298,14 +300,16 @@ Algorithm,
 (2) Clear target values in test-set.
 (3) For each row in test-set,
 (3.1) for each tree in forest,
-(3.1.1) classify row in tree,
-(3.1.2) save tree class value.
+(3.1.1) If row is used to build the tree then skip it,
+(3.1.2) classify row in tree,
+(3.1.3) save tree class value.
 (3.2) Collect majority class vote in forest.
 (4) Compute confusion matrix from predictions.
 (5) Restore original target values in testset.
 */
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
-	testsetIdx []int, uniq bool) (
+	testsetIdx []int, uniq bool,
+) (
 	cm *classifiers.ConfusionMatrix,
 ) {
 	// (0)
@@ -321,40 +325,30 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 
 	// (3)
 	rows := testset.GetRows()
-	rowsused := 0
 	for x, row := range *rows {
 		var votes []string
 
 		// (3.1)
 		for y, tree := range forest.trees {
+			// (3.1.1)
 			if uniq && indexlen > 0 {
-				// check if sample index is used to build the
-				// tree
 				exist := util.IntIsExist(forest.bagIndices[y],
 					testsetIdx[x])
 				if exist {
 					continue
 				}
 			}
-			if y == 0 {
-				rowsused++
-			}
-
-			// (3.1.1)
-			class := tree.Classify(row)
 
 			// (3.1.2)
+			class := tree.Classify(row)
+
+			// (3.1.3)
 			votes = append(votes, class)
 		}
 
 		// (3.2)
 		class := tekstus.WordsMaxCountOf(votes, targetVS, false)
 		(*targetAttr).Records[x].V = class
-	}
-
-	if DEBUG >= 2 {
-		fmt.Printf("[randomforest] oob samples: %d, oob used: %d\n",
-			len(*rows), rowsused)
 	}
 
 	// (4)
