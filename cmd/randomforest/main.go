@@ -125,6 +125,6 @@ func main() {
 		panic(e)
 	}
 
-	fmt.Println("[randomforest] OOB mean value:", rf.OobErrMeanVal)
-	fmt.Println("[randomforest] OOB oob steps:", rf.OobErrSteps)
+	fmt.Println("[randomforest] OOB mean value:", rf.OobErrorTotalMean())
+	fmt.Println("[randomforest] OOB oob steps:", rf.OobErrorStepsMean())
 }
