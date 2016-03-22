@@ -1,4 +1,4 @@
-// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Copyright 2016 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -53,13 +53,16 @@ func runRandomForest(t *testing.T, sampledsv string,
 
 		colName := fmt.Sprintf("M%d", nfeature)
 
-		col := tabula.NewColumnReal(forest.OobErrSteps, colName)
+		col := tabula.NewColumnReal(forest.OobErrorStepsMean(),
+			colName)
 
 		dataooberr.PushColumn(*col)
 
 		if randomforest.DEBUG >= 3 {
 			fmt.Println("[randomforest_test] ", forest)
 		}
+
+		fmt.Println("oob error steps:", forest.OobErrorSteps())
 	}
 
 	// write oob data to file

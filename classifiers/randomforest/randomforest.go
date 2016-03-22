@@ -1,4 +1,4 @@
-// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Copyright 2016 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -54,18 +54,23 @@ type Runtime struct {
 	PercentBoot int `json:"PercentBoot"`
 	// nSubsample number of samples used for bootstraping.
 	nSubsample int
-	// OobErrMeanVal contain the average out-of-bag error value.
-	OobErrMeanVal float64
-	// OobErrSteps contain OOB error for each steps building a forest from
-	// the first tree until n tree.
-	OobErrSteps []float64
-	// OobStats contain OOB statistics from the first tree until NTree.
-	OobStats []classifiers.TestStats
+	// oobErrorTotal contain the total of out-of-bag error value.
+	oobErrorTotal float64
+	// oobErrorSteps contain OOB error for each steps building a forest
+	// from the first tree until `n` tree.
+	oobErrorSteps []float64
+	// oobErrorStepsMean contain mean for OOB error for each steps, using
+	// oobErrorTotal / current-number-of-tree
+	oobErrorStepsMean []float64
+	// oobErrorStats contain OOB statistics from the first tree until NTree.
+	oobErrorStats []classifiers.ConfusionMatrix
 	// trees contain all tree in the forest.
 	trees []cart.Runtime
 	// bagIndices contain list of index of selected samples at bootstraping
 	// for book-keeping.
 	bagIndices [][]int
+	// cm contain class error.
+	cm classifiers.ConfusionMatrix
 }
 
 func init() {
@@ -97,7 +102,6 @@ func New(ntree, nfeature, percentboot int) (forest *Runtime) {
 		NTree:          ntree,
 		NRandomFeature: nfeature,
 		PercentBoot:    percentboot,
-		OobErrSteps:    make([]float64, ntree),
 	}
 
 	return forest
@@ -125,12 +129,43 @@ func (forest *Runtime) AddBagIndex(bagIndex []int) {
 }
 
 /*
-AddOOBStats will append new result of OOB statistics.
+AddOobErrorStats will append new result of OOB statistics.
 */
-func (forest *Runtime) AddOobStats(stats classifiers.TestStats) {
-	forest.OobStats = append(forest.OobStats, stats)
+func (forest *Runtime) AddOobErrorStats(stats classifiers.ConfusionMatrix) {
+	forest.oobErrorStats = append(forest.oobErrorStats, stats)
 }
 
+/*
+OobErrorTotal return total of OOB error.
+*/
+func (forest *Runtime) OobErrorTotal() float64 {
+	return forest.oobErrorTotal
+}
+
+/*
+GetOobErrMean return mean of all OOB errors.
+*/
+func (forest *Runtime) GetOobErrMean() float64 {
+	return forest.oobErrorTotal / float64(forest.NTree)
+}
+
+/*
+OobErrorSteps return all OOB error in each step when building forest.
+*/
+func (forest *Runtime) OobErrorSteps() []float64 {
+	return forest.oobErrorSteps
+}
+
+/*
+OobErrorStepsMean return the last error mean value.
+*/
+func (forest *Runtime) OobErrorStepsMean() []float64 {
+	return forest.oobErrorStepsMean
+}
+
+/*
+Init will check forest inputs and set it to default values if invalid.
+*/
 func (forest *Runtime) Init() {
 	if forest.NTree <= 0 {
 		forest.NTree = DefNumTree
@@ -138,15 +173,22 @@ func (forest *Runtime) Init() {
 	if forest.PercentBoot <= 0 {
 		forest.PercentBoot = DefPercentBoot
 	}
-	if forest.OobErrSteps == nil {
-		forest.OobErrSteps = make([]float64, forest.NTree)
-	}
 }
 
 /*
 Build the forest using samples dataset.
 
-- samples: as original dataset.
+Algorithm,
+
+(0) Recheck input value: number of tree, percentage bootstrap.
+(1) Calculate number of random samples for each tree.
+
+	number-of-sample * percentage-of-bootstrap
+
+(2) Grow trees
+(2.1) Create new tree
+(2.2) Save current tree OOB error value.
+(2.3) Recalculate total OOB error and total error mean.
 */
 func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
@@ -154,10 +196,10 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return ErrNoInput
 	}
 
+	// (0)
 	forest.Init()
 
-	// Calculate number of subsample that will be used randomly in each
-	// tree.
+	// (1)
 	forest.nSubsample = int(float32(samples.GetNRow()) *
 		(float32(forest.PercentBoot) / 100.0))
 
@@ -165,62 +207,80 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		fmt.Println("[randomforest] forest:", forest)
 	}
 
-	totalOobErr := 0.0
 	oobErr := 0.0
 
-	// create trees
+	// (2)
 	for t := 0; t < forest.NTree; t++ {
+		// (2.1)
 		oobErr, e = forest.GrowTree(samples)
-		totalOobErr += oobErr
-		forest.OobErrSteps[t] = totalOobErr / float64(t+1)
+
+		// (2.2)
+		forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
+
+		// (2.3)
+		forest.oobErrorTotal += oobErr
+
+		oobErrStepMean := forest.oobErrorTotal / float64(t+1)
+		forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
+			oobErrStepMean)
 
 		if DEBUG >= 2 {
 			fmt.Printf("[randomforest] tree #%4d"+
-				" OOB error: %.4f,"+
-				" total OOB error: %.4f\n",
-				t, oobErr,
-				forest.OobErrSteps[t])
+				" OOB error: %.4f,total OOB error: %.4f\n",
+				t, oobErr, forest.oobErrorSteps[t])
 		}
 	}
 
-	forest.OobErrMeanVal = totalOobErr / float64(forest.NTree)
-
 	if DEBUG >= 1 {
 		fmt.Println("[randomforest] OOB error mean: ",
-			forest.OobErrMeanVal)
+			forest.GetOobErrMean())
 	}
 
 	return nil
 }
 
+/*
+GrowTree build a new tree in forest, return OOB error value or error if tree
+can not grow.
+
+Algorithm,
+
+(1) Select random samples with replacement, also with OOB.
+(2) Build tree using CART, without pruning.
+(3) Add tree to forest.
+(4) Save index of random samples for calculating error rate later.
+(5) Run OOB on forest.
+(6) Calculate OOB error rate.
+*/
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	oobErr float64,
 	e error,
 ) {
-	// Select random samples with replacement.
+	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
 		samples.(tabula.DatasetInterface),
 		forest.nSubsample, true)
 
-	// Build tree using CART.
-	ds := bag.(tabula.ClasetInterface)
-	cart, e := cart.New(ds, cart.SplitMethodGini, forest.NRandomFeature)
+	// (2)
+	bagset := bag.(tabula.ClasetInterface)
+	cart, e := cart.New(bagset, cart.SplitMethodGini, forest.NRandomFeature)
 	if e != nil {
 		return
 	}
 
-	// Add tree to forest.
+	// (3)
 	forest.AddCartTree(*cart)
+
+	// (4)
 	forest.AddBagIndex(bagIdx)
 
-	// Run OOB on current forest.
+	// (5)
 	oobset := oob.(tabula.ClasetInterface)
-	testStats := forest.ClassifySet(oobset, oobIdx)
+	cm := forest.ClassifySet(oobset, oobIdx, false)
+	forest.AddOobErrorStats(cm)
 
-	// Calculate OOB error rate.
-	oobErr = testStats.GetFPRate()
-
-	forest.AddOobStats(testStats)
+	// (6)
+	oobErr = cm.GetFalseRate()
 
 	return
 }
@@ -230,55 +290,142 @@ ClassifySet given a dataset predict their class by running each sample in
 forest. Return miss classification rate:
 
 	(number of missed class / number of samples).
-*/
-func (forest *Runtime) ClassifySet(dataset tabula.ClasetInterface, dsIdx []int) (
-	testStats classifiers.TestStats,
-) {
-	var class string
-	targetClass := dataset.GetClassValueSpace()
-	targetAttr := dataset.GetClassColumn()
-	origTarget := targetAttr.ToStringSlice()
-	indexlen := len(dsIdx)
 
+Algorithm,
+
+(0) Get value space (possible class values in dataset)
+(1) Save test-set target values.
+(2) Clear target values in test-set.
+(3) For each row in test-set,
+(3.1) for each tree in forest,
+(3.1.1) classify row in tree,
+(3.1.2) save tree class value.
+(3.2) Collect majority class vote in forest.
+(4) Compute confusion matrix from predictions.
+(5) Restore original target values in testset.
+*/
+func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
+	testsetIdx []int, uniq bool) (
+	cm classifiers.ConfusionMatrix,
+) {
+	// (0)
+	targetVS := testset.GetClassValueSpace()
+
+	// (1)
+	targetAttr := testset.GetClassColumn()
+	targetValues := targetAttr.ToStringSlice()
+	indexlen := len(testsetIdx)
+
+	// (2)
 	targetAttr.ClearValues()
 
-	rows := dataset.GetRows()
+	// (3)
+	rows := testset.GetRows()
+	rowsused := 0
 	for x, row := range *rows {
 		var votes []string
 
+		// (3.1)
 		for y, tree := range forest.trees {
-			if indexlen > 0 {
+			if uniq && indexlen > 0 {
 				// check if sample index is used to build the
 				// tree
 				exist := util.IntIsExist(forest.bagIndices[y],
-					dsIdx[x])
+					testsetIdx[x])
 				if exist {
 					continue
 				}
 			}
+			if y == 0 {
+				rowsused++
+			}
 
-			class = tree.Classify(row)
+			// (3.1.1)
+			class := tree.Classify(row)
+
+			// (3.1.2)
 			votes = append(votes, class)
 		}
 
-		class = tekstus.WordsMaxCountOf(votes, targetClass, false)
+		// (3.2)
+		class := tekstus.WordsMaxCountOf(votes, targetVS, false)
 		(*targetAttr).Records[x].V = class
 	}
 
-	predictions := targetAttr.ToStringSlice()
-
 	if DEBUG >= 2 {
-		fmt.Println("[randomforest] target    : ", origTarget)
-		fmt.Println("[randomforest] prediction: ", predictions)
+		fmt.Printf("[randomforest] oob samples: %d, oob used: %d\n",
+			len(*rows), rowsused)
 	}
 
-	_, testStats.NNegative, testStats.NSample = tekstus.WordsCountMissRate(
-		origTarget, predictions)
+	// (4)
+	predictions := targetAttr.ToStringSlice()
 
-	testStats.NPositive = testStats.NSample - testStats.NNegative
+	cm = forest.computeConfusionMatrix(targetVS, targetValues,
+		predictions)
 
-	// Set original target values back.
-	targetAttr.SetValues(origTarget)
+	// (5)
+	targetAttr.SetValues(targetValues)
 
-	return testStats
+	return cm
+}
+
+/*
+computeConfusionMatrix compute confusion matrix between actual and prediction
+class values.
+*/
+func (forest *Runtime) computeConfusionMatrix(targetVS, targets,
+	predictions []string,
+) (
+	cm classifiers.ConfusionMatrix,
+) {
+	cm.Init(targetVS)
+
+	for x, target := range targetVS {
+		col := cm.GetColumn(x)
+
+		for _, predict := range targetVS {
+			cnt := forest.countTargetPrediction(target, predict,
+				targets, predictions)
+
+			rec := tabula.Record{V: cnt}
+			col.PushBack(&rec)
+		}
+
+		cm.PushColumnToRows(*col)
+	}
+
+	cm.ComputeClassError()
+
+	if DEBUG >= 2 {
+		fmt.Println("[randomforest]", &cm)
+	}
+
+	return
+}
+
+/*
+countTargetPrediction will count and return number of true positive or false
+positive in predictions using targets values.
+*/
+func (forest *Runtime) countTargetPrediction(target, predict string,
+	targets, predictions []string,
+) (
+	cnt int64,
+) {
+	predictslen := len(predictions)
+
+	for x, v := range targets {
+		// In case out of range, where predictions length less than
+		// targets length.
+		if x > predictslen {
+			break
+		}
+		if v != target {
+			continue
+		}
+		if predict == predictions[x] {
+			cnt++
+		}
+	}
+	return
 }
