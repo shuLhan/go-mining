@@ -5,7 +5,6 @@
 package classifiers
 
 import (
-	"fmt"
 	"github.com/shuLhan/tabula"
 	"os"
 	"strconv"
@@ -76,12 +75,6 @@ func (cm *ConfusionMatrix) compute(valueSpace, targets, predictions []string) {
 	}
 
 	cm.computeClassError()
-
-	if DEBUG >= 2 {
-		fmt.Println("[randomforest]", cm)
-	}
-
-	return
 }
 
 /*
@@ -192,6 +185,51 @@ GetFPRate return false-positive rate in term of,
 */
 func (cm *ConfusionMatrix) GetFalseRate() float64 {
 	return float64(cm.nFalse) / float64(cm.nTrue+cm.nFalse)
+}
+
+/*
+TP return number of true-positive in confusion matrix.
+*/
+func (cm *ConfusionMatrix) TP() int {
+	row := cm.GetRow(0)
+	if row == nil {
+		return 0
+	}
+
+	return int(row.GetIntAt(0))
+}
+
+/*
+FP return number of false-positive in confusion matrix.
+*/
+func (cm *ConfusionMatrix) FP() int {
+	row := cm.GetRow(0)
+	if row == nil {
+		return 0
+	}
+	return int(row.GetIntAt(1))
+}
+
+/*
+FN return number of false-negative.
+*/
+func (cm *ConfusionMatrix) FN() int {
+	row := cm.GetRow(1)
+	if row == nil {
+		return 0
+	}
+	return int(row.GetIntAt(0))
+}
+
+/*
+TN return number of true-negative.
+*/
+func (cm *ConfusionMatrix) TN() int {
+	row := cm.GetRow(1)
+	if row == nil {
+		return 0
+	}
+	return int(row.GetIntAt(1))
 }
 
 /*
