@@ -20,6 +20,7 @@ import (
 	"github.com/shuLhan/tabula"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
+	"math"
 	"os"
 	"strconv"
 )
@@ -54,6 +55,12 @@ type Runtime struct {
 	PercentBoot int `json:"PercentBoot"`
 	// nSubsample number of samples used for bootstraping.
 	nSubsample int
+	// trees contain all tree in the forest.
+	trees []cart.Runtime
+	// bagIndices contain list of index of selected samples at bootstraping
+	// for book-keeping.
+	bagIndices [][]int
+
 	// oobErrorTotal contain the total of out-of-bag error value.
 	oobErrorTotal float64
 	// oobErrorSteps contain OOB error for each steps building a forest
@@ -62,13 +69,11 @@ type Runtime struct {
 	// oobErrorStepsMean contain mean for OOB error for each steps, using
 	// oobErrorTotal / current-number-of-tree
 	oobErrorStepsMean []float64
-	// oobErrorStats contain OOB statistics from the first tree until NTree.
-	oobErrorStats []classifiers.ConfusionMatrix
-	// trees contain all tree in the forest.
-	trees []cart.Runtime
-	// bagIndices contain list of index of selected samples at bootstraping
-	// for book-keeping.
-	bagIndices [][]int
+
+	// cmatrices contain confusion matrix from the first tree until NTree.
+	cmatrices []classifiers.ConfusionMatrix
+	// stats contain statistic of classifier for each tree
+	stats classifiers.Stats
 }
 
 func init() {
@@ -127,10 +132,17 @@ func (forest *Runtime) AddBagIndex(bagIndex []int) {
 }
 
 /*
-AddOobErrorStats will append new result of OOB statistics.
+AddConfusionMatrix will append new confusion matrix.
 */
-func (forest *Runtime) AddOobErrorStats(stats *classifiers.ConfusionMatrix) {
-	forest.oobErrorStats = append(forest.oobErrorStats, *stats)
+func (forest *Runtime) AddConfusionMatrix(cm *classifiers.ConfusionMatrix) {
+	forest.cmatrices = append(forest.cmatrices, *cm)
+}
+
+/*
+AddStat will append new classifier statistic data.
+*/
+func (forest *Runtime) AddStat(stat *classifiers.Stat) {
+	forest.stats = append(forest.stats, *stat)
 }
 
 /*
@@ -162,14 +174,26 @@ func (forest *Runtime) OobErrorStepsMean() []float64 {
 }
 
 /*
+GetStats return forest statistics.
+*/
+func (forest *Runtime) GetStats() *classifiers.Stats {
+	return &forest.stats
+}
+
+/*
 Init will check forest inputs and set it to default values if invalid.
 */
-func (forest *Runtime) Init() {
+func (forest *Runtime) Init(samples tabula.ClasetInterface) {
 	if forest.NTree <= 0 {
 		forest.NTree = DefNumTree
 	}
 	if forest.PercentBoot <= 0 {
 		forest.PercentBoot = DefPercentBoot
+	}
+	if forest.NRandomFeature <= 0 {
+		// Set default value to square-root of features.
+		ncol := samples.GetNColumn() - 1
+		forest.NRandomFeature = int(math.Sqrt(float64(ncol)))
 	}
 }
 
@@ -193,7 +217,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	// (0)
-	forest.Init()
+	forest.Init(samples)
 
 	// (1)
 	forest.nSubsample = int(float32(samples.GetNRow()) *
@@ -204,23 +228,17 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	// (2)
-	var cm *classifiers.ConfusionMatrix
-
 	for t := 0; t < forest.NTree; t++ {
+		if DEBUG >= 1 {
+			fmt.Printf("----\n[randomforest] tree # %d\n", t)
+		}
+
 		// (2.1)
 		for {
-			cm, e = forest.GrowTree(samples)
+			_, e = forest.GrowTree(samples)
 			if e == nil {
 				break
 			}
-		}
-
-		if DEBUG >= 1 {
-			fmt.Printf("[randomforest] tree #%4d -"+
-				" OOB error rate: %.4f, total: %.4f, mean %.4f,"+
-				" true rate: %.4f\n",
-				t, cm.GetFalseRate(), forest.oobErrorTotal,
-				forest.OobErrorTotalMean(), cm.GetTrueRate())
 		}
 	}
 
@@ -243,7 +261,7 @@ Algorithm,
 (3) Add tree to forest.
 (4) Save index of random samples for calculating error rate later.
 (5) Run OOB on forest.
-(6) Calculate OOB error rate.
+(6) Calculate OOB error rate and statistic values.
 */
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cm *classifiers.ConfusionMatrix, e error,
@@ -253,8 +271,14 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 		samples.(tabula.DatasetInterface),
 		forest.nSubsample, true)
 
-	// (2)
 	bagset := bag.(tabula.ClasetInterface)
+
+	if DEBUG >= 2 {
+		bagset.RecountMajorMinor()
+		fmt.Println("[randomforest] Bagging:", bagset)
+	}
+
+	// (2)
 	cart, e := cart.New(bagset, cart.SplitMethodGini,
 		forest.NRandomFeature)
 	if e != nil {
@@ -270,19 +294,10 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	// (5)
 	oobset := oob.(tabula.ClasetInterface)
 	cm = forest.ClassifySet(oobset, oobIdx, true)
-	forest.AddOobErrorStats(cm)
+	forest.AddConfusionMatrix(cm)
 
 	// (6)
-	oobErr := cm.GetFalseRate()
-
-	forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
-
-	forest.oobErrorTotal += oobErr
-
-	oobErrTotalMean := forest.oobErrorTotal /
-		float64(len(forest.oobErrorSteps))
-	forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
-		oobErrTotalMean)
+	forest.computeStatistic(cm)
 
 	return cm, nil
 }
@@ -357,8 +372,50 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	cm = classifiers.NewConfusionMatrix(targetVS, targetValues,
 		predictions)
 
+	if DEBUG >= 2 {
+		fmt.Println("[randomforest]", cm)
+	}
+
 	// (5)
 	targetAttr.SetValues(targetValues)
 
 	return cm
+}
+
+/*
+computeStatistic of random forest using confusion matrix.
+*/
+func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
+	oobErr := cm.GetFalseRate()
+
+	forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
+	forest.oobErrorTotal += oobErr
+
+	oobErrTotalMean := forest.oobErrorTotal /
+		float64(len(forest.oobErrorSteps))
+	forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
+		oobErrTotalMean)
+
+	stat := classifiers.Stat{}
+
+	tp := cm.TP()
+	fp := cm.FP()
+	fn := cm.FN()
+	tn := cm.TN()
+	stat.TPRate = float64(tp) / float64(tp+fn)
+	stat.FPRate = float64(fp) / float64(fp+tn)
+	stat.Precision = float64(tp) / float64(tp+fp)
+
+	forest.AddStat(&stat)
+
+	if DEBUG >= 1 {
+		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
+			" total: %.4f, mean %.4f, true rate: %.4f\n",
+			cm.GetFalseRate(), forest.oobErrorTotal,
+			forest.OobErrorTotalMean(), cm.GetTrueRate())
+
+		fmt.Printf("[randomforest] TPRate: %.4f, FPRate: %.4f,"+
+			" precision: %.4f\n", stat.TPRate, stat.FPRate,
+			stat.Precision)
+	}
 }
