@@ -169,20 +169,20 @@ func (cm *ConfusionMatrix) GetColumnClassError() *tabula.Column {
 	return cm.GetColumn(cm.GetNColumn() - 1)
 }
 
-/*
-GetTPRate return true-positive rate in term of
-
-	true-positive / (true-positive + false-positive)
-*/
+//
+// GetTrueRate return true-positive rate in term of
+//
+//	true-positive / (true-positive + false-positive)
+//
 func (cm *ConfusionMatrix) GetTrueRate() float64 {
 	return float64(cm.nTrue) / float64(cm.nTrue+cm.nFalse)
 }
 
-/*
-GetFPRate return false-positive rate in term of,
-
-	false-positive / (false-positive + true negative)
-*/
+//
+// GetFalseRate return false-positive rate in term of,
+//
+//	false-positive / (false-positive + true negative)
+//
 func (cm *ConfusionMatrix) GetFalseRate() float64 {
 	return float64(cm.nFalse) / float64(cm.nTrue+cm.nFalse)
 }
