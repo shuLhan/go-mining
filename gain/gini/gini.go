@@ -19,8 +19,8 @@ import (
 )
 
 var (
-	// GINI_DEBUG debug level, set from environment.
-	GINI_DEBUG = 0
+	// DEBUG debug level, set from environment.
+	DEBUG = 0
 )
 
 /*
@@ -62,9 +62,9 @@ type Gini struct {
 func init() {
 	v := os.Getenv("GINI_DEBUG")
 	if v == "" {
-		GINI_DEBUG = 0
+		DEBUG = 0
 	} else {
-		GINI_DEBUG, _ = strconv.Atoi(v)
+		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -82,7 +82,7 @@ func (gini *Gini) ComputeDiscrete(A *[]string, discval *[]string, T *[]string,
 	// create partition for possible combination of discrete values.
 	gini.createDiscretePartition((*discval))
 
-	if GINI_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[gini] part :", gini.DiscretePart)
 	}
 
@@ -103,7 +103,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 	// number of samples
 	nsample := float64(len(*A))
 
-	if GINI_DEBUG >= 3 {
+	if DEBUG >= 3 {
 		fmt.Println("[gini] sample:", T)
 		fmt.Printf("[gini] Gini(a=%s) = %f\n", (*A), gini.Value)
 	}
@@ -144,7 +144,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 			// sum all probabilities times gini index.
 			sumGI += probIndex
 
-			if GINI_DEBUG >= 3 {
+			if DEBUG >= 3 {
 				fmt.Printf("[gini] subsample: %v\n", subT)
 				fmt.Printf("[gini] Gini(a=%s) = %f/%f * %f = %f\n",
 					part, ndisc, nsample,
@@ -155,7 +155,7 @@ func (gini *Gini) computeDiscreteGain(A *[]string, T *[]string, C *[]string) {
 		gini.Index[i] = sumGI
 		gini.Gain[i] = gini.Value - sumGI
 
-		if GINI_DEBUG >= 3 {
+		if DEBUG >= 3 {
 			fmt.Printf("[gini] sample: %v\n", subPart)
 			fmt.Printf("[gini] Gain(a=%s) = %f - %f = %f\n",
 				subPart, gini.Value, sumGI,
@@ -208,7 +208,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 
 	gini.SortedIndex = util.IndirectSortFloat64(A2)
 
-	if GINI_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Println("[gini] attr sorted :", A2)
 	}
 
@@ -293,7 +293,7 @@ func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 		p = float64(classCount[i]) / n
 		sump2 += (p * p)
 
-		if GINI_DEBUG >= 3 {
+		if DEBUG >= 3 {
 			fmt.Printf("[gini] compute (%s): (%f/%f)^2 = %f\n", *T,
 				float64(classCount[i]), n, p*p)
 		}
@@ -321,7 +321,7 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 
 	nsample := len(*A)
 
-	if GINI_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[gini] sorted data:", A)
 		fmt.Println("[gini] Gini.Value:", gini.Value)
 	}
@@ -361,7 +361,7 @@ func (gini *Gini) computeContinuGain(A *[]float64, T *[]string, C *[]string) {
 		gini.Index[p] = ((pleft * gleft) + (pright * gright))
 		gini.Gain[p] = gini.Value - gini.Index[p]
 
-		if GINI_DEBUG >= 3 {
+		if DEBUG >= 3 {
 			fmt.Println("[gini] tleft:", tleft)
 			fmt.Println("[gini] tright:", tright)
 
