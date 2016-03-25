@@ -15,6 +15,7 @@ package randomforest
 import (
 	"errors"
 	"fmt"
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/cart"
 	"github.com/shuLhan/tabula"
@@ -31,6 +32,8 @@ const (
 	// DefPercentBoot default percentage of sample that will be used for
 	// bootstraping a tree.
 	DefPercentBoot = 66
+	// DefStatsFile default statistic file output.
+	DefStatsFile = "randomforest.stats.dat"
 )
 
 var (
@@ -53,6 +56,9 @@ type Runtime struct {
 	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of sample for bootstraping.
 	PercentBoot int `json:"PercentBoot"`
+	// StatsFile is the file where performance statistic will be written.
+	StatsFile string `json:"StatsFile"`
+
 	// nSubsample number of samples used for bootstraping.
 	nSubsample int
 	// trees contain all tree in the forest.
@@ -195,6 +201,9 @@ func (forest *Runtime) Init(samples tabula.ClasetInterface) {
 		ncol := samples.GetNColumn() - 1
 		forest.NRandomFeature = int(math.Sqrt(float64(ncol)))
 	}
+	if forest.StatsFile == "" {
+		forest.StatsFile = DefStatsFile
+	}
 }
 
 /*
@@ -209,6 +218,7 @@ Algorithm,
 
 (2) Grow tree in forest
 (2.1) Create new tree, repeat until success.
+(3) Write performance statistic to file.
 */
 func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
@@ -246,6 +256,9 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		fmt.Println("[randomforest] OOB error total mean:",
 			forest.OobErrorTotalMean())
 	}
+
+	// (3)
+	forest.writeStats()
 
 	return nil
 }
@@ -417,5 +430,64 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
 		fmt.Printf("[randomforest] TPRate: %.4f, FPRate: %.4f,"+
 			" precision: %.4f\n", stat.TPRate, stat.FPRate,
 			stat.Precision)
+	}
+}
+
+//
+// writeStats will write performance statistic to file in CSV format.
+// The file will contain,
+// - tree number
+// - OOB error in current tree
+// - OOB error mean in current tree
+// - TP rate
+// - FP rate
+// - Precision
+//
+func (forest *Runtime) writeStats() {
+	stats := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
+
+	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
+	col := tabula.NewColumnInt(treeIds, "tree_id")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.oobErrorSteps, "oob_error")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.oobErrorStepsMean, "oob_error_mean")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.stats.TPRates(), "tprate")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.stats.FPRates(), "fprate")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.stats.Precisions(), "precision")
+	stats.PushColumn(*col)
+
+	writer, e := dsv.NewWriter("")
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+	}
+
+	e = writer.OpenOutput(forest.StatsFile)
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+	}
+
+	sep := ","
+	n, e := writer.WriteRawDataset(stats, &sep)
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+	}
+
+	exp := stats.Len()
+	if exp != n {
+		fmt.Println("[randomforest] expecting", exp, " rows, got ", n)
+	}
+
+	e = writer.Close()
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
 	}
 }
