@@ -1,4 +1,4 @@
-// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Copyright 2015-2016 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// TEuclidianDistance used in Input.DistanceMethod.
+	// TEuclidianDistance used in Runtime.DistanceMethod.
 	TEuclidianDistance = 0
 )
 
@@ -27,17 +27,18 @@ var (
 	DEBUG = 0
 )
 
-/*
-Input parameters for KNN processing.
-*/
-type Input struct {
+//
+// Runtime parameters for KNN processing.
+//
+type Runtime struct {
 	// DistanceMethod define how the distance between sample will be
 	// measured.
 	DistanceMethod int
-	// ClassIdx define index of class in dataset.
-	ClassIdx int
-	// K define number of nearset neighbors that will be searched.
-	K int
+	// ClassIndex define index of class in dataset.
+	ClassIndex int `json:"ClassIndex"`
+	// K define number of nearest neighbors that will be searched.
+	K int `json:"K"`
+
 	// AllNeighbors contain all neighbours
 	AllNeighbors Neighbors
 }
@@ -55,13 +56,14 @@ func init() {
 ComputeEuclidianDistance compute the distance of instance with each sample in
 dataset `samples` and return it.
 */
-func (in *Input) ComputeEuclidianDistance(samples tabula.Rows,
-	instance tabula.Row) {
+func (in *Runtime) ComputeEuclidianDistance(samples tabula.Rows,
+	instance tabula.Row,
+) {
 	for _, row := range samples {
 		// compute euclidian distance
 		d := 0.0
 		for y, rec := range row {
-			if y == in.ClassIdx {
+			if y == in.ClassIndex {
 				// skip class attribute
 				continue
 			}
@@ -95,7 +97,7 @@ func (in *Input) ComputeEuclidianDistance(samples tabula.Rows,
 FindNeighbors Given sample set and an instance, return the nearest neighbors as
 a slice of neighbours.
 */
-func (in *Input) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
+func (in *Runtime) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
 	kneighbors Neighbors,
 ) {
 	// Reset current input neighbours

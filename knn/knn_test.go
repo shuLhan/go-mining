@@ -47,13 +47,13 @@ func TestComputeEuclidianDistance(t *testing.T) {
 	}
 
 	// Processing
-	knnIn := knn.Input{
+	knnIn := knn.Runtime{
 		DistanceMethod: knn.TEuclidianDistance,
-		ClassIdx:       5,
+		ClassIndex:     5,
 		K:              5,
 	}
 
-	classes := dataset.GetRows().GroupByValue(knnIn.ClassIdx)
+	classes := dataset.GetRows().GroupByValue(knnIn.ClassIndex)
 
 	_, minoritySet := classes.GetMinority()
 
