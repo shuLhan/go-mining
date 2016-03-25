@@ -31,8 +31,8 @@ var (
 // Runtime parameters for input and output.
 //
 type Runtime struct {
-	// Input the K-Nearest-Neighbourhood parameters.
-	knn.Input
+	// Runtime of K-Nearest-Neighbourhood parameters.
+	knn.Runtime
 	// ClassMinor the minority sample in dataset
 	ClassMinor string
 	// PercentOver input for oversampling percentage.
@@ -69,7 +69,7 @@ func (in *Runtime) Init(dataset tabula.DatasetInterface) {
 	in.n = in.PercentOver / 100.0
 	in.dataset = *(dataset.(*tabula.Dataset))
 
-	in.minority = *tabula.SelectRowsWhere(dataset, in.ClassIdx,
+	in.minority = *tabula.SelectRowsWhere(dataset, in.ClassIndex,
 		in.ClassMinor).(*tabula.Dataset)
 
 	if DEBUG >= 1 {
@@ -144,7 +144,7 @@ func (in *Runtime) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 
 	for x, srec := range synthetic {
 		// Skip class attribute.
-		if x == in.ClassIdx {
+		if x == in.ClassIndex {
 			continue
 		}
 
@@ -180,7 +180,7 @@ func (in *Runtime) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
 //
 func (in *Runtime) safeLevel(p tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, p)
-	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIdx,
+	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIndex,
 		in.ClassMinor)
 
 	return minorNeighbors
@@ -193,7 +193,7 @@ func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, n)
 
 	// check if n is in minority class.
-	nIsMinor := n[in.ClassIdx].IsEqual(in.ClassMinor)
+	nIsMinor := n[in.ClassIndex].IsEqual(in.ClassMinor)
 
 	// check if p is in neighbors.
 	pInNeighbors, pidx := neighbors.Rows.Contain(p)
@@ -215,7 +215,7 @@ func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 		}
 	}
 
-	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIdx,
+	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIndex,
 		in.ClassMinor)
 
 	return minorNeighbors

@@ -39,16 +39,17 @@ func TestLNSmote(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	_, e = writer.WriteRawRows(dataset.GetRows(), ",")
+	sep := dsv.DefSeparator
+	_, e = writer.WriteRawRows(dataset.GetRows(), &sep)
 	if e != nil {
 		t.Fatal(e)
 	}
 
 	// Initialize LN-SMOTE.
 	lnsmote := &lnsmote.Runtime{
-		Input: knn.Input{
+		Runtime: knn.Runtime{
 			DistanceMethod: knn.TEuclidianDistance,
-			ClassIdx:       5,
+			ClassIndex:     5,
 			K:              5,
 		},
 		ClassMinor:  "1",
@@ -59,7 +60,8 @@ func TestLNSmote(t *testing.T) {
 
 	fmt.Println("[lnsmote_test] n synthetic:", synthetics.Len())
 
-	_, e = writer.WriteRawRows(synthetics.GetRows(), ",")
+	sep = dsv.DefSeparator
+	_, e = writer.WriteRawRows(synthetics.GetRows(), &sep)
 	if e != nil {
 		t.Fatal(e)
 	}
