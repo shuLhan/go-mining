@@ -12,4 +12,5 @@ resampling/smote/phoneme_smote.csv
 resampling/smote/synthetic.csv
 resampling/smote/testdata/phoneme.csv
 testdata/phoneme/phoneme.csv
+*.dat
 *.rej
