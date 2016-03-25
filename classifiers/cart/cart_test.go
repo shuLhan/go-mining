@@ -63,7 +63,10 @@ func TestCART(t *testing.T) {
 	testset.GetClassColumn().ClearValues()
 
 	// Classifiy test set
-	CART.ClassifySet(&testset)
+	e = CART.ClassifySet(&testset)
+	if nil != e {
+		t.Fatal(e)
+	}
 
 	assert(t, targetv, testset.GetClassAsStrings(), true)
 }
