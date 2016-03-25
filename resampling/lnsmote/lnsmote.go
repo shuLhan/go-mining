@@ -48,7 +48,7 @@ type Runtime struct {
 }
 
 func init() {
-	v := os.Getenv("DEBUG")
+	v := os.Getenv("LNSMOTE_DEBUG")
 	if v == "" {
 		DEBUG = 0
 	} else {
