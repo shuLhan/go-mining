@@ -130,6 +130,9 @@ func main() {
 
 	fmt.Println("[randomforest] Dataset:", &dataset)
 
+	row := dataset.GetRow(0)
+	fmt.Println("[randomforest] sample:", row)
+
 	e = rf.Build(&dataset)
 	if e != nil {
 		panic(e)
