@@ -23,8 +23,8 @@ const (
 )
 
 var (
-	// KNN_DEBUG debug level for this package, set from environment.
-	KNN_DEBUG = 0
+	// DEBUG debug level for this package, set from environment.
+	DEBUG = 0
 )
 
 /*
@@ -45,9 +45,9 @@ type Input struct {
 func init() {
 	v := os.Getenv("KNN_DEBUG")
 	if v == "" {
-		KNN_DEBUG = 0
+		DEBUG = 0
 	} else {
-		KNN_DEBUG, _ = strconv.Atoi(v)
+		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -112,13 +112,13 @@ func (in *Input) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
 		minK = in.K
 	}
 
-	if KNN_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[knn] all neighbors:", in.AllNeighbors.Len())
 	}
 
 	kneighbors = in.AllNeighbors.SelectRange(0, minK)
 
-	if KNN_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[knn] k neighbors:", kneighbors.Len())
 	}
 
