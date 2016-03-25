@@ -65,11 +65,20 @@ func TestSmote(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	writer.WriteRawRows(dataset.GetRows(), ",")
+	_, e = writer.WriteRawRows(dataset.GetRows(), ",")
+	if e != nil {
+		t.Fatal(e)
+	}
 
 	smot := doSmote(&dataset)
 
-	writer.WriteRawRows(&smot.Synthetic, ",")
+	_, e = writer.WriteRawRows(&smot.Synthetic, ",")
+	if e != nil {
+		t.Fatal(e)
+	}
 
-	writer.Close()
+	e = writer.Close()
+	if e != nil {
+		t.Fatal(e)
+	}
 }
