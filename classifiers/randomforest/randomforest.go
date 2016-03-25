@@ -179,10 +179,10 @@ func (forest *Runtime) OobErrorStepsMean() []float64 {
 	return forest.oobErrorStepsMean
 }
 
-/*
-GetStats return forest statistics.
-*/
-func (forest *Runtime) GetStats() *classifiers.Stats {
+//
+// Stats return forest statistics for all tree.
+//
+func (forest *Runtime) Stats() *classifiers.Stats {
 	return &forest.stats
 }
 
@@ -245,7 +245,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 
 		// (2.1)
 		for {
-			_, e = forest.GrowTree(samples)
+			_, _, e = forest.GrowTree(samples)
 			if e == nil {
 				break
 			}
@@ -258,9 +258,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	// (3)
-	forest.writeStats()
-
-	return nil
+	return forest.writeStats()
 }
 
 /*
@@ -277,7 +275,7 @@ Algorithm,
 (6) Calculate OOB error rate and statistic values.
 */
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
-	cm *classifiers.ConfusionMatrix, e error,
+	cm *classifiers.ConfusionMatrix, stat *classifiers.Stat, e error,
 ) {
 	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
@@ -295,7 +293,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cart, e := cart.New(bagset, cart.SplitMethodGini,
 		forest.NRandomFeature)
 	if e != nil {
-		return nil, e
+		return nil, nil, e
 	}
 
 	// (3)
@@ -310,9 +308,9 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	forest.AddConfusionMatrix(cm)
 
 	// (6)
-	forest.computeStatistic(cm)
+	stat = forest.computeStatistic(cm)
 
-	return cm, nil
+	return cm, stat, nil
 }
 
 /*
@@ -395,10 +393,12 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	return cm
 }
 
-/*
-computeStatistic of random forest using confusion matrix.
-*/
-func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
+//
+// computeStatistic of random forest using confusion matrix and return it.
+//
+func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
+	stat *classifiers.Stat,
+) {
 	oobErr := cm.GetFalseRate()
 
 	forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
@@ -409,7 +409,7 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
 	forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
 		oobErrTotalMean)
 
-	stat := classifiers.Stat{}
+	stat = &classifiers.Stat{}
 
 	tp := cm.TP()
 	fp := cm.FP()
@@ -419,7 +419,7 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
 	stat.FPRate = float64(fp) / float64(fp+tn)
 	stat.Precision = float64(tp) / float64(tp+fp)
 
-	forest.AddStat(&stat)
+	forest.AddStat(stat)
 
 	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
@@ -431,6 +431,8 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
 			" precision: %.4f\n", stat.TPRate, stat.FPRate,
 			stat.Precision)
 	}
+
+	return
 }
 
 //
@@ -443,7 +445,7 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) {
 // - FP rate
 // - Precision
 //
-func (forest *Runtime) writeStats() {
+func (forest *Runtime) writeStats() (e error) {
 	stats := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
 
 	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
@@ -468,26 +470,33 @@ func (forest *Runtime) writeStats() {
 	writer, e := dsv.NewWriter("")
 	if e != nil {
 		fmt.Println("[randomforest] error: ", e)
+		return e
 	}
 
 	e = writer.OpenOutput(forest.StatsFile)
 	if e != nil {
 		fmt.Println("[randomforest] error: ", e)
+		return e
 	}
 
 	sep := ","
 	n, e := writer.WriteRawDataset(stats, &sep)
 	if e != nil {
 		fmt.Println("[randomforest] error: ", e)
+		return e
 	}
 
 	exp := stats.Len()
 	if exp != n {
 		fmt.Println("[randomforest] expecting", exp, " rows, got ", n)
+		return e
 	}
 
 	e = writer.Close()
 	if e != nil {
 		fmt.Println("[randomforest] error: ", e)
+		return e
 	}
+
+	return nil
 }
