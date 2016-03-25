@@ -196,7 +196,8 @@ func (cm *ConfusionMatrix) TP() int {
 		return 0
 	}
 
-	return int(row.GetIntAt(0))
+	v, _ := row.GetIntAt(0)
+	return int(v)
 }
 
 /*
@@ -207,7 +208,9 @@ func (cm *ConfusionMatrix) FP() int {
 	if row == nil {
 		return 0
 	}
-	return int(row.GetIntAt(1))
+
+	v, _ := row.GetIntAt(1)
+	return int(v)
 }
 
 /*
@@ -218,7 +221,8 @@ func (cm *ConfusionMatrix) FN() int {
 	if row == nil {
 		return 0
 	}
-	return int(row.GetIntAt(0))
+	v, _ := row.GetIntAt(0)
+	return int(v)
 }
 
 /*
@@ -229,7 +233,8 @@ func (cm *ConfusionMatrix) TN() int {
 	if row == nil {
 		return 0
 	}
-	return int(row.GetIntAt(1))
+	v, _ := row.GetIntAt(1)
+	return int(v)
 }
 
 /*
