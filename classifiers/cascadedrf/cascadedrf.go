@@ -1,4 +1,4 @@
-// Copyright 2015 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
+// Copyright 2016 Mhd Sulhan <ms@kilabit.info>. All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,14 +13,15 @@ Baumann et.al in their paper:
 package cascadedrf
 
 import (
+	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/tabula"
 )
 
 /*
-Input
+Runtime define the cascaded random forest runtime input and output.
 */
-type Input struct {
+type Runtime struct {
 	// NStage number of stages
 	NStage int
 	// NTree number of tree in each stage
@@ -41,9 +42,9 @@ type Input struct {
 New create and return new input for cascaded random-forest.
 */
 func New(nstage, ntree, percentboot, nfeature int, tprate, tnrate float64) (
-	crf *Input,
+	crf *Runtime,
 ) {
-	crf = &Input{
+	crf = &Runtime{
 		NStage:      nstage,
 		NTree:       ntree,
 		PercentBoot: percentboot,
@@ -57,19 +58,23 @@ func New(nstage, ntree, percentboot, nfeature int, tprate, tnrate float64) (
 /*
 Train given a sample dataset, build the stage and random forest.
 */
-func (crf *Input) Train(samples tabula.ClasetInterface) {
+func (crf *Runtime) Train(samples tabula.ClasetInterface) {
+	var stat *classifiers.Stat
+	var e error
+
 	for x := 0; x < crf.NStage; x++ {
 		forest := randomforest.New(crf.NTree, crf.NFeature,
 			crf.PercentBoot)
 
-		totalOobErr := 0.0
-
 		for t := 0; t < crf.NTree; t++ {
-			oobErr, _ := forest.GrowTree(samples)
-			totalOobErr += oobErr
-			tprate := 1 - (float64(totalOobErr) / float64(t+1))
+			for {
+				_, stat, e = forest.GrowTree(samples)
+				if e == nil {
+					break
+				}
+			}
 
-			if tprate > crf.TPR {
+			if stat.TPRate > crf.TPR {
 				break
 			}
 		}
