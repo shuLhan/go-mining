@@ -14,20 +14,24 @@ For more information, see
 package smote
 
 import (
+	"fmt"
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/tabula"
 	"math/rand"
 	"time"
 )
 
-/*
-SMOTE parameters for input and output.
-*/
-type SMOTE struct {
-	// Input the K-Nearest-Neighbourhood parameters.
-	knn.Input
+//
+// Runtime for input and output.
+//
+type Runtime struct {
+	// Runtime the K-Nearest-Neighbourhood parameters.
+	knn.Runtime
 	// PercentOver input for oversampling percentage.
-	PercentOver int
+	PercentOver int `json:"PercentOver"`
+	// SyntheticFile is a filename where synthetic samples will be written.
+	SyntheticFile string `json:"SyntheticFile"`
 	// n input for number of new synthetic per sample.
 	n int
 	// Synthetic output for new sample.
@@ -41,10 +45,10 @@ const (
 	DefaultPercentOver = 100
 )
 
-/*
-Init parameter, set to default value if it not valid.
-*/
-func (smote *SMOTE) Init() {
+//
+// Init will recheck input and set to default value if its not valid.
+//
+func (smote *Runtime) Init() {
 	rand.Seed(time.Now().UnixNano())
 
 	if smote.K <= 0 {
@@ -58,7 +62,7 @@ func (smote *SMOTE) Init() {
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *SMOTE) populate(instance tabula.Row, neighbors knn.Neighbors) {
+func (smote *Runtime) populate(instance tabula.Row, neighbors knn.Neighbors) {
 	lenAttr := len(instance)
 
 	for x := 0; x < smote.n; x++ {
@@ -70,7 +74,7 @@ func (smote *SMOTE) populate(instance tabula.Row, neighbors knn.Neighbors) {
 
 		// Compute new synthetic attributes.
 		for attr, sr := range *sample {
-			if attr == smote.ClassIdx {
+			if attr == smote.ClassIndex {
 				continue
 			}
 
@@ -88,35 +92,91 @@ func (smote *SMOTE) populate(instance tabula.Row, neighbors knn.Neighbors) {
 			newSynt[attr] = record
 		}
 
-		newSynt[smote.ClassIdx] = instance[smote.ClassIdx]
+		newSynt[smote.ClassIndex] = instance[smote.ClassIndex]
 
 		smote.Synthetic.PushBack(newSynt)
 	}
 }
 
-/*
-Resampling will run SMOTE algorithm using parameters that has been defined in
-struct and return list of synthetic samples.
-*/
-func (smote *SMOTE) Resampling(dataset tabula.Rows) tabula.Rows {
+//
+// Write will write synthetic sample to `file` in CSV format.
+//
+func (smote *Runtime) Write(file string) (e error) {
+	writer, e := dsv.NewWriter("")
+	if nil != e {
+		return
+	}
+
+	e = writer.OpenOutput(file)
+	if e != nil {
+		return
+	}
+
+	sep := dsv.DefSeparator
+	_, e = writer.WriteRawRows(&smote.Synthetic, &sep)
+	if e != nil {
+		return
+	}
+
+	return writer.Close()
+}
+
+//
+// Resampling will run resampling algorithm using values that has been defined
+// in `Runtime` and return list of synthetic samples.
+//
+// The `dataset` must be samples of minority class not the whole dataset.
+//
+// Algorithms,
+//
+// (0) If oversampling percentage less than 100, then
+// (0.1) replace the input dataset by selecting n random sample from dataset
+//       without replacement, where n is
+//
+//	(percentage-oversampling / 100) * number-of-sample
+//
+// (1) For each `sample` in dataset,
+// (1.1) find k-nearest-neighbors of `sample`,
+// (1.2) generate synthetic sample in neighbors.
+// (2) Write synthetic samples to file, only if `SyntheticFile` is not empty.
+//
+func (smote *Runtime) Resampling(dataset tabula.Rows) (e error) {
 	smote.Init()
 
 	if smote.PercentOver < 100 {
-		// Randomize minority class sample by percentage.
+		// (0.1)
 		smote.n = (smote.PercentOver / 100.0) * len(dataset)
 		dataset, _, _, _ = dataset.RandomPick(smote.n, false)
 		smote.PercentOver = 100
 	}
+
 	smote.n = smote.PercentOver / 100.0
 
-	// for each sample in dataset, generate their synthetic samples.
+	// (1)
 	for _, sample := range dataset {
-		// Compute k nearest neighbors for instance
+		// (1.1)
 		neighbors := smote.FindNeighbors(dataset, sample)
 
-		// generate synthetic samples.
+		// (1.2)
 		smote.populate(sample, neighbors)
 	}
 
-	return smote.Synthetic
+	// (2)
+	if smote.SyntheticFile != "" {
+		e = smote.Write(smote.SyntheticFile)
+	}
+
+	return
+}
+
+func (smote *Runtime) String() (s string) {
+	s = fmt.Sprintf("'smote' : {\n"+
+		"		'ClassIndex'     :%d\n"+
+		"	,	'K'              :%d\n"+
+		"	,	'PercentOver'    :%d\n"+
+		"	,	'DistanceMethod' :%d\n"+
+		"}", smote.ClassIndex, smote.K, smote.PercentOver,
+		smote.DistanceMethod)
+
+	return
 }

@@ -19,65 +19,39 @@ var (
 	K           = 5
 )
 
-func doSmote(dataset tabula.DatasetInterface) (smot *smote.SMOTE) {
-	smot = &smote.SMOTE{
-		Input: knn.Input{
+func TestSmote(t *testing.T) {
+	smot := &smote.Runtime{
+		Runtime: knn.Runtime{
 			DistanceMethod: knn.TEuclidianDistance,
-			ClassIdx:       5,
+			ClassIndex:     5,
 			K:              K,
 		},
 		PercentOver: PercentOver,
 		Synthetic:   nil,
 	}
 
-	classes := dataset.GetRows().GroupByValue(smot.ClassIdx)
-	_, minClass := classes.GetMinority()
-
-	fmt.Println("minority samples:", len(minClass))
-
-	synthetic := smot.Resampling(minClass)
-
-	fmt.Println("Synthetic:", len(synthetic))
-
-	return smot
-}
-
-func TestSmote(t *testing.T) {
-	dataset := tabula.Dataset{}
+	// Read samples.
+	dataset := tabula.Claset{}
 
 	_, e := dsv.SimpleRead(fcfg, &dataset)
-
 	if nil != e {
 		t.Fatal(e)
 	}
 
-	fmt.Println("Total samples:", dataset.Len())
+	fmt.Println("[smote_test] Total samples:", dataset.Len())
 
-	// Open writer synthetic samples.
-	writer, e := dsv.NewWriter("")
+	minorset := dataset.GetMinorityRows()
 
-	if nil != e {
-		t.Fatal(e)
-	}
+	fmt.Println("[smote_test] # minority samples:", minorset.Len())
 
-	e = writer.OpenOutput("phoneme_smote.csv")
+	e = smot.Resampling(*minorset)
 	if e != nil {
 		t.Fatal(e)
 	}
 
-	_, e = writer.WriteRawRows(dataset.GetRows(), ",")
-	if e != nil {
-		t.Fatal(e)
-	}
+	fmt.Println("[smote_test] # synthetic:", smot.Synthetic.Len())
 
-	smot := doSmote(&dataset)
-
-	_, e = writer.WriteRawRows(&smot.Synthetic, ",")
-	if e != nil {
-		t.Fatal(e)
-	}
-
-	e = writer.Close()
+	e = smot.Write("phoneme_smote.csv")
 	if e != nil {
 		t.Fatal(e)
 	}
