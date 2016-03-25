@@ -45,7 +45,7 @@ func TestLNSmote(t *testing.T) {
 	}
 
 	// Initialize LN-SMOTE.
-	lnsmote := &lnsmote.Input{
+	lnsmote := &lnsmote.Runtime{
 		Input: knn.Input{
 			DistanceMethod: knn.TEuclidianDistance,
 			ClassIdx:       5,

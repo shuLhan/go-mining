@@ -23,14 +23,14 @@ import (
 )
 
 var (
-	// LNSMOTE_DEBUG debug level, set from environment.
-	LNSMOTE_DEBUG = 0
+	// DEBUG debug level, set from environment.
+	DEBUG = 0
 )
 
-/*
-LNSmote parameters for input and output.
-*/
-type Input struct {
+//
+// Runtime parameters for input and output.
+//
+type Runtime struct {
 	// Input the K-Nearest-Neighbourhood parameters.
 	knn.Input
 	// ClassMinor the minority sample in dataset
@@ -48,15 +48,19 @@ type Input struct {
 }
 
 func init() {
-	v := os.Getenv("LNSMOTE_DEBUG")
+	v := os.Getenv("DEBUG")
 	if v == "" {
-		LNSMOTE_DEBUG = 0
+		DEBUG = 0
 	} else {
-		LNSMOTE_DEBUG, _ = strconv.Atoi(v)
+		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
-func (in *Input) Init(dataset tabula.DatasetInterface) {
+//
+// Init will initialize LNSmote object by checking input values and set it to
+// default if not set or invalid.
+//
+func (in *Runtime) Init(dataset tabula.DatasetInterface) {
 	// Count number of sythetic sample that will be created.
 	if in.PercentOver < 100 {
 		in.PercentOver = 100
@@ -68,13 +72,17 @@ func (in *Input) Init(dataset tabula.DatasetInterface) {
 	in.minority = *tabula.SelectRowsWhere(dataset, in.ClassIdx,
 		in.ClassMinor).(*tabula.Dataset)
 
-	if LNSMOTE_DEBUG >= 1 {
+	if DEBUG >= 1 {
 		fmt.Println("[lnsmote] n:", in.n)
 		fmt.Println("[lnsmote] n minority:", in.minority.Len())
 	}
 }
 
-func (in *Input) Resampling(dataset tabula.DatasetInterface) (
+//
+// Resampling will run resampling process on dataset and return the synthetic
+// samples.
+//
+func (in *Runtime) Resampling(dataset tabula.DatasetInterface) (
 	synthetics tabula.DatasetInterface,
 ) {
 	in.Init(dataset)
@@ -82,7 +90,7 @@ func (in *Input) Resampling(dataset tabula.DatasetInterface) (
 	for x, p := range in.minority.Rows {
 		neighbors := in.FindNeighbors(in.dataset.Rows, p)
 
-		if LNSMOTE_DEBUG >= 3 {
+		if DEBUG >= 3 {
 			fmt.Println("[lnsmote] neighbors:", neighbors.Rows)
 		}
 
@@ -96,12 +104,12 @@ func (in *Input) Resampling(dataset tabula.DatasetInterface) (
 			}
 		}
 
-		if LNSMOTE_DEBUG >= 1 {
+		if DEBUG >= 1 {
 			fmt.Printf("[lnsmote] %-4d n synthetics: %v", x,
 				in.Synthetic.Len())
 		}
 
-		if LNSMOTE_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			time.Sleep(5000 * time.Millisecond)
 		}
 	}
@@ -109,7 +117,11 @@ func (in *Input) Resampling(dataset tabula.DatasetInterface) (
 	return &in.Synthetic
 }
 
-func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
+//
+// createSynthetic will create synthetics row from original row `p` and their
+// `neighbors`.
+//
+func (in *Runtime) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 	synthetic tabula.Row,
 ) {
 	rand.Seed(time.Now().UnixNano())
@@ -121,7 +133,7 @@ func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 	// Check if synthetic sample can be created from p and n.
 	canit, slp, sln := in.canCreate(p, *n)
 	if !canit {
-		if LNSMOTE_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] can not create synthetic")
 		}
 		// we can not create from p and synthetic.
@@ -145,13 +157,17 @@ func (in *Input) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 	return
 }
 
-func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
+//
+// canCreate return true if synthetic can be created between two sample `p` and
+// `n`. Otherwise it will return false.
+//
+func (in *Runtime) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
 	tabula.DatasetInterface,
 ) {
 	slp := in.safeLevel(p)
 	sln := in.safeLevel2(p, n)
 
-	if LNSMOTE_DEBUG >= 2 {
+	if DEBUG >= 2 {
 		fmt.Println("[lnsmote] slp : ", slp.Len())
 		fmt.Println("[lnsmote] sln : ", sln.Len())
 	}
@@ -159,7 +175,10 @@ func (in *Input) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
 	return slp.Len() != 0 || sln.Len() != 0, slp, sln
 }
 
-func (in *Input) safeLevel(p tabula.Row) tabula.DatasetInterface {
+//
+// safeLevel return the minority neighbors in sample `p`.
+//
+func (in *Runtime) safeLevel(p tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, p)
 	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIdx,
 		in.ClassMinor)
@@ -167,7 +186,10 @@ func (in *Input) safeLevel(p tabula.Row) tabula.DatasetInterface {
 	return minorNeighbors
 }
 
-func (in *Input) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
+//
+// safeLevel2 return the minority neighbors between sample `p` and `n`.
+//
+func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 	neighbors := in.FindNeighbors(in.dataset.Rows, n)
 
 	// check if n is in minority class.
@@ -178,17 +200,17 @@ func (in *Input) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 
 	// if p in neighbors, replace it with neighbours in K+1
 	if nIsMinor && pInNeighbors {
-		if LNSMOTE_DEBUG >= 1 {
+		if DEBUG >= 1 {
 			fmt.Println("[lnsmote] Replacing ", pidx)
 		}
-		if LNSMOTE_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] Replacing ", pidx, " in ", neighbors)
 		}
 
 		repl := in.AllNeighbors.GetRow(in.K + 1)
 		neighbors.Rows[pidx] = *repl
 
-		if LNSMOTE_DEBUG >= 2 {
+		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] Replacement ", neighbors)
 		}
 	}
@@ -199,7 +221,11 @@ func (in *Input) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 	return minorNeighbors
 }
 
-func (in *Input) randomGap(p, n tabula.Row, lenslp, lensln int) (
+//
+// randomGap return the neighbors gap between sample `p` and `n` using safe
+// level (number of minority neighbors) of p in `lenslp` and `n` in `lensln`.
+//
+func (in *Runtime) randomGap(p, n tabula.Row, lenslp, lensln int) (
 	delta float64,
 ) {
 	if lensln == 0 && lenslp > 0 {
