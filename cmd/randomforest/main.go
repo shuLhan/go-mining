@@ -26,6 +26,8 @@ var (
 	nRandomFeature = 0
 	// percentBoot percentage of sample for bootstraping.
 	percentBoot = 0
+	// statsFile where statistic will be written.
+	statsFile = ""
 )
 
 var usage = func() {
@@ -34,6 +36,7 @@ var usage = func() {
 		"[-ntree number] "+
 		"[-nrandomfeature number] "+
 		"[-percentboot number] "+
+		"[-statsfile string] "+
 		"[config.dsv]\n", cmd)
 	flag.PrintDefaults()
 }
@@ -50,11 +53,13 @@ func init() {
 		"Number of tree in forest (default 100)",
 		"Number of feature to compute (default 0)",
 		"Percentage of bootstrap (default 64%)",
+		"Statistic file, where classifier performance will be written",
 	}
 
 	flag.IntVar(&nTree, "ntree", -1, flagUsage[0])
 	flag.IntVar(&nRandomFeature, "nrandomfeature", -1, flagUsage[1])
 	flag.IntVar(&percentBoot, "percentboot", -1, flagUsage[2])
+	flag.StringVar(&statsFile, "statsfile", "", flagUsage[3])
 }
 
 func trace(s string) (string, time.Time) {
@@ -91,6 +96,9 @@ func createRandomForest(fcfg string) (*randomforest.Runtime, error) {
 	if percentBoot > 0 {
 		rf.PercentBoot = percentBoot
 	}
+	if statsFile != "" {
+		rf.StatsFile = statsFile
+	}
 
 	return rf, nil
 }
@@ -120,11 +128,10 @@ func main() {
 		panic(e)
 	}
 
+	fmt.Println("[randomforest] Dataset:", &dataset)
+
 	e = rf.Build(&dataset)
 	if e != nil {
 		panic(e)
 	}
-
-	fmt.Println("[randomforest] OOB mean value:", rf.OobErrorTotalMean())
-	fmt.Println("[randomforest] OOB oob steps:", rf.OobErrorStepsMean())
 }
