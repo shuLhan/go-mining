@@ -17,12 +17,18 @@ type Stat struct {
 	StartTime time.Time
 	// endTime contain the end time of classifier.
 	EndTime time.Time
-	// TPRate contain true-positive rate: tp/(tp+fn)
+	// TPRate contain true-positive rate (recall): tp/(tp+fn)
 	TPRate float64
 	// FPRate contain false-positive rate: fp/(fp+tn)
 	FPRate float64
 	// Precision contain: tp/(tp+fp)
 	Precision float64
+	// FMeasure contain value of F-measure or the harmonic mean of
+	// precision and recall.
+	FMeasure float64
+	// Accuracy contain the degree of closeness of measurements of a
+	// quantity to that quantity's true value.
+	Accuracy float64
 }
 
 /*
