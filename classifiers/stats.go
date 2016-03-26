@@ -9,6 +9,26 @@ Stats define list of statistic values.
 */
 type Stats []Stat
 
+//
+// StartTimes return all start times in unix timestamp.
+//
+func (stats *Stats) StartTimes() (times []int64) {
+	for _, stat := range *stats {
+		times = append(times, stat.StartTime.Unix())
+	}
+	return
+}
+
+//
+// EndTimes return all end times in unix timestamp.
+//
+func (stats *Stats) EndTimes() (times []int64) {
+	for _, stat := range *stats {
+		times = append(times, stat.EndTime.Unix())
+	}
+	return
+}
+
 /*
 TPRates return all true-positive rate values.
 */
@@ -46,22 +66,22 @@ func (stats *Stats) Recalls() (recalls []float64) {
 	return stats.TPRates()
 }
 
-//
-// StartTimes return all start times in unix timestamp.
-//
-func (stats *Stats) StartTimes() (times []int64) {
+/*
+FMeasures return all F-measure values.
+*/
+func (stats *Stats) FMeasures() (fmeasures []float64) {
 	for _, stat := range *stats {
-		times = append(times, stat.StartTime.Unix())
+		fmeasures = append(fmeasures, stat.FMeasure)
 	}
 	return
 }
 
 //
-// EndTimes return all end times in unix timestamp.
+// Accuracies return all accuracy values.
 //
-func (stats *Stats) EndTimes() (times []int64) {
+func (stats *Stats) Accuracies() (accuracies []float64) {
 	for _, stat := range *stats {
-		times = append(times, stat.EndTime.Unix())
+		accuracies = append(accuracies, stat.Accuracy)
 	}
 	return
 }
