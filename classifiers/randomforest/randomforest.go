@@ -253,11 +253,6 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		}
 	}
 
-	if DEBUG >= 1 {
-		fmt.Println("[randomforest] OOB error total mean:",
-			forest.OobErrorTotalMean())
-	}
-
 	// (3)
 	return forest.writeStats()
 }
@@ -467,51 +462,10 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 // - F-measure
 // - Accuracy
 //
+// and total of all of them.
+//
 func (forest *Runtime) writeStats() (e error) {
-	stats := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
-
-	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
-	col := tabula.NewColumnInt(treeIds, "tree_id")
-	stats.PushColumn(*col)
-
-	times := forest.stats.StartTimes()
-	col = tabula.NewColumnInt(times, "start_time")
-	stats.PushColumn(*col)
-
-	times = forest.stats.EndTimes()
-	col = tabula.NewColumnInt(times, "end_time")
-	stats.PushColumn(*col)
-
-	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
-	col = tabula.NewColumnInt(tp, "tp")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(fp, "fp")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(tn, "tn")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(fn, "fn")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.oobErrorSteps, "oob_error")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.oobErrorStepsMean, "oob_error_mean")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.stats.TPRates(), "tprate")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.stats.FPRates(), "fprate")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.stats.Precisions(), "precision")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.stats.FMeasures(), "fmeasure")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.stats.Accuracies(), "accuracy")
-	stats.PushColumn(*col)
+	stats := forest.getAllStats()
 
 	writer, e := dsv.NewWriter("")
 	if e != nil {
@@ -545,6 +499,129 @@ func (forest *Runtime) writeStats() (e error) {
 	}
 
 	return nil
+}
+
+//
+// getAllStats return all statistic value and their total/mean values.
+//
+func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
+	stats = tabula.NewDataset(tabula.DatasetModeMatrix, nil, nil)
+
+	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
+	col := tabula.NewColumnInt(treeIds, "tree_id")
+	stats.PushColumn(*col)
+
+	startTimes := forest.stats.StartTimes()
+	col = tabula.NewColumnInt(startTimes, "start_time")
+	stats.PushColumn(*col)
+
+	endTimes := forest.stats.EndTimes()
+	col = tabula.NewColumnInt(endTimes, "end_time")
+	stats.PushColumn(*col)
+
+	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
+	col = tabula.NewColumnInt(tp, "tp")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(fp, "fp")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(tn, "tn")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(fn, "fn")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.oobErrorSteps, "oob_error")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.oobErrorStepsMean, "oob_error_mean")
+	stats.PushColumn(*col)
+
+	tprates := forest.stats.TPRates()
+	col = tabula.NewColumnReal(tprates, "tprate")
+	stats.PushColumn(*col)
+
+	fprates := forest.stats.FPRates()
+	col = tabula.NewColumnReal(fprates, "fprate")
+	stats.PushColumn(*col)
+
+	precisions := forest.stats.Precisions()
+	col = tabula.NewColumnReal(precisions, "precision")
+	stats.PushColumn(*col)
+
+	fmeasures := forest.stats.FMeasures()
+	col = tabula.NewColumnReal(fmeasures, "fmeasure")
+	stats.PushColumn(*col)
+
+	accuracies := forest.stats.Accuracies()
+	col = tabula.NewColumnReal(accuracies, "accuracy")
+	stats.PushColumn(*col)
+
+	//
+	// Compute total and mean of all statistic values.
+	//
+	// - Total tree in forest.
+	total := tabula.Row{}
+	ntree := float64(stats.Len())
+	total.PushBack(tabula.NewRecordInt(int64(stats.Len())))
+
+	// - Start time of the first tree.
+	if len(startTimes) > 0 {
+		total.PushBack(tabula.NewRecordInt(startTimes[0]))
+	} else {
+		total.PushBack(tabula.NewRecordInt(0))
+	}
+
+	// - End time of the last tree.
+	endTimesLen := len(endTimes)
+	if endTimesLen > 0 {
+		total.PushBack(tabula.NewRecordInt(endTimes[endTimesLen-1]))
+	} else {
+		total.PushBack(tabula.NewRecordInt(0))
+	}
+
+	// - Total TP.
+	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(tp)))
+	// - Total FP.
+	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(fp)))
+	// - Total TN.
+	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(tn)))
+	// - Total FN.
+	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(fn)))
+
+	// - Mean of OOB error at each step
+	totalv := tekstus.Float64Sum(forest.oobErrorSteps) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean OOB error mean at each step
+	totalv = tekstus.Float64Sum(forest.oobErrorStepsMean) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean of tp-rates
+	totalv = tekstus.Float64Sum(tprates) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean of fp-rates
+	totalv = tekstus.Float64Sum(fprates) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean of precisions
+	totalv = tekstus.Float64Sum(precisions) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean of F-measures
+	totalv = tekstus.Float64Sum(fmeasures) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	// - Mean of accuracies
+	totalv = tekstus.Float64Sum(accuracies) / ntree
+	total.PushBack(tabula.NewRecordReal(totalv))
+
+	if DEBUG >= 1 {
+		fmt.Println("[randomforest] Total:", total)
+	}
+
+	stats.PushRow(total)
+
+	return stats
 }
 
 //
