@@ -45,3 +45,23 @@ Recalls return all recall values.
 func (stats *Stats) Recalls() (recalls []float64) {
 	return stats.TPRates()
 }
+
+//
+// StartTimes return all start times in unix timestamp.
+//
+func (stats *Stats) StartTimes() (times []int64) {
+	for _, stat := range *stats {
+		times = append(times, stat.StartTime.Unix())
+	}
+	return
+}
+
+//
+// EndTimes return all end times in unix timestamp.
+//
+func (stats *Stats) EndTimes() (times []int64) {
+	for _, stat := range *stats {
+		times = append(times, stat.EndTime.Unix())
+	}
+	return
+}
