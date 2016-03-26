@@ -4,11 +4,19 @@
 
 package classifiers
 
+import (
+	"time"
+)
+
 /*
 Stat hold statistic value of classifier, including TP rate, FP rate, precision,
 and recall.
 */
 type Stat struct {
+	// startTime contain the start time of classifier.
+	StartTime time.Time
+	// endTime contain the end time of classifier.
+	EndTime time.Time
 	// TPRate contain true-positive rate: tp/(tp+fn)
 	TPRate float64
 	// FPRate contain false-positive rate: fp/(fp+tn)
