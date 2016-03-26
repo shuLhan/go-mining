@@ -431,6 +431,8 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 	stat.TPRate = float64(tp) / float64(tp+fn)
 	stat.FPRate = float64(fp) / float64(fp+tn)
 	stat.Precision = float64(tp) / float64(tp+fp)
+	stat.FMeasure = 2 / ((1 / stat.Precision) + (1 / stat.TPRate))
+	stat.Accuracy = float64(tp+tn) / float64(tp+tn+fp+fn)
 
 	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
@@ -439,8 +441,9 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 			forest.OobErrorTotalMean(), cm.GetTrueRate())
 
 		fmt.Printf("[randomforest] TPRate: %.4f, FPRate: %.4f,"+
-			" precision: %.4f\n", stat.TPRate, stat.FPRate,
-			stat.Precision)
+			" precision: %.4f, f-measure: %.4f, accuracy: %.4f\n",
+			stat.TPRate, stat.FPRate, stat.Precision,
+			stat.FMeasure, stat.Accuracy)
 	}
 
 	return
@@ -461,6 +464,8 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 // - TP rate
 // - FP rate
 // - Precision
+// - F-measure
+// - Accuracy
 //
 func (forest *Runtime) writeStats() (e error) {
 	stats := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
@@ -470,11 +475,11 @@ func (forest *Runtime) writeStats() (e error) {
 	stats.PushColumn(*col)
 
 	times := forest.stats.StartTimes()
-	col = tabula.NewColumnInt(times, "start_times")
+	col = tabula.NewColumnInt(times, "start_time")
 	stats.PushColumn(*col)
 
 	times = forest.stats.EndTimes()
-	col = tabula.NewColumnInt(times, "end_times")
+	col = tabula.NewColumnInt(times, "end_time")
 	stats.PushColumn(*col)
 
 	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
@@ -500,6 +505,12 @@ func (forest *Runtime) writeStats() (e error) {
 	stats.PushColumn(*col)
 
 	col = tabula.NewColumnReal(forest.stats.Precisions(), "precision")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.stats.FMeasures(), "fmeasure")
+	stats.PushColumn(*col)
+
+	col = tabula.NewColumnReal(forest.stats.Accuracies(), "accuracy")
 	stats.PushColumn(*col)
 
 	writer, e := dsv.NewWriter("")
