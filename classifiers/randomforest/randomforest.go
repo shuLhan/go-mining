@@ -24,6 +24,7 @@ import (
 	"math"
 	"os"
 	"strconv"
+	"time"
 )
 
 const (
@@ -277,6 +278,8 @@ Algorithm,
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cm *classifiers.ConfusionMatrix, stat *classifiers.Stat, e error,
 ) {
+	start := time.Now()
+
 	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
 		samples.(tabula.DatasetInterface),
@@ -309,6 +312,16 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	// (6)
 	stat = forest.computeStatistic(cm)
+
+	stat.EndTime = time.Now()
+	stat.StartTime = start
+
+	forest.AddStat(stat)
+
+	if DEBUG >= 1 {
+		fmt.Printf("[randomforest] Elapsed time: %s\n",
+			stat.EndTime.Sub(stat.StartTime))
+	}
 
 	return cm, stat, nil
 }
@@ -419,8 +432,6 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 	stat.FPRate = float64(fp) / float64(fp+tn)
 	stat.Precision = float64(tp) / float64(tp+fp)
 
-	forest.AddStat(stat)
-
 	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
 			" total: %.4f, mean %.4f, true rate: %.4f\n",
@@ -439,6 +450,12 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 // writeStats will write performance statistic to file in CSV format.
 // The file will contain,
 // - tree number
+// - start timestamp
+// - end timestamp
+// - TP
+// - FP
+// - TN
+// - FN
 // - OOB error in current tree
 // - OOB error mean in current tree
 // - TP rate
@@ -450,6 +467,24 @@ func (forest *Runtime) writeStats() (e error) {
 
 	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
 	col := tabula.NewColumnInt(treeIds, "tree_id")
+	stats.PushColumn(*col)
+
+	times := forest.stats.StartTimes()
+	col = tabula.NewColumnInt(times, "start_times")
+	stats.PushColumn(*col)
+
+	times = forest.stats.EndTimes()
+	col = tabula.NewColumnInt(times, "end_times")
+	stats.PushColumn(*col)
+
+	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
+	col = tabula.NewColumnInt(tp, "tp")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(fp, "fp")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(tn, "tn")
+	stats.PushColumn(*col)
+	col = tabula.NewColumnInt(fn, "fn")
 	stats.PushColumn(*col)
 
 	col = tabula.NewColumnReal(forest.oobErrorSteps, "oob_error")
@@ -499,4 +534,18 @@ func (forest *Runtime) writeStats() (e error) {
 	}
 
 	return nil
+}
+
+//
+// GetConfusionMatrixValues return all true positive, false positive, true
+// negative, and false negative values in confusion matrix.
+//
+func (forest *Runtime) GetConfusionMatrixValues() (tp, fp, tn, fn []int64) {
+	for _, cm := range forest.cmatrices {
+		tp = append(tp, int64(cm.TP()))
+		fp = append(fp, int64(cm.FP()))
+		tn = append(tn, int64(cm.TN()))
+		fn = append(fn, int64(cm.FN()))
+	}
+	return
 }
