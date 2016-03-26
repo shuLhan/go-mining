@@ -450,6 +450,7 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 // - tree number
 // - start timestamp
 // - end timestamp
+// - elapsed time in seconds
 // - TP
 // - FP
 // - TN
@@ -519,6 +520,10 @@ func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
 	col = tabula.NewColumnInt(endTimes, "end_time")
 	stats.PushColumn(*col)
 
+	elapsedTimes := classifiers.ComputeElapsedTimes(startTimes, endTimes)
+	col = tabula.NewColumnInt(elapsedTimes, "elapsed_time")
+	stats.PushColumn(*col)
+
 	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
 	col = tabula.NewColumnInt(tp, "tp")
 	stats.PushColumn(*col)
@@ -564,19 +569,22 @@ func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
 	total.PushBack(tabula.NewRecordInt(int64(stats.Len())))
 
 	// - Start time of the first tree.
+	starttime := time.Now().Unix()
 	if len(startTimes) > 0 {
-		total.PushBack(tabula.NewRecordInt(startTimes[0]))
-	} else {
-		total.PushBack(tabula.NewRecordInt(0))
+		starttime = startTimes[0]
 	}
+	total.PushBack(tabula.NewRecordInt(starttime))
 
 	// - End time of the last tree.
 	endTimesLen := len(endTimes)
+	endtime := time.Now().Unix()
 	if endTimesLen > 0 {
-		total.PushBack(tabula.NewRecordInt(endTimes[endTimesLen-1]))
-	} else {
-		total.PushBack(tabula.NewRecordInt(0))
+		endtime = endTimes[endTimesLen-1]
 	}
+	total.PushBack(tabula.NewRecordInt(endtime))
+
+	// - Total elapsed time.
+	total.PushBack(tabula.NewRecordInt(endtime - starttime))
 
 	// - Total TP.
 	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(tp)))
@@ -587,31 +595,31 @@ func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
 	// - Total FN.
 	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(fn)))
 
-	// - Mean of OOB error at each step
+	// - Mean of OOB error in all steps.
 	totalv := tekstus.Float64Sum(forest.oobErrorSteps) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean OOB error mean at each step
+	// - Mean OOB error mean in all steps.
 	totalv = tekstus.Float64Sum(forest.oobErrorStepsMean) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean of tp-rates
+	// - Mean of tp-rates.
 	totalv = tekstus.Float64Sum(tprates) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean of fp-rates
+	// - Mean of fp-rates.
 	totalv = tekstus.Float64Sum(fprates) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean of precisions
+	// - Mean of precisions.
 	totalv = tekstus.Float64Sum(precisions) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean of F-measures
+	// - Mean of F-measures.
 	totalv = tekstus.Float64Sum(fmeasures) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
-	// - Mean of accuracies
+	// - Mean of accuracies.
 	totalv = tekstus.Float64Sum(accuracies) / ntree
 	total.PushBack(tabula.NewRecordReal(totalv))
 
