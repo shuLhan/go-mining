@@ -275,27 +275,21 @@ Return Gini value in the form of,
 */
 func (gini *Gini) compute(T *[]string, C *[]string) float64 {
 	n := float64(len(*T))
-
 	if n == 0 {
 		return 0
 	}
 
-	classCount := make(map[string]int, len(*C))
+	classCount := tekstus.WordsCountTokens(*T, *C, true)
 
-	for _, v := range *T {
-		classCount[v]++
-	}
-
-	var p float64
 	var sump2 float64
 
-	for i := range classCount {
-		p = float64(classCount[i]) / n
+	for x, v := range classCount {
+		p := float64(v) / n
 		sump2 += (p * p)
 
 		if DEBUG >= 3 {
-			fmt.Printf("[gini] compute (%s): (%f/%f)^2 = %f\n", *T,
-				float64(classCount[i]), n, p*p)
+			fmt.Printf("[gini] compute (%s): (%f/%f)^2 = %f\n",
+				(*C)[x], v, n, p*p)
 		}
 
 	}
