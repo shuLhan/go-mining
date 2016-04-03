@@ -9,12 +9,13 @@ import (
 	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/tabula"
+	"log"
 	"testing"
 )
 
 var (
 	// NTREE number of tree to generate.
-	NTREE = 10
+	NTREE = 100
 	// NBOOTSTRAP percentage of sample used as subsample.
 	NBOOTSTRAP = 66
 	// FEATSTART number of feature to begin with.
@@ -23,7 +24,7 @@ var (
 	FEATEND = -1
 )
 
-func runRandomForest(t *testing.T, sampledsv string,
+func runRandomForest(sampledsv string,
 	ntree, npercent, nfeature, maxFeature int,
 	oobFile string,
 ) {
@@ -31,7 +32,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 	samples := tabula.Claset{}
 	_, e := dsv.SimpleRead(sampledsv, &samples)
 	if nil != e {
-		t.Fatal(e)
+		log.Fatal(e)
 	}
 
 	// dataset to save each oob error in each feature iteration.
@@ -48,7 +49,7 @@ func runRandomForest(t *testing.T, sampledsv string,
 		e := forest.Build(&samples)
 
 		if e != nil {
-			t.Fatal(e)
+			log.Fatal(e)
 		}
 
 		colName := fmt.Sprintf("M%d", nfeature)
@@ -63,18 +64,18 @@ func runRandomForest(t *testing.T, sampledsv string,
 	writer, e := dsv.NewWriter("")
 
 	if e != nil {
-		t.Fatal(e)
+		log.Fatal(e)
 	}
 
 	e = writer.OpenOutput(oobFile)
 
 	if e != nil {
-		t.Fatal(e)
+		log.Fatal(e)
 	}
 
 	_, e = writer.WriteRawDataset(dataooberr, nil)
 	if e != nil {
-		t.Fatal(e)
+		log.Fatal(e)
 	}
 }
 
@@ -83,7 +84,7 @@ func TestEnsemblingGlass(t *testing.T) {
 	// oob file output
 	oobFile := "oobglass"
 
-	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
 }
 
@@ -93,7 +94,7 @@ func TestEnsemblingIris(t *testing.T) {
 	// oob file output
 	oobFile := "oobiris"
 
-	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
 }
 
@@ -106,7 +107,7 @@ func TestEnsemblingPhoneme(t *testing.T) {
 	FEATSTART = 3
 	FEATEND = 4
 
-	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
 }
 
@@ -119,7 +120,7 @@ func TestEnsemblingSmotePhoneme(t *testing.T) {
 	FEATSTART = 3
 	FEATEND = 4
 
-	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
 }
 
@@ -132,6 +133,21 @@ func TestEnsemblingLnsmotePhoneme(t *testing.T) {
 	FEATSTART = 3
 	FEATEND = 4
 
-	runRandomForest(t, sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
+}
+
+func BenchmarkPhoneme(b *testing.B) {
+	// input data
+	sampledsv := "../../testdata/phoneme/phoneme.dsv"
+	// oob file output
+	oobFile := "oobphoneme"
+
+	FEATSTART = 3
+	FEATEND = 4
+
+	for x := 0; x < b.N; x++ {
+		runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART,
+			FEATEND, oobFile)
+	}
 }
