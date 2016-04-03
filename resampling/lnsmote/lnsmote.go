@@ -15,11 +15,11 @@ package lnsmote
 import (
 	"fmt"
 	"github.com/shuLhan/go-mining/knn"
+	"github.com/shuLhan/go-mining/resampling/smote"
 	"github.com/shuLhan/tabula"
 	"math/rand"
 	"os"
 	"strconv"
-	"time"
 )
 
 var (
@@ -31,50 +31,66 @@ var (
 // Runtime parameters for input and output.
 //
 type Runtime struct {
-	// Runtime of K-Nearest-Neighbourhood parameters.
-	knn.Runtime
-	// ClassMinor the minority sample in dataset
-	ClassMinor string
-	// PercentOver input for oversampling percentage.
-	PercentOver int
-	// n input for number of new synthetic per sample.
-	n int
-	// Synthetic output for new sample.
-	Synthetic tabula.Dataset
-	// minority contain minor class in samples.
-	minority tabula.Dataset
-	// dataset contain all samples
-	dataset tabula.Dataset
+	// Runtime of SMOTE, since this module extend the SMOTE method.
+	smote.Runtime
+	//
+	// ClassMinor the minority sample in dataset that we want to
+	// oversampling.
+	ClassMinor string `json:"ClassMinor"`
+	//
+	// minorset contain minor class in samples.
+	minorset tabula.DatasetInterface
+	//
+	// datasetRows contain all rows in dataset.
+	datasetRows *tabula.Rows
 }
 
 func init() {
-	v := os.Getenv("LNSMOTE_DEBUG")
-	if v == "" {
+	var e error
+
+	DEBUG, e = strconv.Atoi(os.Getenv("LNSMOTE_DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
 //
-// Init will initialize LNSmote object by checking input values and set it to
-// default if not set or invalid.
+// New create and return new LnSmote object.
 //
-func (in *Runtime) Init(dataset tabula.DatasetInterface) {
-	// Count number of sythetic sample that will be created.
-	if in.PercentOver < 100 {
-		in.PercentOver = 100
+func New(percentOver, k, classIndex int, classMinor string) (
+	lnsmoteRun *Runtime,
+) {
+	lnsmoteRun = &Runtime{
+		Runtime: smote.Runtime{
+			Runtime: knn.Runtime{
+				DistanceMethod: knn.TEuclidianDistance,
+				ClassIndex:     classIndex,
+				K:              k,
+			},
+			PercentOver: percentOver,
+		},
+		ClassMinor: classMinor,
 	}
 
-	in.n = in.PercentOver / 100.0
-	in.dataset = *(dataset.(*tabula.Dataset))
+	return
+}
 
-	in.minority = *tabula.SelectRowsWhere(dataset, in.ClassIndex,
-		in.ClassMinor).(*tabula.Dataset)
+//
+// Init will initialize LNSmote runtime by checking input values and set it to
+// default if not set or invalid.
+//
+func (in *Runtime) Init(dataset tabula.ClasetInterface) {
+	in.Runtime.Init()
+
+	in.NSynthetic = in.PercentOver / 100.0
+	in.datasetRows = dataset.GetDataAsRows()
+
+	in.minorset = tabula.SelectRowsWhere(dataset, in.ClassIndex,
+		in.ClassMinor)
 
 	if DEBUG >= 1 {
-		fmt.Println("[lnsmote] n:", in.n)
-		fmt.Println("[lnsmote] n minority:", in.minority.Len())
+		fmt.Println("[lnsmote] n:", in.NSynthetic)
+		fmt.Println("[lnsmote] n minority:", in.minorset.Len())
 	}
 }
 
@@ -82,56 +98,56 @@ func (in *Runtime) Init(dataset tabula.DatasetInterface) {
 // Resampling will run resampling process on dataset and return the synthetic
 // samples.
 //
-func (in *Runtime) Resampling(dataset tabula.DatasetInterface) (
-	synthetics tabula.DatasetInterface,
+func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
+	e error,
 ) {
 	in.Init(dataset)
 
-	for x, p := range in.minority.Rows {
-		neighbors := in.FindNeighbors(in.dataset.Rows, p)
+	minorRows := in.minorset.GetDataAsRows()
+
+	for x := range *minorRows {
+		p := &(*minorRows)[x]
+
+		neighbors := in.FindNeighbors(in.datasetRows, p)
 
 		if DEBUG >= 3 {
-			fmt.Println("[lnsmote] neighbors:", neighbors.Rows)
+			fmt.Println("[lnsmote] neighbors:", neighbors.Rows())
 		}
 
-		for y := 0; y < in.n; y++ {
+		for y := 0; y < in.NSynthetic; y++ {
 			syn := in.createSynthetic(p, neighbors)
 
-			// no synthetic can be created, increase neighbours
-			// range.
 			if syn != nil {
-				in.Synthetic.PushRow(syn)
+				in.Synthetics.PushRow(syn)
 			}
 		}
 
 		if DEBUG >= 1 {
-			fmt.Printf("[lnsmote] %-4d n synthetics: %v", x,
-				in.Synthetic.Len())
-		}
-
-		if DEBUG >= 2 {
-			time.Sleep(5000 * time.Millisecond)
+			fmt.Printf("[lnsmote] %-4d n synthetics: %v\n", x,
+				in.Synthetics.Len())
 		}
 	}
 
-	return &in.Synthetic
+	if in.SyntheticFile != "" {
+		e = in.Write(in.SyntheticFile)
+	}
+
+	return
 }
 
 //
 // createSynthetic will create synthetics row from original row `p` and their
 // `neighbors`.
 //
-func (in *Runtime) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
+func (in *Runtime) createSynthetic(p *tabula.Row, neighbors knn.Neighbors) (
 	synthetic tabula.Row,
 ) {
-	rand.Seed(time.Now().UnixNano())
-
 	// choose one of the K nearest neighbors
 	randIdx := rand.Intn(neighbors.Len())
-	n := neighbors.GetRow(randIdx)
+	n := neighbors.Row(randIdx)
 
 	// Check if synthetic sample can be created from p and n.
-	canit, slp, sln := in.canCreate(p, *n)
+	canit, slp, sln := in.canCreate(p, n)
 	if !canit {
 		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] can not create synthetic")
@@ -148,9 +164,9 @@ func (in *Runtime) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 			continue
 		}
 
-		delta := in.randomGap(p, *n, slp.Len(), sln.Len())
-		pv := p[x].Value().(float64)
-		diff := (*n)[x].Value().(float64) - pv
+		delta := in.randomGap(p, n, slp.Len(), sln.Len())
+		pv := (*p)[x].Float()
+		diff := (*n)[x].Float() - pv
 		srec.SetFloat(pv + delta*diff)
 	}
 
@@ -161,8 +177,8 @@ func (in *Runtime) createSynthetic(p tabula.Row, neighbors knn.Neighbors) (
 // canCreate return true if synthetic can be created between two sample `p` and
 // `n`. Otherwise it will return false.
 //
-func (in *Runtime) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
-	tabula.DatasetInterface,
+func (in *Runtime) canCreate(p, n *tabula.Row) (bool, knn.Neighbors,
+	knn.Neighbors,
 ) {
 	slp := in.safeLevel(p)
 	sln := in.safeLevel2(p, n)
@@ -178,10 +194,9 @@ func (in *Runtime) canCreate(p, n tabula.Row) (bool, tabula.DatasetInterface,
 //
 // safeLevel return the minority neighbors in sample `p`.
 //
-func (in *Runtime) safeLevel(p tabula.Row) tabula.DatasetInterface {
-	neighbors := in.FindNeighbors(in.dataset.Rows, p)
-	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIndex,
-		in.ClassMinor)
+func (in *Runtime) safeLevel(p *tabula.Row) knn.Neighbors {
+	neighbors := in.FindNeighbors(in.datasetRows, p)
+	minorNeighbors := neighbors.SelectWhere(in.ClassIndex, in.ClassMinor)
 
 	return minorNeighbors
 }
@@ -189,14 +204,14 @@ func (in *Runtime) safeLevel(p tabula.Row) tabula.DatasetInterface {
 //
 // safeLevel2 return the minority neighbors between sample `p` and `n`.
 //
-func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
-	neighbors := in.FindNeighbors(in.dataset.Rows, n)
+func (in *Runtime) safeLevel2(p, n *tabula.Row) knn.Neighbors {
+	neighbors := in.FindNeighbors(in.datasetRows, n)
 
 	// check if n is in minority class.
-	nIsMinor := n[in.ClassIndex].IsEqual(in.ClassMinor)
+	nIsMinor := (*n)[in.ClassIndex].IsEqual(in.ClassMinor)
 
 	// check if p is in neighbors.
-	pInNeighbors, pidx := neighbors.Rows.Contain(p)
+	pInNeighbors, pidx := neighbors.Contain(p)
 
 	// if p in neighbors, replace it with neighbours in K+1
 	if nIsMinor && pInNeighbors {
@@ -207,16 +222,16 @@ func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 			fmt.Println("[lnsmote] Replacing ", pidx, " in ", neighbors)
 		}
 
-		repl := in.AllNeighbors.GetRow(in.K + 1)
-		neighbors.Rows[pidx] = *repl
+		row := in.AllNeighbors.Row(in.K + 1)
+		dist := in.AllNeighbors.Distance(in.K + 1)
+		neighbors.Replace(pidx, row, dist)
 
 		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] Replacement ", neighbors)
 		}
 	}
 
-	minorNeighbors := tabula.SelectRowsWhere(&neighbors, in.ClassIndex,
-		in.ClassMinor)
+	minorNeighbors := neighbors.SelectWhere(in.ClassIndex, in.ClassMinor)
 
 	return minorNeighbors
 }
@@ -225,7 +240,7 @@ func (in *Runtime) safeLevel2(p, n tabula.Row) tabula.DatasetInterface {
 // randomGap return the neighbors gap between sample `p` and `n` using safe
 // level (number of minority neighbors) of p in `lenslp` and `n` in `lensln`.
 //
-func (in *Runtime) randomGap(p, n tabula.Row, lenslp, lensln int) (
+func (in *Runtime) randomGap(p, n *tabula.Row, lenslp, lensln int) (
 	delta float64,
 ) {
 	if lensln == 0 && lenslp > 0 {
