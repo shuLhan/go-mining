@@ -7,7 +7,6 @@ package smote_test
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/go-mining/resampling/smote"
 	"github.com/shuLhan/tabula"
 	"testing"
@@ -20,15 +19,7 @@ var (
 )
 
 func TestSmote(t *testing.T) {
-	smot := &smote.Runtime{
-		Runtime: knn.Runtime{
-			DistanceMethod: knn.TEuclidianDistance,
-			ClassIndex:     5,
-			K:              K,
-		},
-		PercentOver: PercentOver,
-		Synthetic:   nil,
-	}
+	smot := smote.New(PercentOver, K, 5)
 
 	// Read samples.
 	dataset := tabula.Claset{}
@@ -49,7 +40,7 @@ func TestSmote(t *testing.T) {
 		t.Fatal(e)
 	}
 
-	fmt.Println("[smote_test] # synthetic:", smot.Synthetic.Len())
+	fmt.Println("[smote_test] # synthetic:", smot.GetSynthetics().Len())
 
 	e = smot.Write("phoneme_smote.csv")
 	if e != nil {

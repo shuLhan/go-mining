@@ -15,8 +15,8 @@ package smote
 
 import (
 	"fmt"
-	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
+	"github.com/shuLhan/go-mining/resampling"
 	"github.com/shuLhan/tabula"
 	"math/rand"
 	"time"
@@ -32,18 +32,26 @@ type Runtime struct {
 	PercentOver int `json:"PercentOver"`
 	// SyntheticFile is a filename where synthetic samples will be written.
 	SyntheticFile string `json:"SyntheticFile"`
-	// n input for number of new synthetic per sample.
-	n int
-	// Synthetic output for new sample.
-	Synthetic tabula.Rows
+	// NSynthetic input for number of new synthetic per sample.
+	NSynthetic int
+	// Synthetics contain output of resampling as synthetic samples.
+	Synthetics tabula.Dataset
 }
 
-const (
-	// DefaultK nearest neighbors.
-	DefaultK = 5
-	// DefaultPercentOver sampling.
-	DefaultPercentOver = 100
-)
+//
+// New create and return new smote runtime.
+//
+func New(percentOver, k, classIndex int) (smoteRun *Runtime) {
+	smoteRun = &Runtime{
+		Runtime: knn.Runtime{
+			DistanceMethod: knn.TEuclidianDistance,
+			ClassIndex:     classIndex,
+			K:              k,
+		},
+		PercentOver: percentOver,
+	}
+	return
+}
 
 //
 // Init will recheck input and set to default value if its not valid.
@@ -52,23 +60,30 @@ func (smote *Runtime) Init() {
 	rand.Seed(time.Now().UnixNano())
 
 	if smote.K <= 0 {
-		smote.K = DefaultK
+		smote.K = resampling.DefaultK
 	}
 	if smote.PercentOver <= 0 {
-		smote.PercentOver = DefaultPercentOver
+		smote.PercentOver = resampling.DefaultPercentOver
 	}
+}
+
+//
+// GetSynthetics return synthetic samples.
+//
+func (smote *Runtime) GetSynthetics() tabula.DatasetInterface {
+	return &smote.Synthetics
 }
 
 /*
 populate will generate new synthetic sample using nearest neighbors.
 */
-func (smote *Runtime) populate(instance tabula.Row, neighbors knn.Neighbors) {
-	lenAttr := len(instance)
+func (smote *Runtime) populate(instance *tabula.Row, neighbors knn.Neighbors) {
+	lenAttr := len(*instance)
 
-	for x := 0; x < smote.n; x++ {
+	for x := 0; x < smote.NSynthetic; x++ {
 		// choose one of the K nearest neighbors
 		n := rand.Intn(neighbors.Len())
-		sample := neighbors.GetRow(n)
+		sample := neighbors.Row(n)
 
 		newSynt := make(tabula.Row, lenAttr)
 
@@ -78,10 +93,10 @@ func (smote *Runtime) populate(instance tabula.Row, neighbors knn.Neighbors) {
 				continue
 			}
 
-			ir := instance[attr]
+			ir := (*instance)[attr]
 
-			iv := ir.Value().(float64)
-			sv := sr.Value().(float64)
+			iv := ir.Float()
+			sv := sr.Float()
 
 			dif := sv - iv
 			gap := rand.Float64()
@@ -92,33 +107,10 @@ func (smote *Runtime) populate(instance tabula.Row, neighbors knn.Neighbors) {
 			newSynt[attr] = record
 		}
 
-		newSynt[smote.ClassIndex] = instance[smote.ClassIndex]
+		newSynt[smote.ClassIndex] = (*instance)[smote.ClassIndex]
 
-		smote.Synthetic.PushBack(newSynt)
+		smote.Synthetics.PushRow(newSynt)
 	}
-}
-
-//
-// Write will write synthetic sample to `file` in CSV format.
-//
-func (smote *Runtime) Write(file string) (e error) {
-	writer, e := dsv.NewWriter("")
-	if nil != e {
-		return
-	}
-
-	e = writer.OpenOutput(file)
-	if e != nil {
-		return
-	}
-
-	sep := dsv.DefSeparator
-	_, e = writer.WriteRawRows(&smote.Synthetic, &sep)
-	if e != nil {
-		return
-	}
-
-	return writer.Close()
 }
 
 //
@@ -145,17 +137,19 @@ func (smote *Runtime) Resampling(dataset tabula.Rows) (e error) {
 
 	if smote.PercentOver < 100 {
 		// (0.1)
-		smote.n = (smote.PercentOver / 100.0) * len(dataset)
-		dataset, _, _, _ = dataset.RandomPick(smote.n, false)
+		smote.NSynthetic = (smote.PercentOver / 100.0) * len(dataset)
+		dataset, _, _, _ = dataset.RandomPick(smote.NSynthetic, false)
 		smote.PercentOver = 100
 	}
 
-	smote.n = smote.PercentOver / 100.0
+	smote.NSynthetic = smote.PercentOver / 100.0
 
 	// (1)
-	for _, sample := range dataset {
+	for x := range dataset {
+		sample := &dataset[x]
+
 		// (1.1)
-		neighbors := smote.FindNeighbors(dataset, sample)
+		neighbors := smote.FindNeighbors(&dataset, sample)
 
 		// (1.2)
 		smote.populate(sample, neighbors)
@@ -163,10 +157,17 @@ func (smote *Runtime) Resampling(dataset tabula.Rows) (e error) {
 
 	// (2)
 	if smote.SyntheticFile != "" {
-		e = smote.Write(smote.SyntheticFile)
+		e = resampling.WriteSynthetics(smote, smote.SyntheticFile)
 	}
 
 	return
+}
+
+//
+// Write will write synthetic samples to file defined in `file`.
+//
+func (smote *Runtime) Write(file string) error {
+	return resampling.WriteSynthetics(smote, file)
 }
 
 func (smote *Runtime) String() (s string) {
