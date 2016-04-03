@@ -124,7 +124,7 @@ func runSmote(smote *smote.Runtime, dataset *tabula.Claset) (e error) {
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[smote] # synthetics:", smote.Synthetic.Len())
+		fmt.Println("[smote] # synthetics:", smote.Synthetics.Len())
 	}
 
 	return
