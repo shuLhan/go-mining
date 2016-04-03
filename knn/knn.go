@@ -44,11 +44,10 @@ type Runtime struct {
 }
 
 func init() {
-	v := os.Getenv("KNN_DEBUG")
-	if v == "" {
+	var e error
+	DEBUG, e = strconv.Atoi(os.Getenv("KNN_DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -56,28 +55,28 @@ func init() {
 ComputeEuclidianDistance compute the distance of instance with each sample in
 dataset `samples` and return it.
 */
-func (in *Runtime) ComputeEuclidianDistance(samples tabula.Rows,
-	instance tabula.Row,
+func (in *Runtime) ComputeEuclidianDistance(samples *tabula.Rows,
+	instance *tabula.Row,
 ) {
-	for _, row := range samples {
+	for x := range *samples {
+		row := &(*samples)[x]
+
 		// compute euclidian distance
 		d := 0.0
-		for y, rec := range row {
+		for y, rec := range *row {
 			if y == in.ClassIndex {
 				// skip class attribute
 				continue
 			}
 
-			ir := instance[y]
+			ir := (*instance)[y]
 			diff := 0.0
 
-			switch ir.V.(type) {
-			case float64:
-				diff = ir.Value().(float64) -
-					rec.Value().(float64)
-			case int64:
-				diff = float64(ir.Value().(int64) -
-					rec.Value().(int64))
+			switch ir.GetType() {
+			case tabula.TReal:
+				diff = ir.Float() - rec.Float()
+			case tabula.TInteger:
+				diff = float64(ir.Integer() - rec.Integer())
 			}
 
 			d += math.Abs(diff)
@@ -95,9 +94,9 @@ func (in *Runtime) ComputeEuclidianDistance(samples tabula.Rows,
 
 /*
 FindNeighbors Given sample set and an instance, return the nearest neighbors as
-a slice of neighbours.
+a slice of neighbors.
 */
-func (in *Runtime) FindNeighbors(samples tabula.Rows, instance tabula.Row) (
+func (in *Runtime) FindNeighbors(samples *tabula.Rows, instance *tabula.Row) (
 	kneighbors Neighbors,
 ) {
 	// Reset current input neighbours

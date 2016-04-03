@@ -40,8 +40,7 @@ func TestComputeEuclidianDistance(t *testing.T) {
 
 	// Reading data
 	dataset := tabula.Dataset{}
-	_, e := dsv.SimpleRead("../testdata/phoneme/phoneme.dsv",
-		&dataset)
+	_, e := dsv.SimpleRead("../testdata/phoneme/phoneme.dsv", &dataset)
 	if nil != e {
 		return
 	}
@@ -57,11 +56,17 @@ func TestComputeEuclidianDistance(t *testing.T) {
 
 	_, minoritySet := classes.GetMinority()
 
-	kneighbors := knnIn.FindNeighbors(minoritySet, minoritySet[0])
-	got := fmt.Sprint(kneighbors.Rows)
+	kneighbors := knnIn.FindNeighbors(&minoritySet, &minoritySet[0])
+
+	var got string
+	rows := kneighbors.Rows()
+	for _, row := range *rows {
+		got += fmt.Sprint(*row)
+	}
 
 	assert(t, exp[1], got, true)
 
-	got = fmt.Sprint(kneighbors.Distances)
+	distances := kneighbors.Distances()
+	got = fmt.Sprint(*distances)
 	assert(t, expDistances, got, true)
 }
