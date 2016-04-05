@@ -82,7 +82,7 @@ func runRandomForest(sampledsv string,
 func TestEnsemblingGlass(t *testing.T) {
 	sampledsv := "../../testdata/forensic_glass/fgl.dsv"
 	// oob file output
-	oobFile := "oobglass"
+	oobFile := "glass.oob"
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
@@ -92,7 +92,7 @@ func TestEnsemblingIris(t *testing.T) {
 	// input data
 	sampledsv := "../../testdata/iris/iris.dsv"
 	// oob file output
-	oobFile := "oobiris"
+	oobFile := "iris.oob"
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
@@ -102,7 +102,7 @@ func TestEnsemblingPhoneme(t *testing.T) {
 	// input data
 	sampledsv := "../../testdata/phoneme/phoneme.dsv"
 	// oob file output
-	oobFile := "oobphoneme"
+	oobFile := "phoneme.oob"
 
 	FEATSTART = 3
 	FEATEND = 4
@@ -115,7 +115,7 @@ func TestEnsemblingSmotePhoneme(t *testing.T) {
 	// input data
 	sampledsv := "../../resampling/smote/phoneme_smote.dsv"
 	// oob file output
-	oobFile := "oobphonemesmote"
+	oobFile := "phonemesmote.oob"
 
 	FEATSTART = 3
 	FEATEND = 4
@@ -128,10 +128,22 @@ func TestEnsemblingLnsmotePhoneme(t *testing.T) {
 	// input data
 	sampledsv := "../../resampling/lnsmote/phoneme_lnsmote.dsv"
 	// oob file output
-	oobFile := "oobphonemelnsmote"
+	oobFile := "phonemelnsmote.oob"
 
 	FEATSTART = 3
 	FEATEND = 4
+
+	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
+		oobFile)
+}
+
+func TestWvc2010Lnsmote(t *testing.T) {
+	sampledsv := "../../testdata/wvc2010lnsmote/wvc2010_features.lnsmote.dsv"
+	oobFile := "wvc2010lnsmote.oob"
+
+	NTREE = 1
+	FEATSTART = 5
+	FEATEND = 6
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
 		oobFile)
@@ -141,7 +153,7 @@ func BenchmarkPhoneme(b *testing.B) {
 	// input data
 	sampledsv := "../../testdata/phoneme/phoneme.dsv"
 	// oob file output
-	oobFile := "oobphoneme"
+	oobFile := "phoneme.oob"
 
 	FEATSTART = 3
 	FEATEND = 4
