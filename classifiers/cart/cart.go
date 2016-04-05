@@ -331,9 +331,9 @@ func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (
 
 	runtime.SelectRandomFeature(D)
 
-	classV := D.GetClassAsStrings()
 	classVS := D.GetClassValueSpace()
 	classIdx := D.GetClassIndex()
+	classType := D.GetClassType()
 
 	for x, col := range *D.GetColumns() {
 		// skip class attribute.
@@ -353,14 +353,22 @@ func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (
 			continue
 		}
 
-		target := make([]string, len(classV))
-		copy(target, classV)
-
 		// compute gain.
 		if col.GetType() == tabula.TReal {
 			attr := col.ToFloatSlice()
 
-			gains[x].ComputeContinu(&attr, &target, &classVS)
+			if classType == tabula.TString {
+				target := D.GetClassAsStrings()
+				gains[x].ComputeContinu(&attr, &target,
+					&classVS)
+			} else {
+				targetReal := D.GetClassAsReals()
+				classVSReal := tekstus.StringsToFloat64(
+					classVS)
+
+				gains[x].ComputeContinuFloat(&attr,
+					&targetReal, &classVSReal)
+			}
 		} else {
 			attr := col.ToStringSlice()
 			attrV := col.ValueSpace
@@ -370,6 +378,7 @@ func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (
 				fmt.Println("[cart] attrV:", attrV)
 			}
 
+			target := D.GetClassAsStrings()
 			gains[x].ComputeDiscrete(&attr, &attrV, &target,
 				&classVS)
 		}
