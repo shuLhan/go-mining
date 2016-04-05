@@ -384,14 +384,14 @@ func (runtime *Runtime) computeGain(D tabula.ClasetInterface) (
 /*
 Classify return the prediction of one sample.
 */
-func (runtime *Runtime) Classify(data tabula.Row) (class string) {
+func (runtime *Runtime) Classify(data *tabula.Row) (class string) {
 	node := runtime.Tree.Root
 	nodev := node.Value.(NodeValue)
 
 	for !nodev.IsLeaf {
 		if nodev.IsContinu {
 			splitV := nodev.SplitV.(float64)
-			attrV := data[nodev.SplitAttrIdx].Float()
+			attrV := (*data)[nodev.SplitAttrIdx].Float()
 
 			if attrV < splitV {
 				node = node.Left
@@ -400,7 +400,7 @@ func (runtime *Runtime) Classify(data tabula.Row) (class string) {
 			}
 		} else {
 			splitV := nodev.SplitV.([]string)
-			attrV := data[nodev.SplitAttrIdx].String()
+			attrV := (*data)[nodev.SplitAttrIdx].String()
 
 			if tekstus.StringsIsContain(splitV, attrV) {
 				node = node.Left
@@ -422,7 +422,7 @@ func (runtime *Runtime) ClassifySet(data tabula.ClasetInterface) (e error) {
 	targetAttr := data.GetClassColumn()
 
 	for i := 0; i < nrow; i++ {
-		class := runtime.Classify(*data.GetRow(i))
+		class := runtime.Classify(data.GetRow(i))
 
 		(*targetAttr).Records[i].V = class
 	}
