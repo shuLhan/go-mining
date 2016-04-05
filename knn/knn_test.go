@@ -56,7 +56,7 @@ func TestComputeEuclidianDistance(t *testing.T) {
 
 	_, minoritySet := classes.GetMinority()
 
-	kneighbors := knnIn.FindNeighbors(&minoritySet, &minoritySet[0])
+	kneighbors := knnIn.FindNeighbors(&minoritySet, minoritySet[0])
 
 	var got string
 	rows := kneighbors.Rows()

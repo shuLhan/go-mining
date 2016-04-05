@@ -109,7 +109,7 @@ func (smote *Runtime) populate(instance *tabula.Row, neighbors knn.Neighbors) {
 
 		newSynt[smote.ClassIndex] = (*instance)[smote.ClassIndex]
 
-		smote.Synthetics.PushRow(newSynt)
+		smote.Synthetics.PushRow(&newSynt)
 	}
 }
 
@@ -146,7 +146,7 @@ func (smote *Runtime) Resampling(dataset tabula.Rows) (e error) {
 
 	// (1)
 	for x := range dataset {
-		sample := &dataset[x]
+		sample := dataset[x]
 
 		// (1.1)
 		neighbors := smote.FindNeighbors(&dataset, sample)

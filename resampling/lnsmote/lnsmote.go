@@ -106,7 +106,7 @@ func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
 	minorRows := in.minorset.GetDataAsRows()
 
 	for x := range *minorRows {
-		p := &(*minorRows)[x]
+		p := (*minorRows)[x]
 
 		neighbors := in.FindNeighbors(in.datasetRows, p)
 
@@ -118,7 +118,7 @@ func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
 			syn := in.createSynthetic(p, neighbors)
 
 			if syn != nil {
-				in.Synthetics.PushRow(syn)
+				in.Synthetics.PushRow(&syn)
 			}
 		}
 

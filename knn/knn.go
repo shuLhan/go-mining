@@ -59,7 +59,7 @@ func (in *Runtime) ComputeEuclidianDistance(samples *tabula.Rows,
 	instance *tabula.Row,
 ) {
 	for x := range *samples {
-		row := &(*samples)[x]
+		row := (*samples)[x]
 
 		// compute euclidian distance
 		d := 0.0

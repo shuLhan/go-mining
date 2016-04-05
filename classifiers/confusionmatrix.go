@@ -11,7 +11,8 @@ import (
 )
 
 var (
-	// DEBUG level.
+	// DEBUG level, can be set from environment through
+	// CONFUSIONMATRIX_DEBUG variable.
 	DEBUG = 0
 )
 
@@ -31,11 +32,10 @@ type ConfusionMatrix struct {
 }
 
 func init() {
-	v := os.Getenv("CONFUSIONMATRIX_DEBUG")
-	if v == "" {
+	var e error
+	DEBUG, e = strconv.Atoi(os.Getenv("CONFUSIONMATRIX_DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -137,7 +137,7 @@ func (cm *ConfusionMatrix) computeClassError() {
 	col := cm.GetColumnClassError()
 	rows := cm.GetDataAsRows()
 	for x, row := range *rows {
-		for y, cell := range row {
+		for y, cell := range *row {
 			if y == classcol {
 				break
 			}
@@ -254,7 +254,7 @@ func (cm *ConfusionMatrix) String() (s string) {
 	for x, row := range *rows {
 		s += cm.rowNames[x] + "\t"
 
-		for _, v := range row {
+		for _, v := range *row {
 			s += v.String() + "\t"
 		}
 		s += "\n"

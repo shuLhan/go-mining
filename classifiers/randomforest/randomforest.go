@@ -84,11 +84,10 @@ type Runtime struct {
 }
 
 func init() {
-	v := os.Getenv("RANDOMFOREST_DEBUG")
-	if v == "" {
+	var e error
+	DEBUG, e = strconv.Atoi(os.Getenv("RANDOMFOREST_DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
@@ -564,7 +563,7 @@ func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
 	// Compute total and mean of all statistic values.
 	//
 	// - Total tree in forest.
-	total := tabula.Row{}
+	total := &tabula.Row{}
 	ntree := float64(stats.Len())
 	total.PushBack(tabula.NewRecordInt(int64(stats.Len())))
 
