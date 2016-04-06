@@ -14,7 +14,7 @@ type Stats []Stat
 //
 func (stats *Stats) StartTimes() (times []int64) {
 	for _, stat := range *stats {
-		times = append(times, stat.StartTime.Unix())
+		times = append(times, stat.StartTime)
 	}
 	return
 }
@@ -24,7 +24,18 @@ func (stats *Stats) StartTimes() (times []int64) {
 //
 func (stats *Stats) EndTimes() (times []int64) {
 	for _, stat := range *stats {
-		times = append(times, stat.EndTime.Unix())
+		times = append(times, stat.EndTime)
+	}
+	return
+}
+
+//
+// OobErrorMeans return all out-of-bag error mean values.
+//
+func (stats *Stats) OobErrorMeans() (oobmeans []float64) {
+	oobmeans = make([]float64, len(*stats))
+	for x, stat := range *stats {
+		oobmeans[x] = stat.OobErrorMean
 	}
 	return
 }
