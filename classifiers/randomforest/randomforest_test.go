@@ -54,7 +54,7 @@ func runRandomForest(sampledsv string,
 
 		colName := fmt.Sprintf("M%d", nfeature)
 
-		col := tabula.NewColumnReal(forest.OobErrorStepsMean(),
+		col := tabula.NewColumnReal(forest.Stats().OobErrorMeans(),
 			colName)
 
 		dataooberr.PushColumn(*col)

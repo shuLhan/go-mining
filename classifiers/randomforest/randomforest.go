@@ -34,7 +34,7 @@ const (
 	// bootstraping a tree.
 	DefPercentBoot = 66
 	// DefStatsFile default statistic file output.
-	DefStatsFile = "randomforest.stats.dat"
+	DefStatsFile = "randomforest.stats"
 )
 
 var (
@@ -68,19 +68,14 @@ type Runtime struct {
 	// for book-keeping.
 	bagIndices [][]int
 
-	// oobErrorTotal contain the total of out-of-bag error value.
-	oobErrorTotal float64
-	// oobErrorSteps contain OOB error for each steps building a forest
-	// from the first tree until `n` tree.
-	oobErrorSteps []float64
-	// oobErrorStepsMean contain mean for OOB error for each steps, using
-	// oobErrorTotal / current-number-of-tree
-	oobErrorStepsMean []float64
-
 	// cmatrices contain confusion matrix from the first tree until NTree.
 	cmatrices []classifiers.ConfusionMatrix
-	// stats contain statistic of classifier for each tree
+	// stats contain statistic of classifier for each tree.
 	stats classifiers.Stats
+	// StatTotal contain total statistic values.
+	statTotal classifiers.Stat
+	// statWriter contain file writer for statistic.
+	statWriter dsv.Writer
 }
 
 func init() {
@@ -151,32 +146,11 @@ func (forest *Runtime) AddStat(stat *classifiers.Stat) {
 	forest.stats = append(forest.stats, *stat)
 }
 
-/*
-OobErrorTotal return total of OOB error.
-*/
-func (forest *Runtime) OobErrorTotal() float64 {
-	return forest.oobErrorTotal
-}
-
-/*
-OobErrorTotalMean return mean of all OOB errors.
-*/
-func (forest *Runtime) OobErrorTotalMean() float64 {
-	return forest.oobErrorTotal / float64(forest.NTree)
-}
-
-/*
-OobErrorSteps return all OOB error in each step when building forest.
-*/
-func (forest *Runtime) OobErrorSteps() []float64 {
-	return forest.oobErrorSteps
-}
-
-/*
-OobErrorStepsMean return the last error mean value.
-*/
-func (forest *Runtime) OobErrorStepsMean() []float64 {
-	return forest.oobErrorStepsMean
+//
+// StatTotal will return total statistic.
+//
+func (forest *Runtime) StatTotal() *classifiers.Stat {
+	return &forest.statTotal
 }
 
 //
@@ -204,6 +178,8 @@ func (forest *Runtime) Init(samples tabula.ClasetInterface) {
 	if forest.StatsFile == "" {
 		forest.StatsFile = DefStatsFile
 	}
+
+	forest.statTotal.Id = int64(forest.NTree)
 }
 
 /*
@@ -215,10 +191,10 @@ Algorithm,
 (1) Calculate number of random samples for each tree.
 
 	number-of-sample * percentage-of-bootstrap
-
-(2) Grow tree in forest
-(2.1) Create new tree, repeat until success.
-(3) Write performance statistic to file.
+(2) Open statistic file output.
+(3) Grow tree in forest
+(3.1) Create new tree, repeat until all tress has been build.
+(4) Compute and write total statistic.
 */
 func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
@@ -238,22 +214,47 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	// (2)
+	e = forest.openStatsFile()
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+		return
+	}
+
+	// (3)
+	forest.statTotal.StartTime = time.Now().Unix()
+
 	for t := 0; t < forest.NTree; t++ {
 		if DEBUG >= 1 {
 			fmt.Printf("----\n[randomforest] tree # %d\n", t)
 		}
 
-		// (2.1)
+		// (3.1)
 		for {
 			_, _, e = forest.GrowTree(samples)
 			if e == nil {
 				break
 			}
+
+			fmt.Println("[randomforest] error: ", e)
 		}
 	}
 
-	// (3)
-	return forest.writeStats()
+	// (4)
+	forest.statTotal.EndTime = time.Now().Unix()
+	forest.statTotal.ElapsedTime = forest.statTotal.EndTime -
+		forest.statTotal.StartTime
+
+	e = forest.writeStat(&forest.statTotal)
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+	}
+
+	e = forest.closeStatsFile()
+	if e != nil {
+		fmt.Println("[randomforest] error: ", e)
+	}
+
+	return e
 }
 
 /*
@@ -272,7 +273,9 @@ Algorithm,
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cm *classifiers.ConfusionMatrix, stat *classifiers.Stat, e error,
 ) {
-	start := time.Now()
+	stat = &classifiers.Stat{}
+	stat.Id = int64(len(forest.trees))
+	stat.StartTime = time.Now().Unix()
 
 	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
@@ -304,20 +307,21 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cm = forest.ClassifySet(oobset, oobIdx, true)
 	forest.AddConfusionMatrix(cm)
 
-	// (6)
-	stat = forest.computeStatistic(cm)
-
-	stat.EndTime = time.Now()
-	stat.StartTime = start
-
-	forest.AddStat(stat)
+	stat.EndTime = time.Now().Unix()
+	stat.ElapsedTime = stat.EndTime - stat.StartTime
 
 	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] Elapsed time: %s\n",
-			stat.EndTime.Sub(stat.StartTime))
+			stat.ElapsedTime)
 	}
 
-	return cm, stat, nil
+	// (6)
+	forest.computeStatistic(stat, cm)
+	forest.AddStat(stat)
+
+	e = forest.writeStat(stat)
+
+	return cm, stat, e
 }
 
 /*
@@ -403,44 +407,45 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 //
 // computeStatistic of random forest using confusion matrix and return it.
 //
-func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
-	stat *classifiers.Stat,
-) {
-	oobErr := cm.GetFalseRate()
+func (forest *Runtime) computeStatistic(stat *classifiers.Stat,
+	cm *classifiers.ConfusionMatrix) {
 
-	forest.oobErrorSteps = append(forest.oobErrorSteps, oobErr)
-	forest.oobErrorTotal += oobErr
+	stat.OobError = cm.GetFalseRate()
 
-	oobErrTotalMean := forest.oobErrorTotal /
-		float64(len(forest.oobErrorSteps))
-	forest.oobErrorStepsMean = append(forest.oobErrorStepsMean,
-		oobErrTotalMean)
+	stat.OobErrorMean = forest.statTotal.OobError /
+		float64(len(forest.trees))
 
-	stat = &classifiers.Stat{}
-
-	tp := cm.TP()
-	fp := cm.FP()
-	fn := cm.FN()
-	tn := cm.TN()
-	stat.TPRate = float64(tp) / float64(tp+fn)
-	stat.FPRate = float64(fp) / float64(fp+tn)
-	stat.Precision = float64(tp) / float64(tp+fp)
+	stat.TP = int64(cm.TP())
+	stat.FP = int64(cm.FP())
+	stat.TN = int64(cm.TN())
+	stat.FN = int64(cm.FN())
+	stat.TPRate = float64(stat.TP) / float64(stat.TP+stat.FN)
+	stat.FPRate = float64(stat.FP) / float64(stat.FP+stat.TN)
+	stat.Precision = float64(stat.TP) / float64(stat.TP+stat.FP)
 	stat.FMeasure = 2 / ((1 / stat.Precision) + (1 / stat.TPRate))
-	stat.Accuracy = float64(tp+tn) / float64(tp+tn+fp+fn)
+	stat.Accuracy = float64(stat.TP+stat.TN) /
+		float64(stat.TP+stat.TN+stat.FP+stat.FN)
+
+	forest.statTotal.Sum(stat)
 
 	if DEBUG >= 1 {
 		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
 			" total: %.4f, mean %.4f, true rate: %.4f\n",
-			cm.GetFalseRate(), forest.oobErrorTotal,
-			forest.OobErrorTotalMean(), cm.GetTrueRate())
+			stat.OobError, forest.statTotal.OobError,
+			stat.OobErrorMean, cm.GetTrueRate())
 
 		fmt.Printf("[randomforest] TPRate: %.4f, FPRate: %.4f,"+
 			" precision: %.4f, f-measure: %.4f, accuracy: %.4f\n",
 			stat.TPRate, stat.FPRate, stat.Precision,
 			stat.FMeasure, stat.Accuracy)
 	}
+}
 
-	return
+//
+// openStatsFile will open statistic file for output.
+//
+func (forest *Runtime) openStatsFile() (e error) {
+	return forest.statWriter.OpenOutput(forest.StatsFile)
 }
 
 //
@@ -464,183 +469,13 @@ func (forest *Runtime) computeStatistic(cm *classifiers.ConfusionMatrix) (
 //
 // and total of all of them.
 //
-func (forest *Runtime) writeStats() (e error) {
-	stats := forest.getAllStats()
-
-	writer, e := dsv.NewWriter("")
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-		return e
-	}
-
-	e = writer.OpenOutput(forest.StatsFile)
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-		return e
-	}
-
-	sep := ","
-	n, e := writer.WriteRawDataset(stats, &sep)
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-		return e
-	}
-
-	exp := stats.Len()
-	if exp != n {
-		fmt.Println("[randomforest] expecting", exp, " rows, got ", n)
-		return e
-	}
-
-	e = writer.Close()
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-		return e
-	}
-
-	return nil
+func (forest *Runtime) writeStat(stat *classifiers.Stat) (e error) {
+	return forest.statWriter.WriteRawRow(stat.ToRow(), nil, nil)
 }
 
 //
-// getAllStats return all statistic value and their total/mean values.
+// closeStatsFile will close statistics file for writing.
 //
-func (forest *Runtime) getAllStats() (stats *tabula.Dataset) {
-	stats = tabula.NewDataset(tabula.DatasetModeMatrix, nil, nil)
-
-	treeIds := util.IntCreateSequence(1, int64(forest.NTree))
-	col := tabula.NewColumnInt(treeIds, "tree_id")
-	stats.PushColumn(*col)
-
-	startTimes := forest.stats.StartTimes()
-	col = tabula.NewColumnInt(startTimes, "start_time")
-	stats.PushColumn(*col)
-
-	endTimes := forest.stats.EndTimes()
-	col = tabula.NewColumnInt(endTimes, "end_time")
-	stats.PushColumn(*col)
-
-	elapsedTimes := classifiers.ComputeElapsedTimes(startTimes, endTimes)
-	col = tabula.NewColumnInt(elapsedTimes, "elapsed_time")
-	stats.PushColumn(*col)
-
-	tp, fp, tn, fn := forest.GetConfusionMatrixValues()
-	col = tabula.NewColumnInt(tp, "tp")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(fp, "fp")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(tn, "tn")
-	stats.PushColumn(*col)
-	col = tabula.NewColumnInt(fn, "fn")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.oobErrorSteps, "oob_error")
-	stats.PushColumn(*col)
-
-	col = tabula.NewColumnReal(forest.oobErrorStepsMean, "oob_error_mean")
-	stats.PushColumn(*col)
-
-	tprates := forest.stats.TPRates()
-	col = tabula.NewColumnReal(tprates, "tprate")
-	stats.PushColumn(*col)
-
-	fprates := forest.stats.FPRates()
-	col = tabula.NewColumnReal(fprates, "fprate")
-	stats.PushColumn(*col)
-
-	precisions := forest.stats.Precisions()
-	col = tabula.NewColumnReal(precisions, "precision")
-	stats.PushColumn(*col)
-
-	fmeasures := forest.stats.FMeasures()
-	col = tabula.NewColumnReal(fmeasures, "fmeasure")
-	stats.PushColumn(*col)
-
-	accuracies := forest.stats.Accuracies()
-	col = tabula.NewColumnReal(accuracies, "accuracy")
-	stats.PushColumn(*col)
-
-	//
-	// Compute total and mean of all statistic values.
-	//
-	// - Total tree in forest.
-	total := &tabula.Row{}
-	ntree := float64(stats.Len())
-	total.PushBack(tabula.NewRecordInt(int64(stats.Len())))
-
-	// - Start time of the first tree.
-	starttime := time.Now().Unix()
-	if len(startTimes) > 0 {
-		starttime = startTimes[0]
-	}
-	total.PushBack(tabula.NewRecordInt(starttime))
-
-	// - End time of the last tree.
-	endTimesLen := len(endTimes)
-	endtime := time.Now().Unix()
-	if endTimesLen > 0 {
-		endtime = endTimes[endTimesLen-1]
-	}
-	total.PushBack(tabula.NewRecordInt(endtime))
-
-	// - Total elapsed time.
-	total.PushBack(tabula.NewRecordInt(endtime - starttime))
-
-	// - Total TP.
-	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(tp)))
-	// - Total FP.
-	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(fp)))
-	// - Total TN.
-	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(tn)))
-	// - Total FN.
-	total.PushBack(tabula.NewRecordInt(tekstus.Int64Sum(fn)))
-
-	// - Mean of OOB error in all steps.
-	totalv := tekstus.Float64Sum(forest.oobErrorSteps) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean OOB error mean in all steps.
-	totalv = tekstus.Float64Sum(forest.oobErrorStepsMean) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean of tp-rates.
-	totalv = tekstus.Float64Sum(tprates) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean of fp-rates.
-	totalv = tekstus.Float64Sum(fprates) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean of precisions.
-	totalv = tekstus.Float64Sum(precisions) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean of F-measures.
-	totalv = tekstus.Float64Sum(fmeasures) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	// - Mean of accuracies.
-	totalv = tekstus.Float64Sum(accuracies) / ntree
-	total.PushBack(tabula.NewRecordReal(totalv))
-
-	if DEBUG >= 1 {
-		fmt.Println("[randomforest] Total:", total)
-	}
-
-	stats.PushRow(total)
-
-	return stats
-}
-
-//
-// GetConfusionMatrixValues return all true positive, false positive, true
-// negative, and false negative values in confusion matrix.
-//
-func (forest *Runtime) GetConfusionMatrixValues() (tp, fp, tn, fn []int64) {
-	for _, cm := range forest.cmatrices {
-		tp = append(tp, int64(cm.TP()))
-		fp = append(fp, int64(cm.FP()))
-		tn = append(tn, int64(cm.TN()))
-		fn = append(fn, int64(cm.FN()))
-	}
-	return
+func (forest *Runtime) closeStatsFile() (e error) {
+	return forest.statWriter.Close()
 }
