@@ -14,4 +14,5 @@ testdata/phoneme/phoneme.csv
 *.oob
 *.prof
 *.rej
+*.stats
 *.test
