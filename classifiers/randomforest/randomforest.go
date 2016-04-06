@@ -311,7 +311,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	stat.ElapsedTime = stat.EndTime - stat.StartTime
 
 	if DEBUG >= 1 {
-		fmt.Printf("[randomforest] Elapsed time: %s\n",
+		fmt.Printf("[randomforest] Elapsed time: %d s\n",
 			stat.ElapsedTime)
 	}
 
