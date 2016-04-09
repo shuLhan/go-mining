@@ -7,7 +7,14 @@ package classifiers
 /*
 Stats define list of statistic values.
 */
-type Stats []Stat
+type Stats []*Stat
+
+//
+// Add will add other stat object to the slice.
+//
+func (stats *Stats) Add(stat *Stat) {
+	*stats = append(*stats, stat)
+}
 
 //
 // StartTimes return all start times in unix timestamp.
@@ -56,6 +63,16 @@ FPRates return all false-positive rate values.
 func (stats *Stats) FPRates() (fprates []float64) {
 	for _, stat := range *stats {
 		fprates = append(fprates, stat.FPRate)
+	}
+	return
+}
+
+//
+// TNRates will return all true-negative rate values.
+//
+func (stats *Stats) TNRates() (tnrates []float64) {
+	for _, stat := range *stats {
+		tnrates = append(tnrates, stat.TNRate)
 	}
 	return
 }
