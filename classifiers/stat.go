@@ -38,6 +38,8 @@ type Stat struct {
 	TPRate float64
 	// FPRate contain false-positive rate: fp/(fp+tn)
 	FPRate float64
+	// TNRate contain true-negative rate: tn/(tn+fp)
+	TNRate float64
 	// Precision contain: tp/(tp+fp)
 	Precision float64
 	// FMeasure contain value of F-measure or the harmonic mean of
@@ -68,6 +70,7 @@ func (stat *Stat) Sum(other *Stat) {
 	stat.FN += other.FN
 	stat.TPRate += other.TPRate
 	stat.FPRate += other.FPRate
+	stat.TNRate += other.TNRate
 	stat.Precision += other.Precision
 	stat.FMeasure += other.FMeasure
 	stat.Accuracy += other.Accuracy
@@ -91,6 +94,7 @@ func (stat *Stat) ToRow() (row *tabula.Row) {
 	row.PushBack(tabula.NewRecordInt(stat.FN))
 	row.PushBack(tabula.NewRecordReal(stat.TPRate))
 	row.PushBack(tabula.NewRecordReal(stat.FPRate))
+	row.PushBack(tabula.NewRecordReal(stat.TNRate))
 	row.PushBack(tabula.NewRecordReal(stat.Precision))
 	row.PushBack(tabula.NewRecordReal(stat.FMeasure))
 	row.PushBack(tabula.NewRecordReal(stat.Accuracy))
