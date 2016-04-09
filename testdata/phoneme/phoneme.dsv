@@ -28,7 +28,7 @@
 	,	"Separator"	:" "
 	},{
 		"Name"		:"class"
-	,	"Type"		:"string"
+	,	"Type"		:"real"
 	,	"ValueSpace"	:
 		[
 			"0"
