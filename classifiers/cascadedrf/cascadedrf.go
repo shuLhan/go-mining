@@ -15,7 +15,6 @@ package cascadedrf
 import (
 	"errors"
 	"fmt"
-	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/classifiers"
 	"github.com/shuLhan/go-mining/classifiers/randomforest"
 	"github.com/shuLhan/tabula"
@@ -56,6 +55,9 @@ var (
 Runtime define the cascaded random forest runtime input and output.
 */
 type Runtime struct {
+	// Runtime embed common fields for classifier.
+	classifiers.Runtime
+
 	// NStage number of stage.
 	NStage int `json:"NStage"`
 	// TPRate threshold for true positive rate per stage.
@@ -69,21 +71,9 @@ type Runtime struct {
 	NRandomFeature int
 	// PercentBoot percentage of bootstrap.
 	PercentBoot int `json:"PercentBoot"`
-	// StatsFile is the file where performance statistic will be written.
-	StatsFile string `json:"StatsFile"`
 
 	// Stages contain list of cascaded stages.
 	stages []Stage
-
-	// cmatrices contain confusion matrix from the first stage until
-	// NStage.
-	cmatrices []classifiers.ConfusionMatrix
-	// stats contain statistic of classifier for each stage.
-	stats classifiers.Stats
-	// StatTotal contain total statistic values.
-	statTotal classifiers.Stat
-	// statWriter contain file writer for statistic.
-	statWriter *dsv.Writer
 }
 
 func init() {
@@ -145,7 +135,7 @@ func (crf *Runtime) Init(samples tabula.ClasetInterface) {
 		crf.StatsFile = DefStatsFile
 	}
 
-	crf.statTotal.Id = int64(crf.NStage)
+	crf.StatTotal().Id = int64(crf.NStage)
 }
 
 //
@@ -167,7 +157,7 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 
 	crf.Init(samples)
 
-	e = crf.openStatsFile()
+	e = crf.OpenStatsFile()
 	if e != nil {
 		fmt.Println("[cascadedrf] error: ", e)
 		return
@@ -177,7 +167,8 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		fmt.Println("[cascadedrf]", crf)
 	}
 
-	crf.statTotal.StartTime = time.Now().Unix()
+	st := crf.StatTotal()
+	st.StartTime = time.Now().Unix()
 
 	// (1)
 	for x := 0; x < crf.NStage; x++ {
@@ -189,12 +180,11 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		_ = crf.createForest(samples)
 	}
 
-	crf.statTotal.EndTime = time.Now().Unix()
-	crf.statTotal.ElapsedTime = crf.statTotal.EndTime -
-		crf.statTotal.StartTime
+	st.EndTime = time.Now().Unix()
+	st.ElapsedTime = st.EndTime - st.StartTime
 
-	crf.statTotal.Id = int64(len(crf.stats))
-	e = crf.writeStat(&crf.statTotal)
+	st.Id = int64(len(*crf.Stats()))
+	e = crf.WriteStat(st)
 
 	return e
 }
@@ -257,82 +247,15 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	// (3)
 	ft.EndTime = time.Now().Unix()
 	ft.ElapsedTime = ft.EndTime - ft.StartTime
-	ft.Id = int64(len(crf.stats))
+	ft.Id = int64(len(*crf.Stats()))
 
-	e = crf.writeStat(ft)
+	e = crf.WriteStat(ft)
 	if e != nil {
 		return
 	}
 
-	crf.stats.Add(ft)
-	crf.computeStatTotal(ft)
-
-	return
-}
-
-//
-// computeStatTotal compute total statistic.
-//
-func (crf *Runtime) computeStatTotal(stat *classifiers.Stat) {
-	if stat == nil {
-		return
-	}
-
-	nstat := len(crf.stats)
-	if nstat == 0 {
-		return
-	}
-
-	t := &crf.statTotal
-
-	t.OobError += stat.OobError
-	t.OobErrorMean = t.OobError / float64(nstat)
-	t.TP += stat.TP
-	t.FP += stat.FP
-	t.TN += stat.TN
-	t.FN += stat.FN
-	t.TPRate = float64(t.TP) / float64(t.TP+t.FN)
-	t.FPRate = float64(t.FP) / float64(t.FP+t.TN)
-	t.TNRate = float64(t.TN) / float64(t.FP+t.TN)
-	t.Precision = float64(t.TP) / float64(t.TP+t.FP)
-	t.FMeasure = 2 / ((1 / t.Precision) + (1 / t.TPRate))
-	t.Accuracy = float64(t.TP+t.TN) / float64(t.TP+t.TN+t.FP+t.FN)
-}
-
-//
-// openStatsFile will open statistic file for output.
-//
-func (crf *Runtime) openStatsFile() error {
-	if crf.statWriter != nil {
-		_ = crf.closeStatsFile()
-	}
-	crf.statWriter = &dsv.Writer{}
-	return crf.statWriter.OpenOutput(crf.StatsFile)
-}
-
-//
-// writeStat will write statistic of process to file.
-//
-func (crf *Runtime) writeStat(stat *classifiers.Stat) error {
-	if crf.statWriter == nil {
-		return nil
-	}
-	if stat == nil {
-		return nil
-	}
-	return crf.statWriter.WriteRawRow(stat.ToRow(), nil, nil)
-}
-
-//
-// closeStatsFile will close statistics file for writing.
-//
-func (crf *Runtime) closeStatsFile() (e error) {
-	if crf.statWriter == nil {
-		return
-	}
-
-	e = crf.statWriter.Close()
-	crf.statWriter = nil
+	crf.Stats().Add(ft)
+	crf.ComputeStatTotal(ft)
 
 	return
 }
