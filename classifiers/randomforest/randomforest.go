@@ -280,7 +280,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	}
 
 	// (6)
-	forest.computeStatistic(stat, cm)
+	forest.ComputeStatFromCM(stat, cm)
 	forest.AddStat(stat)
 	forest.ComputeStatTotal(stat)
 
@@ -367,41 +367,4 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	targetAttr.SetValues(targetValues)
 
 	return cm
-}
-
-//
-// computeStatistic of random forest using confusion matrix and return it.
-//
-func (forest *Runtime) computeStatistic(stat *classifiers.Stat,
-	cm *classifiers.ConfusionMatrix) {
-
-	stat.OobError = cm.GetFalseRate()
-
-	stat.OobErrorMean = forest.StatTotal().OobError /
-		float64(len(forest.trees))
-
-	stat.TP = int64(cm.TP())
-	stat.FP = int64(cm.FP())
-	stat.TN = int64(cm.TN())
-	stat.FN = int64(cm.FN())
-	stat.TPRate = float64(stat.TP) / float64(stat.TP+stat.FN)
-	stat.FPRate = float64(stat.FP) / float64(stat.FP+stat.TN)
-	stat.TNRate = float64(stat.TN) / float64(stat.FP+stat.TN)
-	stat.Precision = float64(stat.TP) / float64(stat.TP+stat.FP)
-	stat.FMeasure = 2 / ((1 / stat.Precision) + (1 / stat.TPRate))
-	stat.Accuracy = float64(stat.TP+stat.TN) /
-		float64(stat.TP+stat.TN+stat.FP+stat.FN)
-
-	if DEBUG >= 1 {
-		fmt.Printf("[randomforest] OOB error rate: %.4f,"+
-			" total: %.4f, mean %.4f, true rate: %.4f\n",
-			stat.OobError, forest.StatTotal().OobError,
-			stat.OobErrorMean, cm.GetTrueRate())
-
-		fmt.Printf("[randomforest] TPRate: %.4f, FPRate: %.4f,"+
-			" TNRate: %.4f,"+
-			" precision: %.4f, f-measure: %.4f, accuracy: %.4f\n",
-			stat.TPRate, stat.FPRate, stat.TNRate, stat.Precision,
-			stat.FMeasure, stat.Accuracy)
-	}
 }

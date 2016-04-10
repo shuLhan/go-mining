@@ -5,6 +5,7 @@
 package classifiers
 
 import (
+	"fmt"
 	"github.com/shuLhan/dsv"
 )
 
@@ -55,6 +56,42 @@ func (runtime *Runtime) AddConfusionMatrix(cm *ConfusionMatrix) {
 //
 func (runtime *Runtime) AddStat(stat *Stat) {
 	runtime.stats = append(runtime.stats, stat)
+}
+
+//
+// ComputeStatFromCM will compute statistic using confusion matrix.
+//
+func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *ConfusionMatrix) {
+
+	stat.OobError = cm.GetFalseRate()
+
+	stat.OobErrorMean = runtime.statTotal.OobError /
+		float64(len(runtime.stats)+1)
+
+	stat.TP = int64(cm.TP())
+	stat.FP = int64(cm.FP())
+	stat.TN = int64(cm.TN())
+	stat.FN = int64(cm.FN())
+	stat.TPRate = float64(stat.TP) / float64(stat.TP+stat.FN)
+	stat.FPRate = float64(stat.FP) / float64(stat.FP+stat.TN)
+	stat.TNRate = float64(stat.TN) / float64(stat.FP+stat.TN)
+	stat.Precision = float64(stat.TP) / float64(stat.TP+stat.FP)
+	stat.FMeasure = 2 / ((1 / stat.Precision) + (1 / stat.TPRate))
+	stat.Accuracy = float64(stat.TP+stat.TN) /
+		float64(stat.TP+stat.TN+stat.FP+stat.FN)
+
+	if DEBUG >= 1 {
+		fmt.Printf("[classifiers.runtime] OOB error rate: %.4f,"+
+			" total: %.4f, mean %.4f, true rate: %.4f\n",
+			stat.OobError, runtime.statTotal.OobError,
+			stat.OobErrorMean, cm.GetTrueRate())
+
+		fmt.Printf("[classifiers.runtime] TPRate: %.4f, FPRate: %.4f,"+
+			" TNRate: %.4f,"+
+			" precision: %.4f, f-measure: %.4f, accuracy: %.4f\n",
+			stat.TPRate, stat.FPRate, stat.TNRate, stat.Precision,
+			stat.FMeasure, stat.Accuracy)
+	}
 }
 
 //
