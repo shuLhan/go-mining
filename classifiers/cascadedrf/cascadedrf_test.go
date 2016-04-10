@@ -12,23 +12,19 @@ import (
 )
 
 func TestCascadedRF(t *testing.T) {
-	nstage := 10
-	ntree := 1
-	percentboot := 66
-	nfeature := 3
-	tprate := 0.6
-	tnrate := 0.6
-	sampledsv := "../../testdata/iris/iris.dsv"
+	sampledsv := "../../testdata/phoneme/phoneme.dsv"
 
 	// read samples.
 	samples := tabula.Claset{}
 	_, e := dsv.SimpleRead(sampledsv, &samples)
-
-	if nil != e {
+	if e != nil {
 		t.Fatal(e)
 	}
 
-	crf := cascadedrf.New(nstage, ntree, percentboot, nfeature, tprate, tnrate)
+	crf := cascadedrf.Runtime{}
 
-	crf.Train(&samples)
+	e = crf.Build(&samples)
+	if e != nil {
+		t.Fatal(e)
+	}
 }
