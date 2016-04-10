@@ -64,11 +64,10 @@ type Runtime struct {
 }
 
 func init() {
-	v := os.Getenv("CART_DEBUG")
-	if v == "" {
+	var e error
+	DEBUG, e = strconv.Atoi(os.Getenv("CART_DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 }
 
