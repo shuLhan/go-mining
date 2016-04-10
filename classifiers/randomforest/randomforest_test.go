@@ -44,7 +44,7 @@ func runRandomForest(sampledsv string,
 
 	for ; nfeature < maxFeature; nfeature++ {
 		// create random forest.
-		forest := randomforest.New(ntree, nfeature, npercent)
+		forest := randomforest.New(ntree, nfeature, npercent, &samples)
 
 		e := forest.Build(&samples)
 
