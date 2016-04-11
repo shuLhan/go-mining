@@ -7,6 +7,7 @@ package classifiers
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
+	"time"
 )
 
 //
@@ -20,7 +21,7 @@ type Runtime struct {
 	// cmatrices contain confusion matrix value for each iteration.
 	cmatrices []ConfusionMatrix
 
-	// stats contain statistic of classifier for each stage.
+	// stats contain statistic of classifier for each iteration.
 	stats Stats
 
 	// StatTotal contain total statistic values.
@@ -28,6 +29,35 @@ type Runtime struct {
 
 	// statWriter contain file writer for statistic.
 	statWriter *dsv.Writer
+}
+
+//
+// Initialize will start the runtime for processing by saving start time and
+// opening stats file.
+//
+func (runtime *Runtime) Initialize() error {
+	runtime.statTotal.StartTime = time.Now().Unix()
+
+	return runtime.OpenStatsFile()
+}
+
+//
+// Finalize finish the runtime, compute total statistic, write it to file, and
+// close the file.
+//
+func (runtime *Runtime) Finalize() (e error) {
+	st := &runtime.statTotal
+
+	st.EndTime = time.Now().Unix()
+	st.ElapsedTime = st.EndTime - st.StartTime
+	st.Id = int64(len(runtime.stats))
+
+	e = runtime.WriteStat(st)
+	if e != nil {
+		return e
+	}
+
+	return runtime.CloseStatsFile()
 }
 
 //
@@ -81,16 +111,8 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *ConfusionMatrix) {
 		float64(stat.TP+stat.TN+stat.FP+stat.FN)
 
 	if DEBUG >= 1 {
-		fmt.Printf("[classifiers.runtime] OOB error rate: %.4f,"+
-			" total: %.4f, mean %.4f, true rate: %.4f\n",
-			stat.OobError, runtime.statTotal.OobError,
-			stat.OobErrorMean, cm.GetTrueRate())
-
-		fmt.Printf("[classifiers.runtime] TPRate: %.4f, FPRate: %.4f,"+
-			" TNRate: %.4f,"+
-			" precision: %.4f, f-measure: %.4f, accuracy: %.4f\n",
-			stat.TPRate, stat.FPRate, stat.TNRate, stat.Precision,
-			stat.FMeasure, stat.Accuracy)
+		runtime.PrintOobStat(stat, cm)
+		runtime.PrintStat(stat)
 	}
 }
 
@@ -159,4 +181,42 @@ func (runtime *Runtime) CloseStatsFile() (e error) {
 	runtime.statWriter = nil
 
 	return
+}
+
+//
+// PrintOobStat will print the out-of-bag statistic to standard output.
+//
+func (runtime *Runtime) PrintOobStat(stat *Stat, cm *ConfusionMatrix) {
+	fmt.Printf("[classifiers.runtime] OOB error rate: %.4f,"+
+		" total: %.4f, mean %.4f, true rate: %.4f\n",
+		stat.OobError, runtime.statTotal.OobError,
+		stat.OobErrorMean, cm.GetTrueRate())
+}
+
+//
+// PrintStat will print statistic value to standard output.
+//
+func (runtime *Runtime) PrintStat(stat *Stat) {
+	if stat == nil {
+		statslen := len(runtime.stats)
+		if statslen <= 0 {
+			return
+		}
+		stat = runtime.stats[statslen-1]
+	}
+
+	fmt.Printf("[classifiers.runtime] TPRate: %.4f, FPRate: %.4f,"+
+		" TNRate: %.4f, precision: %.4f, f-measure: %.4f,"+
+		" accuracy: %.4f\n", stat.TPRate, stat.FPRate, stat.TNRate,
+		stat.Precision, stat.FMeasure, stat.Accuracy)
+}
+
+//
+// PrintStatTotal will print total statistic to standard output.
+//
+func (runtime *Runtime) PrintStatTotal(st *Stat) {
+	if st == nil {
+		st = &runtime.statTotal
+	}
+	runtime.PrintStat(st)
 }
