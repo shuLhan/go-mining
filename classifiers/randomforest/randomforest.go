@@ -85,7 +85,7 @@ New check and initialize forest input and attributes.
 `percentboot` is percentage of sample that will be taken randomly for
 generating a tree.
 */
-func New(ntree, nfeature, percentboot int, samples tabula.ClasetInterface) (
+func New(ntree, nfeature, percentboot int) (
 	forest *Runtime,
 ) {
 	forest = &Runtime{
@@ -93,8 +93,6 @@ func New(ntree, nfeature, percentboot int, samples tabula.ClasetInterface) (
 		NRandomFeature: nfeature,
 		PercentBoot:    percentboot,
 	}
-
-	forest.Init(samples)
 
 	return
 }
@@ -121,15 +119,14 @@ func (forest *Runtime) AddBagIndex(bagIndex []int) {
 }
 
 //
-// Init will check forest inputs and set it to default values if invalid.
+// Initialize will check forest inputs and set it to default values if invalid.
 //
-// (1) Calculate number of random samples for each tree.
+// It will also calculate number of random samples for each tree using,
 //
 //	number-of-sample * percentage-of-bootstrap
 //
-// (2) Set id of total statistic (equal to number of tree).
 //
-func (forest *Runtime) Init(samples tabula.ClasetInterface) {
+func (forest *Runtime) Initialize(samples tabula.ClasetInterface) error {
 	if forest.NTree <= 0 {
 		forest.NTree = DefNumTree
 	}
@@ -145,12 +142,10 @@ func (forest *Runtime) Init(samples tabula.ClasetInterface) {
 		forest.StatsFile = DefStatsFile
 	}
 
-	// (1)
 	forest.nSubsample = int(float32(samples.GetNRow()) *
 		(float32(forest.PercentBoot) / 100.0))
 
-	// (3)
-	forest.StatTotal().Id = int64(forest.NTree)
+	return forest.Runtime.Initialize()
 }
 
 /*
@@ -158,11 +153,11 @@ Build the forest using samples dataset.
 
 Algorithm,
 
-(0) Recheck input value: number of tree, percentage bootstrap, etc.
-(1) Open statistic file output.
-(2) Grow tree in forest
-(2.1) Create new tree, repeat until all tress has been build.
-(3) Compute and write total statistic.
+(0) Recheck input value: number of tree, percentage bootstrap, etc; and
+    Open statistic file output.
+(1) For 0 to NTree,
+(1.1) Create new tree, repeat until all trees has been build.
+(2) Compute and write total statistic.
 */
 func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	// check input samples
@@ -171,12 +166,8 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	// (0)
-	forest.Init(samples)
-
-	// (1)
-	e = forest.OpenStatsFile()
+	e = forest.Initialize(samples)
 	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
 		return
 	}
 
@@ -184,16 +175,13 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		fmt.Println("[randomforest] forest:", forest)
 	}
 
-	// (2)
-	st := forest.StatTotal()
-	st.StartTime = time.Now().Unix()
-
+	// (1)
 	for t := 0; t < forest.NTree; t++ {
 		if DEBUG >= 1 {
 			fmt.Printf("----\n[randomforest] tree # %d\n", t)
 		}
 
-		// (2.1)
+		// (1.1)
 		for {
 			_, _, e = forest.GrowTree(samples)
 			if e == nil {
@@ -204,21 +192,8 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		}
 	}
 
-	// (3)
-	st.EndTime = time.Now().Unix()
-	st.ElapsedTime = st.EndTime - st.StartTime
-
-	e = forest.WriteStat(st)
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-	}
-
-	e = forest.CloseStatsFile()
-	if e != nil {
-		fmt.Println("[randomforest] error: ", e)
-	}
-
-	return e
+	// (2)
+	return forest.Finalize()
 }
 
 /*

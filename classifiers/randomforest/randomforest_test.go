@@ -43,8 +43,8 @@ func runRandomForest(sampledsv string,
 	}
 
 	for ; nfeature < maxFeature; nfeature++ {
-		// create random forest.
-		forest := randomforest.New(ntree, nfeature, npercent, &samples)
+		// Create and build random forest.
+		forest := randomforest.New(ntree, nfeature, npercent)
 
 		e := forest.Build(&samples)
 
@@ -52,6 +52,7 @@ func runRandomForest(sampledsv string,
 			log.Fatal(e)
 		}
 
+		// Save OOB error based on number of feature.
 		colName := fmt.Sprintf("M%d", nfeature)
 
 		col := tabula.NewColumnReal(forest.Stats().OobErrorMeans(),
