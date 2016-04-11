@@ -21,7 +21,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 const (
@@ -68,12 +67,14 @@ type Runtime struct {
 	// NTree number of tree in each stage.
 	NTree int `json:"NTree"`
 	// NRandomFeature number of features used to split the dataset.
-	NRandomFeature int
+	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of bootstrap.
 	PercentBoot int `json:"PercentBoot"`
 
-	// Stages contain list of cascaded stages.
-	stages []Stage
+	// forests contain forest for each stage.
+	forests []*randomforest.Runtime
+	// weights contain weight for each stage.
+	weights []float64
 }
 
 func init() {
@@ -102,15 +103,21 @@ func New(nstage, ntree, percentboot, nfeature int,
 		TNRate:         tnrate,
 	}
 
-	crf.Init(samples)
-
 	return crf
 }
 
 //
-// Init will check crf inputs and set it to default values if invalid.
+// AddForest will append new forest.
 //
-func (crf *Runtime) Init(samples tabula.ClasetInterface) {
+func (crf *Runtime) AddForest(forest *randomforest.Runtime) {
+	crf.forests = append(crf.forests, forest)
+}
+
+//
+// Initialize will check crf inputs and set it to default values if its
+// invalid.
+//
+func (crf *Runtime) Initialize(samples tabula.ClasetInterface) error {
 	if crf.NStage <= 0 {
 		crf.NStage = DefStage
 	}
@@ -135,58 +142,42 @@ func (crf *Runtime) Init(samples tabula.ClasetInterface) {
 		crf.StatsFile = DefStatsFile
 	}
 
-	crf.StatTotal().Id = int64(crf.NStage)
+	return crf.Runtime.Initialize()
 }
 
 //
-// Build given a sample dataset, build the stage and randomforest.
-//
-// Algorithm,
-// (1) For 0 to maximum of stage,
-// (1.1) grow a forest in current stage.
+// Build given a sample dataset, build the stage with randomforest.
 //
 func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	if samples == nil {
 		return ErrNoInput
 	}
 
-	if DEBUG >= 1 {
-		fmt.Println("[cascadedrf] # samples:", samples.Len())
-		fmt.Println("[cascadedrf] sample:", samples.GetRow(0))
-	}
-
-	crf.Init(samples)
-
-	e = crf.OpenStatsFile()
+	e = crf.Initialize(samples)
 	if e != nil {
-		fmt.Println("[cascadedrf] error: ", e)
 		return
 	}
 
 	if DEBUG >= 1 {
+		fmt.Println("[cascadedrf] # samples:", samples.Len())
+		fmt.Println("[cascadedrf] sample:", samples.GetRow(0))
 		fmt.Println("[cascadedrf]", crf)
 	}
 
-	st := crf.StatTotal()
-	st.StartTime = time.Now().Unix()
-
-	// (1)
 	for x := 0; x < crf.NStage; x++ {
 		if DEBUG >= 1 {
 			fmt.Printf("====\n[cascadedrf] stage # %d\n", x)
 		}
 
-		// (1.1)
-		_ = crf.createForest(samples)
+		forest := crf.createForest(samples)
+
+		e = crf.finalizeStage(forest)
+		if e != nil {
+			return e
+		}
 	}
 
-	st.EndTime = time.Now().Unix()
-	st.ElapsedTime = st.EndTime - st.StartTime
-
-	st.Id = int64(len(*crf.Stats()))
-	e = crf.WriteStat(st)
-
-	return e
+	return crf.Finalize()
 }
 
 //
@@ -198,20 +189,22 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 // (2) For 0 to maximum number of tree in forest,
 // (2.1) grow one tree until success.
 // (2.2) If tree tp-rate and tn-rate greater than threshold, stop growing.
-// (3) Compute and write forest statistic to file.
+// (3) Calculate weight.
+// (4) Delete true-negative from samples.
+// (5) Refill samples with false-positive.
 //
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	forest *randomforest.Runtime,
 ) {
+	var cm *classifiers.ConfusionMatrix
 	var stat *classifiers.Stat
 	var e error
 
 	// (1)
 	forest = randomforest.New(crf.NTree, crf.NRandomFeature,
-		crf.PercentBoot, samples)
+		crf.PercentBoot)
 
-	ft := forest.StatTotal()
-	ft.StartTime = time.Now().Unix()
+	forest.Initialize(samples)
 
 	// (2)
 	for t := 0; t < crf.NTree; t++ {
@@ -221,20 +214,10 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 
 		// (2.1)
 		for {
-			_, stat, e = forest.GrowTree(samples)
+			cm, stat, e = forest.GrowTree(samples)
 			if e == nil {
 				break
 			}
-		}
-
-		if DEBUG >= 1 {
-			fmt.Printf("[cascadedrf] forest stat: "+
-				" TPRate %.4f, FPRate %.4f, TNRate %.4f,"+
-				" Precision %.4f, FMeasure %.4f,"+
-				" Accuracy %.4f\n",
-				ft.TPRate, ft.FPRate, ft.TNRate,
-				ft.Precision, ft.FMeasure,
-				ft.Accuracy)
 		}
 
 		// (2.2)
@@ -244,18 +227,55 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 		}
 	}
 
-	// (3)
-	ft.EndTime = time.Now().Unix()
-	ft.ElapsedTime = ft.EndTime - ft.StartTime
-	ft.Id = int64(len(*crf.Stats()))
+	forest.Finalize()
 
-	e = crf.WriteStat(ft)
+	// (3)
+	crf.computeWeight(stat)
+
+	// (4)
+	crf.deleteTrueNegative(samples, cm)
+
+	// (5)
+	// crf.refillWithFalsePositive(samples, cm)
+
+	return forest
+}
+
+//
+// finalizeStage save forest and write the forest statistic to file.
+//
+func (crf *Runtime) finalizeStage(forest *randomforest.Runtime) (e error) {
+	stat := forest.StatTotal()
+	stat.Id = int64(len(crf.forests))
+
+	e = crf.WriteStat(stat)
 	if e != nil {
-		return
+		return e
 	}
 
-	crf.Stats().Add(ft)
-	crf.ComputeStatTotal(ft)
+	crf.AddStat(stat)
+	crf.ComputeStatTotal(stat)
 
-	return
+	if DEBUG >= 1 {
+		crf.PrintStatTotal(nil)
+	}
+
+	// (7)
+	crf.AddForest(forest)
+
+	return nil
+}
+
+//
+// computeWeight will compute the weight of stage based on F-measure of the
+// last tree in forest.
+//
+func (crf *Runtime) computeWeight(stat *classifiers.Stat) {
+	crf.weights = append(crf.weights, math.Exp(stat.FMeasure))
+}
+
+func (Crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
+	cm *classifiers.ConfusionMatrix,
+) {
+
 }
