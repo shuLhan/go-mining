@@ -29,6 +29,15 @@ type ConfusionMatrix struct {
 	nTrue int64
 	// nFalse contain number of false positive and negative.
 	nFalse int64
+
+	// tpIds contain index of true-positive samples.
+	tpIds []int
+	// fpIds contain index of false-positive samples.
+	fpIds []int
+	// tnIds contain index of true-negative samples.
+	tnIds []int
+	// fnIds contain index of false-negative samples.
+	fnIds []int
 }
 
 func init() {
@@ -39,25 +48,34 @@ func init() {
 	}
 }
 
-/*
-NewConfusionMatrix create and return new confusion matrix using `valueSpace`,
-`targets`, and `predictions`.
-*/
-func NewConfusionMatrix(valueSpace, targets, predictions []string) (
-	cm *ConfusionMatrix,
-) {
-	cm = &ConfusionMatrix{}
+//
+// initByNumeric will initialize confusion matrix using numeric value space.
+//
+func (cm *ConfusionMatrix) initByNumeric(vs []int64) {
+	var colTypes []int
+	var colNames []string
 
-	cm.compute(valueSpace, targets, predictions)
+	for _, v := range vs {
+		vstr := strconv.FormatInt(v, 10)
+		colTypes = append(colTypes, tabula.TInteger)
+		colNames = append(colNames, vstr)
+		cm.rowNames = append(cm.rowNames, vstr)
+	}
 
-	return cm
+	// class error column
+	colTypes = append(colTypes, tabula.TReal)
+	colNames = append(colNames, "class_error")
+
+	cm.Dataset.Init(tabula.DatasetModeMatrix, colTypes, colNames)
 }
 
-/*
-compute will calculate confusion matrix using targets and predictions
-class values.
-*/
-func (cm *ConfusionMatrix) compute(valueSpace, targets, predictions []string) {
+//
+// ComputeStrings will calculate confusion matrix using targets and predictions
+// class values.
+//
+func (cm *ConfusionMatrix) ComputeStrings(valueSpace, targets,
+	predictions []string,
+) {
 	cm.init(valueSpace)
 
 	for x, target := range valueSpace {
@@ -69,6 +87,29 @@ func (cm *ConfusionMatrix) compute(valueSpace, targets, predictions []string) {
 
 			rec := tabula.Record{V: cnt}
 			col.PushBack(&rec)
+		}
+
+		cm.PushColumnToRows(*col)
+	}
+
+	cm.computeClassError()
+}
+
+//
+// ComputeNumeric will calculate confusion matrix using targets and predictions
+// values.
+//
+func (cm *ConfusionMatrix) ComputeNumeric(vs, actuals, predictions []int64) {
+	cm.initByNumeric(vs)
+
+	for x, act := range vs {
+		col := cm.GetColumn(x)
+
+		for _, pred := range vs {
+			cnt := cm.countNumeric(act, pred, actuals, predictions)
+
+			rec := tabula.NewRecordInt(cnt)
+			col.PushBack(rec)
 		}
 
 		cm.PushColumnToRows(*col)
@@ -124,6 +165,33 @@ func (cm *ConfusionMatrix) countTargetPrediction(target, predict string,
 	return
 }
 
+//
+// countNumeric will count and return number of `pred` in predictions where
+// actuals value is `act`.
+//
+func (cm *ConfusionMatrix) countNumeric(act, pred int64,
+	actuals, predictions []int64,
+) (
+	cnt int64,
+) {
+	// Find minimum length to mitigate out-of-range loop.
+	minlen := len(actuals)
+	if len(predictions) < minlen {
+		minlen = len(predictions)
+	}
+
+	for x := 0; x < minlen; x++ {
+		if actuals[x] != act {
+			continue
+		}
+		if predictions[x] != pred {
+			continue
+		}
+		cnt++
+	}
+	return cnt
+}
+
 /*
 computeClassError will compute the classification error in matrix.
 */
@@ -159,6 +227,60 @@ func (cm *ConfusionMatrix) computeClassError() {
 	}
 
 	cm.PushColumnToRows(*col)
+}
+
+//
+// GroupIndexPredictions given index of samples, group the samples by their
+// class of prediction. For example,
+//
+//	sampleIds:   [0, 1, 2, 3, 4, 5]
+//	actuals:     [1, 1, 0, 0, 1, 0]
+//	predictions: [1, 0, 1, 0, 1, 1]
+//
+// This function will group the index by true-positive, false-positive,
+// true-negative, and false-negative, which result in,
+//
+//	true-positive indices:  [0, 4]
+//	false-positive indices: [2, 5]
+//	true-negative indices:  [3]
+//      false-negative indices: [1]
+//
+// This function assume that positive value as "1" and negative value as "0".
+//
+func (cm *ConfusionMatrix) GroupIndexPredictions(sampleIds []int,
+	actuals, predictions []int64,
+) {
+	// Reset indices.
+	cm.tpIds = nil
+	cm.fpIds = nil
+	cm.tnIds = nil
+	cm.fnIds = nil
+
+	// Make sure we are not out-of-range when looping, always pick the
+	// minimum length between the three parameters.
+	min := len(sampleIds)
+	if len(actuals) < min {
+		min = len(actuals)
+	}
+	if len(predictions) < min {
+		min = len(predictions)
+	}
+
+	for x := 0; x < min; x++ {
+		if actuals[x] == 1 {
+			if predictions[x] == 1 {
+				cm.tpIds = append(cm.tpIds, sampleIds[x])
+			} else {
+				cm.fnIds = append(cm.fnIds, sampleIds[x])
+			}
+		} else {
+			if predictions[x] == 1 {
+				cm.fpIds = append(cm.fpIds, sampleIds[x])
+			} else {
+				cm.tnIds = append(cm.tnIds, sampleIds[x])
+			}
+		}
+	}
 }
 
 /*
@@ -235,6 +357,34 @@ func (cm *ConfusionMatrix) TN() int {
 	}
 	v, _ := row.GetIntAt(1)
 	return int(v)
+}
+
+//
+// TPIndices return indices of all true-positive samples.
+//
+func (cm *ConfusionMatrix) TPIndices() []int {
+	return cm.tpIds
+}
+
+//
+// FNIndices return indices of all false-negative samples.
+//
+func (cm *ConfusionMatrix) FNIndices() []int {
+	return cm.fnIds
+}
+
+//
+// FPIndices return indices of all false-positive samples.
+//
+func (cm *ConfusionMatrix) FPIndices() []int {
+	return cm.fpIds
+}
+
+//
+// TNIndices return indices of all true-negative samples.
+//
+func (cm *ConfusionMatrix) TNIndices() []int {
+	return cm.tnIds
 }
 
 /*
