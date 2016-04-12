@@ -6,7 +6,7 @@ package cascadedrf_test
 
 import (
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifiers/cascadedrf"
+	"github.com/shuLhan/go-mining/classifier/cascadedrf"
 	"github.com/shuLhan/tabula"
 	"testing"
 )

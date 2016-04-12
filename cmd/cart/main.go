@@ -9,7 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifiers/cart"
+	"github.com/shuLhan/go-mining/classifier/cart"
 	"github.com/shuLhan/tabula"
 	"io/ioutil"
 	"os"

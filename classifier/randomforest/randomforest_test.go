@@ -7,7 +7,7 @@ package randomforest_test
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifiers/randomforest"
+	"github.com/shuLhan/go-mining/classifier/randomforest"
 	"github.com/shuLhan/tabula"
 	"log"
 	"testing"

@@ -15,8 +15,8 @@ package randomforest
 import (
 	"errors"
 	"fmt"
-	"github.com/shuLhan/go-mining/classifiers"
-	"github.com/shuLhan/go-mining/classifiers/cart"
+	"github.com/shuLhan/go-mining/classifier"
+	"github.com/shuLhan/go-mining/classifier/cart"
 	"github.com/shuLhan/tabula"
 	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
@@ -51,7 +51,7 @@ Runtime contains input and output configuration when generating random forest.
 */
 type Runtime struct {
 	// Runtime embed common fields for classifier.
-	classifiers.Runtime
+	classifier.Runtime
 
 	// NTree number of tree in forest.
 	NTree int `json:"NTree"`
@@ -210,9 +210,9 @@ Algorithm,
 (6) Calculate OOB error rate and statistic values.
 */
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
-	cm *classifiers.ConfusionMatrix, stat *classifiers.Stat, e error,
+	cm *classifier.ConfusionMatrix, stat *classifier.Stat, e error,
 ) {
-	stat = &classifiers.Stat{}
+	stat = &classifier.Stat{}
 	stat.Id = int64(len(forest.trees))
 	stat.StartTime = time.Now().Unix()
 
@@ -286,7 +286,7 @@ Algorithm,
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	testsetIdx []int, uniq bool,
 ) (
-	cm *classifiers.ConfusionMatrix,
+	cm *classifier.ConfusionMatrix,
 ) {
 	// (0)
 	classType := testset.GetClassType()
@@ -348,7 +348,7 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	}
 
 	// (4)
-	cm = &classifiers.ConfusionMatrix{}
+	cm = &classifier.ConfusionMatrix{}
 
 	if classType == tabula.TString {
 		actual := classAttr.ToStringSlice()

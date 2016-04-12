@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package classifiers_test
+package classifier_test
 
 import (
 	"fmt"
-	"github.com/shuLhan/go-mining/classifiers"
+	"github.com/shuLhan/go-mining/classifier"
 	"reflect"
 	"runtime/debug"
 	"testing"
@@ -27,7 +27,7 @@ func TestComputeNumeric(t *testing.T) {
 	vs := []int64{1, 0}
 	exp := []int{2, 1, 3, 1}
 
-	cm := &classifiers.ConfusionMatrix{}
+	cm := &classifier.ConfusionMatrix{}
 
 	cm.ComputeNumeric(vs, actuals, predics)
 
@@ -45,7 +45,7 @@ func TestComputeStrings(t *testing.T) {
 	vs := []string{"1", "0"}
 	exp := []int{2, 1, 3, 1}
 
-	cm := &classifiers.ConfusionMatrix{}
+	cm := &classifier.ConfusionMatrix{}
 
 	cm.ComputeStrings(vs, actuals, predics)
 
@@ -68,7 +68,7 @@ func TestGroupIndexPredictions(t *testing.T) {
 		{4, 5, 6, 7, 9}, // tn
 	}
 
-	cm := &classifiers.ConfusionMatrix{}
+	cm := &classifier.ConfusionMatrix{}
 
 	cm.GroupIndexPredictions(testIds, actuals, predics)
 

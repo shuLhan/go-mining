@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package classifiers
+package classifier
 
 import (
 	"fmt"
@@ -187,7 +187,7 @@ func (runtime *Runtime) CloseStatsFile() (e error) {
 // PrintOobStat will print the out-of-bag statistic to standard output.
 //
 func (runtime *Runtime) PrintOobStat(stat *Stat, cm *ConfusionMatrix) {
-	fmt.Printf("[classifiers.runtime] OOB error rate: %.4f,"+
+	fmt.Printf("[classifier.runtime] OOB error rate: %.4f,"+
 		" total: %.4f, mean %.4f, true rate: %.4f\n",
 		stat.OobError, runtime.statTotal.OobError,
 		stat.OobErrorMean, cm.GetTrueRate())
@@ -205,7 +205,7 @@ func (runtime *Runtime) PrintStat(stat *Stat) {
 		stat = runtime.stats[statslen-1]
 	}
 
-	fmt.Printf("[classifiers.runtime] TPRate: %.4f, FPRate: %.4f,"+
+	fmt.Printf("[classifier.runtime] TPRate: %.4f, FPRate: %.4f,"+
 		" TNRate: %.4f, precision: %.4f, f-measure: %.4f,"+
 		" accuracy: %.4f\n", stat.TPRate, stat.FPRate, stat.TNRate,
 		stat.Precision, stat.FMeasure, stat.Accuracy)

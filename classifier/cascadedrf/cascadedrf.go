@@ -15,8 +15,8 @@ package cascadedrf
 import (
 	"errors"
 	"fmt"
-	"github.com/shuLhan/go-mining/classifiers"
-	"github.com/shuLhan/go-mining/classifiers/randomforest"
+	"github.com/shuLhan/go-mining/classifier"
+	"github.com/shuLhan/go-mining/classifier/randomforest"
 	"github.com/shuLhan/tabula"
 	"math"
 	"os"
@@ -55,7 +55,7 @@ Runtime define the cascaded random forest runtime input and output.
 */
 type Runtime struct {
 	// Runtime embed common fields for classifier.
-	classifiers.Runtime
+	classifier.Runtime
 
 	// NStage number of stage.
 	NStage int `json:"NStage"`
@@ -196,8 +196,8 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	forest *randomforest.Runtime,
 ) {
-	var cm *classifiers.ConfusionMatrix
-	var stat *classifiers.Stat
+	var cm *classifier.ConfusionMatrix
+	var stat *classifier.Stat
 	var e error
 
 	// (1)
@@ -270,12 +270,12 @@ func (crf *Runtime) finalizeStage(forest *randomforest.Runtime) (e error) {
 // computeWeight will compute the weight of stage based on F-measure of the
 // last tree in forest.
 //
-func (crf *Runtime) computeWeight(stat *classifiers.Stat) {
+func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 	crf.weights = append(crf.weights, math.Exp(stat.FMeasure))
 }
 
 func (Crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
-	cm *classifiers.ConfusionMatrix,
+	cm *classifier.ConfusionMatrix,
 ) {
 
 }
