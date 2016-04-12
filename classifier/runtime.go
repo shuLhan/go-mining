@@ -19,7 +19,7 @@ type Runtime struct {
 	StatsFile string `json:"StatsFile"`
 
 	// cmatrices contain confusion matrix value for each iteration.
-	cmatrices []ConfusionMatrix
+	cmatrices []CM
 
 	// stats contain statistic of classifier for each iteration.
 	stats Stats
@@ -75,9 +75,9 @@ func (runtime *Runtime) StatTotal() *Stat {
 }
 
 //
-// AddConfusionMatrix will append new confusion matrix.
+// AddCM will append new confusion matrix.
 //
-func (runtime *Runtime) AddConfusionMatrix(cm *ConfusionMatrix) {
+func (runtime *Runtime) AddCM(cm *CM) {
 	runtime.cmatrices = append(runtime.cmatrices, *cm)
 }
 
@@ -91,7 +91,7 @@ func (runtime *Runtime) AddStat(stat *Stat) {
 //
 // ComputeStatFromCM will compute statistic using confusion matrix.
 //
-func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *ConfusionMatrix) {
+func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 
 	stat.OobError = cm.GetFalseRate()
 
@@ -186,7 +186,7 @@ func (runtime *Runtime) CloseStatsFile() (e error) {
 //
 // PrintOobStat will print the out-of-bag statistic to standard output.
 //
-func (runtime *Runtime) PrintOobStat(stat *Stat, cm *ConfusionMatrix) {
+func (runtime *Runtime) PrintOobStat(stat *Stat, cm *CM) {
 	fmt.Printf("[classifier.runtime] OOB error rate: %.4f,"+
 		" total: %.4f, mean %.4f, true rate: %.4f\n",
 		stat.OobError, runtime.statTotal.OobError,

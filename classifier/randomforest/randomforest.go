@@ -210,7 +210,7 @@ Algorithm,
 (6) Calculate OOB error rate and statistic values.
 */
 func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
-	cm *classifier.ConfusionMatrix, stat *classifier.Stat, e error,
+	cm *classifier.CM, stat *classifier.Stat, e error,
 ) {
 	stat = &classifier.Stat{}
 	stat.Id = int64(len(forest.trees))
@@ -244,7 +244,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	// (5)
 	oobset := oob.(tabula.ClasetInterface)
 	cm = forest.ClassifySet(oobset, oobIdx, true)
-	forest.AddConfusionMatrix(cm)
+	forest.AddCM(cm)
 
 	stat.EndTime = time.Now().Unix()
 	stat.ElapsedTime = stat.EndTime - stat.StartTime
@@ -286,7 +286,7 @@ Algorithm,
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	testsetIdx []int, uniq bool,
 ) (
-	cm *classifier.ConfusionMatrix,
+	cm *classifier.CM,
 ) {
 	// (0)
 	classType := testset.GetClassType()
@@ -348,7 +348,7 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	}
 
 	// (4)
-	cm = &classifier.ConfusionMatrix{}
+	cm = &classifier.CM{}
 
 	if classType == tabula.TString {
 		actual := classAttr.ToStringSlice()

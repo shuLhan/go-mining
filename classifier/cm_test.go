@@ -27,7 +27,7 @@ func TestComputeNumeric(t *testing.T) {
 	vs := []int64{1, 0}
 	exp := []int{2, 1, 3, 1}
 
-	cm := &classifier.ConfusionMatrix{}
+	cm := &classifier.CM{}
 
 	cm.ComputeNumeric(vs, actuals, predics)
 
@@ -45,7 +45,7 @@ func TestComputeStrings(t *testing.T) {
 	vs := []string{"1", "0"}
 	exp := []int{2, 1, 3, 1}
 
-	cm := &classifier.ConfusionMatrix{}
+	cm := &classifier.CM{}
 
 	cm.ComputeStrings(vs, actuals, predics)
 
@@ -68,7 +68,7 @@ func TestGroupIndexPredictions(t *testing.T) {
 		{4, 5, 6, 7, 9}, // tn
 	}
 
-	cm := &classifier.ConfusionMatrix{}
+	cm := &classifier.CM{}
 
 	cm.GroupIndexPredictions(testIds, actuals, predics)
 

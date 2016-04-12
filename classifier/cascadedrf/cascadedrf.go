@@ -196,7 +196,7 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	forest *randomforest.Runtime,
 ) {
-	var cm *classifier.ConfusionMatrix
+	var cm *classifier.CM
 	var stat *classifier.Stat
 	var e error
 
@@ -275,7 +275,7 @@ func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 }
 
 func (Crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
-	cm *classifier.ConfusionMatrix,
+	cm *classifier.CM,
 ) {
 
 }
