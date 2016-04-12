@@ -274,7 +274,7 @@ Algorithm,
 
 (0) Get value space (possible class values in dataset)
 (1) Save test-set target values.
-(2) Clear target values in test-set.
+(2) Create empty prediction.
 (3) For each row in test-set,
 (3.1) for each tree in forest,
 (3.1.1) If row is used to build the tree then skip it,
@@ -282,7 +282,6 @@ Algorithm,
 (3.1.3) save tree class value.
 (3.2) Collect majority class vote in forest.
 (4) Compute confusion matrix from predictions.
-(5) Restore original target values in testset.
 */
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	testsetIdx []int, uniq bool,
@@ -290,20 +289,23 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	cm *classifiers.ConfusionMatrix,
 ) {
 	// (0)
-	targetVS := testset.GetClassValueSpace()
+	classType := testset.GetClassType()
 
 	// (1)
-	targetAttr := testset.GetClassColumn()
-	targetValues := targetAttr.ToStringSlice()
+	classAttr := testset.GetClassColumn()
+	vs := testset.GetClassValueSpace()
+	vsInt := tekstus.StringsToInt64(vs)
 	indexlen := len(testsetIdx)
 
 	// (2)
-	targetAttr.ClearValues()
+	var predictStr []string
+	var predictInt []int64
 
 	// (3)
 	rows := testset.GetRows()
 	for x, row := range *rows {
-		var votes []string
+		var votesStr []string
+		var votesInt []int64
 
 		// (3.1)
 		for y, tree := range forest.trees {
@@ -320,26 +322,47 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 			class := tree.Classify(row)
 
 			// (3.1.3)
-			votes = append(votes, class)
+			if classType == tabula.TString {
+				votesStr = append(votesStr, class)
+			} else {
+				i, e := strconv.ParseInt(class, 10, 0)
+				if e != nil {
+					votesStr = append(votesStr, class)
+				} else {
+					votesInt = append(votesInt, i)
+				}
+			}
 		}
 
 		// (3.2)
-		class := tekstus.WordsMaxCountOf(votes, targetVS, false)
-		(*targetAttr).Records[x].V = class
+		if classType == tabula.TString {
+			class := tekstus.WordsMaxCountOf(votesStr, vs,
+				false)
+
+			predictStr = append(predictStr, class)
+		} else {
+			class := tekstus.Int64MaxCountOf(votesInt, vsInt)
+
+			predictInt = append(predictInt, class)
+		}
 	}
 
 	// (4)
-	predictions := targetAttr.ToStringSlice()
+	cm = &classifiers.ConfusionMatrix{}
 
-	cm = classifiers.NewConfusionMatrix(targetVS, targetValues,
-		predictions)
+	if classType == tabula.TString {
+		actual := classAttr.ToStringSlice()
+
+		cm.ComputeStrings(vs, actual, predictStr)
+	} else {
+		actual := classAttr.ToIntegers()
+
+		cm.ComputeNumeric(vsInt, actual, predictInt)
+	}
 
 	if DEBUG >= 2 {
 		fmt.Println("[randomforest]", cm)
 	}
-
-	// (5)
-	targetAttr.SetValues(targetValues)
 
 	return cm
 }
