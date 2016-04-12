@@ -169,7 +169,10 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 			fmt.Printf("====\n[cascadedrf] stage # %d\n", x)
 		}
 
-		forest := crf.createForest(samples)
+		forest, e := crf.createForest(samples)
+		if e != nil {
+			return e
+		}
 
 		e = crf.finalizeStage(forest)
 		if e != nil {
@@ -194,17 +197,19 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 // (5) Refill samples with false-positive.
 //
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
-	forest *randomforest.Runtime,
+	forest *randomforest.Runtime, e error,
 ) {
 	var cm *classifier.CM
 	var stat *classifier.Stat
-	var e error
 
 	// (1)
 	forest = randomforest.New(crf.NTree, crf.NRandomFeature,
 		crf.PercentBoot)
 
-	forest.Initialize(samples)
+	e = forest.Initialize(samples)
+	if e != nil {
+		return nil, e
+	}
 
 	// (2)
 	for t := 0; t < crf.NTree; t++ {
@@ -227,7 +232,10 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 		}
 	}
 
-	forest.Finalize()
+	e = forest.Finalize()
+	if e != nil {
+		return nil, e
+	}
 
 	// (3)
 	crf.computeWeight(stat)
@@ -238,7 +246,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	// (5)
 	// crf.refillWithFalsePositive(samples, cm)
 
-	return forest
+	return forest, nil
 }
 
 //
