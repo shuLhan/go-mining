@@ -49,7 +49,7 @@
 	,	"Type"			:"real"
 	},{
 		"Name"			:"TYPE"
-	,	"Type"			:"string"
+	,	"Type"			:"real"
 	,	"ValueSpace"		:
 		[
 			"1"
