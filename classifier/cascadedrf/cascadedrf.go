@@ -16,7 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/shuLhan/go-mining/classifier"
-	"github.com/shuLhan/go-mining/classifier/randomforest"
+	"github.com/shuLhan/go-mining/classifier/rf"
 	"github.com/shuLhan/tabula"
 	"math"
 	"os"
@@ -47,7 +47,7 @@ var (
 
 var (
 	// ErrNoInput will tell you when no input is given.
-	ErrNoInput = errors.New("randomforest: input samples is empty")
+	ErrNoInput = errors.New("rf: input samples is empty")
 )
 
 /*
@@ -72,7 +72,7 @@ type Runtime struct {
 	PercentBoot int `json:"PercentBoot"`
 
 	// forests contain forest for each stage.
-	forests []*randomforest.Runtime
+	forests []*rf.Runtime
 	// weights contain weight for each stage.
 	weights []float64
 }
@@ -109,7 +109,7 @@ func New(nstage, ntree, percentboot, nfeature int,
 //
 // AddForest will append new forest.
 //
-func (crf *Runtime) AddForest(forest *randomforest.Runtime) {
+func (crf *Runtime) AddForest(forest *rf.Runtime) {
 	crf.forests = append(crf.forests, forest)
 }
 
@@ -197,14 +197,13 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 // (5) Refill samples with false-positive.
 //
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
-	forest *randomforest.Runtime, e error,
+	forest *rf.Runtime, e error,
 ) {
 	var cm *classifier.CM
 	var stat *classifier.Stat
 
 	// (1)
-	forest = randomforest.New(crf.NTree, crf.NRandomFeature,
-		crf.PercentBoot)
+	forest = rf.New(crf.NTree, crf.NRandomFeature, crf.PercentBoot)
 
 	e = forest.Initialize(samples)
 	if e != nil {
@@ -252,7 +251,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 //
 // finalizeStage save forest and write the forest statistic to file.
 //
-func (crf *Runtime) finalizeStage(forest *randomforest.Runtime) (e error) {
+func (crf *Runtime) finalizeStage(forest *rf.Runtime) (e error) {
 	stat := forest.StatTotal()
 	stat.ID = int64(len(crf.forests))
 

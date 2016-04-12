@@ -1,6 +1,6 @@
 cmd/cart/cart
 cmd/lnsmote/lnsmote
-cmd/randomforest/randomforest
+cmd/rf/rf
 cmd/smote/smote
 resampling/lnsmote/phoneme_lnsmote.csv
 resampling/lnsmote/synthetic.csv

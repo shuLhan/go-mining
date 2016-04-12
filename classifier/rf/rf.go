@@ -3,14 +3,14 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package randomforest implement ensemble of classifiers using random forest
+Package rf implement ensemble of classifiers using random forest
 algorithm by Breiman and Cutler.
 
 	Breiman, Leo. "Random forests." Machine learning 45.1 (2001): 5-32.
 
 The implementation is based on various sources and using author experience.
 */
-package randomforest
+package rf
 
 import (
 	"errors"
@@ -33,7 +33,7 @@ const (
 	// bootstraping a tree.
 	DefPercentBoot = 66
 	// DefStatsFile default statistic file output.
-	DefStatsFile = "randomforest.stats"
+	DefStatsFile = "rf.stats"
 )
 
 var (
@@ -43,7 +43,7 @@ var (
 
 var (
 	// ErrNoInput will tell you when no input is given.
-	ErrNoInput = errors.New("randomforest: input samples is empty")
+	ErrNoInput = errors.New("rf: input samples is empty")
 )
 
 /*
@@ -172,13 +172,13 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[randomforest] forest:", forest)
+		fmt.Println("[rf] forest:", forest)
 	}
 
 	// (1)
 	for t := 0; t < forest.NTree; t++ {
 		if DEBUG >= 1 {
-			fmt.Printf("----\n[randomforest] tree # %d\n", t)
+			fmt.Printf("----\n[rf] tree # %d\n", t)
 		}
 
 		// (1.1)
@@ -188,7 +188,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 				break
 			}
 
-			fmt.Println("[randomforest] error: ", e)
+			fmt.Println("[rf] error: ", e)
 		}
 	}
 
@@ -225,7 +225,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	if DEBUG >= 2 {
 		bagset.RecountMajorMinor()
-		fmt.Println("[randomforest] Bagging:", bagset)
+		fmt.Println("[rf] Bagging:", bagset)
 	}
 
 	// (2)
@@ -250,7 +250,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	stat.ElapsedTime = stat.EndTime - stat.StartTime
 
 	if DEBUG >= 1 {
-		fmt.Printf("[randomforest] Elapsed time: %d s\n",
+		fmt.Printf("[rf] Elapsed time: %d s\n",
 			stat.ElapsedTime)
 	}
 
@@ -361,7 +361,7 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	}
 
 	if DEBUG >= 2 {
-		fmt.Println("[randomforest]", cm)
+		fmt.Println("[rf]", cm)
 	}
 
 	return cm

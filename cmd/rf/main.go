@@ -9,7 +9,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifier/randomforest"
+	"github.com/shuLhan/go-mining/classifier/rf"
 	"github.com/shuLhan/tabula"
 	"io/ioutil"
 	"os"
@@ -73,8 +73,8 @@ func un(s string, startTime time.Time) {
 		endTime.Sub(startTime))
 }
 
-func createRandomForest(fcfg string) (*randomforest.Runtime, error) {
-	rf := &randomforest.Runtime{}
+func createRandomForest(fcfg string) (*rf.Runtime, error) {
+	rf := &rf.Runtime{}
 
 	config, e := ioutil.ReadFile(fcfg)
 	if e != nil {
@@ -104,7 +104,7 @@ func createRandomForest(fcfg string) (*randomforest.Runtime, error) {
 }
 
 func main() {
-	defer un(trace("randomforest"))
+	defer un(trace("rf"))
 
 	flag.Parse()
 
@@ -128,10 +128,10 @@ func main() {
 		panic(e)
 	}
 
-	fmt.Println("[randomforest] Dataset:", &dataset)
+	fmt.Println("[rf] Dataset:", &dataset)
 
 	row := dataset.GetRow(0)
-	fmt.Println("[randomforest] sample:", row)
+	fmt.Println("[rf] sample:", row)
 
 	e = rf.Build(&dataset)
 	if e != nil {

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-package randomforest_test
+package rf_test
 
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
-	"github.com/shuLhan/go-mining/classifier/randomforest"
+	"github.com/shuLhan/go-mining/classifier/rf"
 	"github.com/shuLhan/tabula"
 	"log"
 	"testing"
@@ -44,7 +44,7 @@ func runRandomForest(sampledsv string,
 
 	for ; nfeature < maxFeature; nfeature++ {
 		// Create and build random forest.
-		forest := randomforest.New(ntree, nfeature, npercent)
+		forest := rf.New(ntree, nfeature, npercent)
 
 		e := forest.Build(&samples)
 
