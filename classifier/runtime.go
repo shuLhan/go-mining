@@ -50,7 +50,7 @@ func (runtime *Runtime) Finalize() (e error) {
 
 	st.EndTime = time.Now().Unix()
 	st.ElapsedTime = st.EndTime - st.StartTime
-	st.Id = int64(len(runtime.stats))
+	st.ID = int64(len(runtime.stats))
 
 	e = runtime.WriteStat(st)
 	if e != nil {

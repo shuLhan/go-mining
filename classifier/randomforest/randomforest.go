@@ -213,7 +213,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	cm *classifier.CM, stat *classifier.Stat, e error,
 ) {
 	stat = &classifier.Stat{}
-	stat.Id = int64(len(forest.trees))
+	stat.ID = int64(len(forest.trees))
 	stat.StartTime = time.Now().Unix()
 
 	// (1)

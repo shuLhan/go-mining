@@ -13,8 +13,8 @@ Stat hold statistic value of classifier, including TP rate, FP rate, precision,
 and recall.
 */
 type Stat struct {
-	// Id unique id for this statistic (e.g. number of tree).
-	Id int64
+	// ID unique id for this statistic (e.g. number of tree).
+	ID int64
 	// StartTime contain the start time of classifier in unix timestamp.
 	StartTime int64
 	// EndTime contain the end time of classifier in unix timestamp.
@@ -82,7 +82,7 @@ func (stat *Stat) Sum(other *Stat) {
 func (stat *Stat) ToRow() (row *tabula.Row) {
 	row = &tabula.Row{}
 
-	row.PushBack(tabula.NewRecordInt(stat.Id))
+	row.PushBack(tabula.NewRecordInt(stat.ID))
 	row.PushBack(tabula.NewRecordInt(stat.StartTime))
 	row.PushBack(tabula.NewRecordInt(stat.EndTime))
 	row.PushBack(tabula.NewRecordInt(stat.ElapsedTime))

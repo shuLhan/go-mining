@@ -246,7 +246,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 //
 func (crf *Runtime) finalizeStage(forest *randomforest.Runtime) (e error) {
 	stat := forest.StatTotal()
-	stat.Id = int64(len(crf.forests))
+	stat.ID = int64(len(crf.forests))
 
 	e = crf.WriteStat(stat)
 	if e != nil {
@@ -274,7 +274,7 @@ func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 	crf.weights = append(crf.weights, math.Exp(stat.FMeasure))
 }
 
-func (Crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
+func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
 
