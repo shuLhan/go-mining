@@ -3,14 +3,14 @@
 // license that can be found in the LICENSE file.
 
 /*
-Package cascadedrf implement the cascaded random forest algorithm, proposed by
+Package crf implement the cascaded random forest algorithm, proposed by
 Baumann et.al in their paper:
 
 	Baumann, Florian, et al. "Cascaded Random Forest for Fast Object
 	Detection." Image Analysis. Springer Berlin Heidelberg, 2013. 131-142.
 
 */
-package cascadedrf
+package crf
 
 import (
 	"errors"
@@ -37,7 +37,7 @@ const (
 	// bootstraping a tree.
 	DefPercentBoot = 66
 	// DefStatsFile default statistic file output.
-	DefStatsFile = "cascadedrf.stats"
+	DefStatsFile = "crf.stats"
 )
 
 var (
@@ -159,14 +159,14 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[cascadedrf] # samples:", samples.Len())
-		fmt.Println("[cascadedrf] sample:", samples.GetRow(0))
-		fmt.Println("[cascadedrf]", crf)
+		fmt.Println("[crf] # samples:", samples.Len())
+		fmt.Println("[crf] sample:", samples.GetRow(0))
+		fmt.Println("[crf]", crf)
 	}
 
 	for x := 0; x < crf.NStage; x++ {
 		if DEBUG >= 1 {
-			fmt.Printf("====\n[cascadedrf] stage # %d\n", x)
+			fmt.Printf("====\n[crf] stage # %d\n", x)
 		}
 
 		forest, e := crf.createForest(samples)
@@ -213,7 +213,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	// (2)
 	for t := 0; t < crf.NTree; t++ {
 		if DEBUG >= 1 {
-			fmt.Printf("[cascadedrf] tree # %d\n", t)
+			fmt.Printf("[crf] tree # %d\n", t)
 		}
 
 		// (2.1)
