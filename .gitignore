@@ -9,10 +9,14 @@ resampling/smote/synthetic.csv
 resampling/smote/testdata/phoneme.csv
 testdata/phoneme/phoneme.csv
 *.bak
+*.bench
+*.cprof
 *.csv
 *.dat
+*.mprof
 *.oob
 *.prof
 *.rej
+*.sh
 *.stats
 *.test
