@@ -102,13 +102,48 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 	stat.FP = int64(cm.FP())
 	stat.TN = int64(cm.TN())
 	stat.FN = int64(cm.FN())
-	stat.TPRate = float64(stat.TP) / float64(stat.TP+stat.FN)
-	stat.FPRate = float64(stat.FP) / float64(stat.FP+stat.TN)
-	stat.TNRate = float64(stat.TN) / float64(stat.FP+stat.TN)
-	stat.Precision = float64(stat.TP) / float64(stat.TP+stat.FP)
-	stat.FMeasure = 2 / ((1 / stat.Precision) + (1 / stat.TPRate))
-	stat.Accuracy = float64(stat.TP+stat.TN) /
-		float64(stat.TP+stat.TN+stat.FP+stat.FN)
+
+	t := float64(stat.TP + stat.FN)
+	if t == 0 {
+		stat.TPRate = 0
+	} else {
+		stat.TPRate = float64(stat.TP) / t
+	}
+
+	t = float64(stat.FP + stat.TN)
+	if t == 0 {
+		stat.FPRate = 0
+	} else {
+		stat.FPRate = float64(stat.FP) / t
+	}
+
+	t = float64(stat.FP + stat.TN)
+	if t == 0 {
+		stat.TNRate = 0
+	} else {
+		stat.TNRate = float64(stat.TN) / t
+	}
+
+	t = float64(stat.TP + stat.FP)
+	if t == 0 {
+		stat.Precision = 0
+	} else {
+		stat.Precision = float64(stat.TP) / t
+	}
+
+	t = (1 / stat.Precision) + (1 / stat.TPRate)
+	if t == 0 {
+		stat.FMeasure = 0
+	} else {
+		stat.FMeasure = 2 / t
+	}
+
+	t = float64(stat.TP + stat.TN + stat.FP + stat.FN)
+	if t == 0 {
+		stat.Accuracy = 0
+	} else {
+		stat.Accuracy = float64(stat.TP+stat.TN) / t
+	}
 
 	if DEBUG >= 1 {
 		runtime.PrintOobStat(stat, cm)
@@ -137,12 +172,48 @@ func (runtime *Runtime) ComputeStatTotal(stat *Stat) {
 	t.FP += stat.FP
 	t.TN += stat.TN
 	t.FN += stat.FN
-	t.TPRate = float64(t.TP) / float64(t.TP+t.FN)
-	t.FPRate = float64(t.FP) / float64(t.FP+t.TN)
-	t.TNRate = float64(t.TN) / float64(t.FP+t.TN)
-	t.Precision = float64(t.TP) / float64(t.TP+t.FP)
-	t.FMeasure = 2 / ((1 / t.Precision) + (1 / t.TPRate))
-	t.Accuracy = float64(t.TP+t.TN) / float64(t.TP+t.TN+t.FP+t.FN)
+
+	total := float64(t.TP + t.FN)
+	if total == 0 {
+		t.TPRate = 0
+	} else {
+		t.TPRate = float64(t.TP) / total
+	}
+
+	total = float64(t.FP + t.TN)
+	if total == 0 {
+		t.FPRate = 0
+	} else {
+		t.FPRate = float64(t.FP) / total
+	}
+
+	total = float64(t.FP + t.TN)
+	if total == 0 {
+		t.TNRate = 0
+	} else {
+		t.TNRate = float64(t.TN) / total
+	}
+
+	total = float64(t.TP + t.FP)
+	if total == 0 {
+		t.Precision = 0
+	} else {
+		t.Precision = float64(t.TP) / total
+	}
+
+	total = (1 / t.Precision) + (1 / t.TPRate)
+	if total == 0 {
+		t.FMeasure = 0
+	} else {
+		t.FMeasure = 2 / total
+	}
+
+	total = float64(t.TP + t.TN + t.FP + t.FN)
+	if total == 0 {
+		t.Accuracy = 0
+	} else {
+		t.Accuracy = float64(t.TP+t.TN) / total
+	}
 }
 
 //
