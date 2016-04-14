@@ -284,7 +284,7 @@ Algorithm,
 (4) Compute confusion matrix from predictions.
 */
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
-	testsetIdx []int, uniq bool,
+	testsetIds []int, uniq bool,
 ) (
 	cm *classifier.CM,
 ) {
@@ -295,7 +295,7 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	classAttr := testset.GetClassColumn()
 	vs := testset.GetClassValueSpace()
 	vsInt := tekstus.StringsToInt64(vs)
-	indexlen := len(testsetIdx)
+	indexlen := len(testsetIds)
 
 	// (2)
 	var predictStr []string
@@ -312,7 +312,7 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 			// (3.1.1)
 			if uniq && indexlen > 0 {
 				exist := util.IntIsExist(forest.bagIndices[y],
-					testsetIdx[x])
+					testsetIds[x])
 				if exist {
 					continue
 				}
@@ -351,13 +351,18 @@ func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	cm = &classifier.CM{}
 
 	if classType == tabula.TString {
-		actual := classAttr.ToStringSlice()
+		actuals := classAttr.ToStringSlice()
 
-		cm.ComputeStrings(vs, actual, predictStr)
+		cm.ComputeStrings(vs, actuals, predictStr)
+
+		cm.GroupIndexPredictionsStrings(testsetIds, actuals,
+			predictStr)
 	} else {
-		actual := classAttr.ToIntegers()
+		actuals := classAttr.ToIntegers()
 
-		cm.ComputeNumeric(vsInt, actual, predictInt)
+		cm.ComputeNumeric(vsInt, actuals, predictInt)
+
+		cm.GroupIndexPredictions(testsetIds, actuals, predictInt)
 	}
 
 	if DEBUG >= 2 {
