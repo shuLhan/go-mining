@@ -31,8 +31,8 @@
 	,	"Type"		:"real"
 	,	"ValueSpace"	:
 		[
-			"0"
-		,	"1"
+			"1"
+		,	"0"
 		]
 	}]
 ,	"Output"	:"phoneme.csv"
