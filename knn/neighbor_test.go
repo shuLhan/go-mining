@@ -60,15 +60,15 @@ func TestContain(t *testing.T) {
 	pickIdx := rand.Intn(neighbors.Len())
 	randSample := neighbors.Row(pickIdx).Clone()
 
-	isin, idx := neighbors.Contain(&randSample)
+	isin, idx := neighbors.Contain(randSample)
 
 	assert(t, true, isin, true)
 	assert(t, pickIdx, idx, true)
 
 	// change one of record value to check for false.
-	randSample[0].SetFloat(0)
+	(*randSample)[0].SetFloat(0)
 
-	isin, _ = neighbors.Contain(&randSample)
+	isin, _ = neighbors.Contain(randSample)
 
 	assert(t, false, isin, true)
 }

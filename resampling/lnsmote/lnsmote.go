@@ -118,7 +118,7 @@ func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
 			syn := in.createSynthetic(p, neighbors)
 
 			if syn != nil {
-				in.Synthetics.PushRow(&syn)
+				in.Synthetics.PushRow(syn)
 			}
 		}
 
@@ -140,7 +140,7 @@ func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
 // `neighbors`.
 //
 func (in *Runtime) createSynthetic(p *tabula.Row, neighbors knn.Neighbors) (
-	synthetic tabula.Row,
+	synthetic *tabula.Row,
 ) {
 	// choose one of the K nearest neighbors
 	randIdx := rand.Intn(neighbors.Len())
@@ -158,7 +158,7 @@ func (in *Runtime) createSynthetic(p *tabula.Row, neighbors knn.Neighbors) (
 
 	synthetic = p.Clone()
 
-	for x, srec := range synthetic {
+	for x, srec := range *synthetic {
 		// Skip class attribute.
 		if x == in.ClassIndex {
 			continue
@@ -208,7 +208,7 @@ func (in *Runtime) safeLevel2(p, n *tabula.Row) knn.Neighbors {
 	neighbors := in.FindNeighbors(in.datasetRows, n)
 
 	// check if n is in minority class.
-	nIsMinor := (*n)[in.ClassIndex].IsEqual(in.ClassMinor)
+	nIsMinor := (*n)[in.ClassIndex].IsEqualToString(in.ClassMinor)
 
 	// check if p is in neighbors.
 	pInNeighbors, pidx := neighbors.Contain(p)
