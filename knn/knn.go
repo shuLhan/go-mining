@@ -72,12 +72,7 @@ func (in *Runtime) ComputeEuclidianDistance(samples *tabula.Rows,
 			ir := (*instance)[y]
 			diff := 0.0
 
-			switch ir.GetType() {
-			case tabula.TReal:
-				diff = ir.Float() - rec.Float()
-			case tabula.TInteger:
-				diff = float64(ir.Integer() - rec.Integer())
-			}
+			diff = ir.Float() - rec.Float()
 
 			d += math.Abs(diff)
 		}
