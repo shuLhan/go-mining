@@ -243,7 +243,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	crf.deleteTrueNegative(samples, cm)
 
 	// (5)
-	// crf.refillWithFalsePositive(samples, cm)
+	crf.refillWithFP(samples, cm)
 
 	return forest, nil
 }
@@ -281,8 +281,31 @@ func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 	crf.weights = append(crf.weights, math.Exp(stat.FMeasure))
 }
 
+//
+// deleteTrueNegative will delete all samples data where their row index is in
+// true-negative values in confusion matrix.
+//
 func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
+	for _, i := range cm.TNIndices() {
+		samples.DeleteRow(i)
+	}
+}
 
+//
+// refillWithFP will duplicate the false-positive data in samples and append
+// to samples.
+//
+func (crf *Runtime) refillWithFP(samples tabula.ClasetInterface,
+	cm *classifier.CM,
+) {
+	for _, i := range cm.FPIndices() {
+		row := samples.GetRow(i)
+		if row == nil {
+			continue
+		}
+		rowclone := row.Clone()
+		samples.PushRow(rowclone)
+	}
 }
