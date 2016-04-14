@@ -5,6 +5,7 @@
 package classifier
 
 import (
+	"fmt"
 	"github.com/shuLhan/tabula"
 	"os"
 	"strconv"
@@ -83,8 +84,7 @@ func (cm *CM) ComputeStrings(valueSpace, targets, predictions []string) {
 			cnt := cm.countTargetPrediction(target, predict,
 				targets, predictions)
 
-			rec := tabula.Record{V: cnt}
-			col.PushBack(&rec)
+			col.PushBack(tabula.NewRecordInt(cnt))
 		}
 
 		cm.PushColumnToRows(*col)
@@ -214,8 +214,7 @@ func (cm *CM) computeClassError() {
 
 		nSamplePerRow := tp + fp
 		errv := float64(fp) / float64(nSamplePerRow)
-		rec := tabula.Record{V: errv}
-		col.PushBack(&rec)
+		col.PushBack(tabula.NewRecordReal(errv))
 
 		cm.nSamples += nSamplePerRow
 		cm.nTrue += tp
@@ -271,6 +270,46 @@ func (cm *CM) GroupIndexPredictions(sampleIds []int,
 			}
 		} else {
 			if predictions[x] == 1 {
+				cm.fpIds = append(cm.fpIds, sampleIds[x])
+			} else {
+				cm.tnIds = append(cm.tnIds, sampleIds[x])
+			}
+		}
+	}
+}
+
+//
+// GroupIndexPredictionsStrings is an alternative to GroupIndexPredictions
+// which work with string class.
+//
+func (cm *CM) GroupIndexPredictionsStrings(sampleIds []int,
+	actuals, predictions []string,
+) {
+	// Reset indices.
+	cm.tpIds = nil
+	cm.fpIds = nil
+	cm.tnIds = nil
+	cm.fnIds = nil
+
+	// Make sure we are not out-of-range when looping, always pick the
+	// minimum length between the three parameters.
+	min := len(sampleIds)
+	if len(actuals) < min {
+		min = len(actuals)
+	}
+	if len(predictions) < min {
+		min = len(predictions)
+	}
+
+	for x := 0; x < min; x++ {
+		if actuals[x] == "1" {
+			if predictions[x] == "1" {
+				cm.tpIds = append(cm.tpIds, sampleIds[x])
+			} else {
+				cm.fnIds = append(cm.fnIds, sampleIds[x])
+			}
+		} else {
+			if predictions[x] == "1" {
 				cm.fpIds = append(cm.fpIds, sampleIds[x])
 			} else {
 				cm.tnIds = append(cm.tnIds, sampleIds[x])
@@ -405,6 +444,9 @@ func (cm *CM) String() (s string) {
 		}
 		s += "\n"
 	}
+
+	s += fmt.Sprintf("TP-FP indices %d %d\n", len(cm.tpIds), len(cm.fpIds))
+	s += fmt.Sprintf("FN-TN indices %d %d\n", len(cm.fnIds), len(cm.tnIds))
 
 	return
 }
