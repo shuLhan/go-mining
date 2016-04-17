@@ -18,6 +18,7 @@ import (
 	"github.com/shuLhan/go-mining/classifier"
 	"github.com/shuLhan/go-mining/classifier/rf"
 	"github.com/shuLhan/tabula"
+	"github.com/shuLhan/tekstus"
 	"math"
 	"os"
 	"strconv"
@@ -193,7 +194,9 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 // (2.1) grow one tree until success.
 // (2.2) If tree tp-rate and tn-rate greater than threshold, stop growing.
 // (3) Calculate weight.
-// (4) Delete true-negative from samples.
+// (4) TODO: Move true-negative from samples. The collection of true-negative
+// will be used again to test the model and after test and the sample with FP
+// will be moved to training samples again.
 // (5) Refill samples with false-positive.
 //
 func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
@@ -238,6 +241,8 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 
 	// (3)
 	crf.computeWeight(stat)
+
+	fmt.Printf("[crf] #%d weight: %f\n", len(crf.weights), stat.FMeasure)
 
 	// (4)
 	crf.deleteTrueNegative(samples, cm)
@@ -308,4 +313,74 @@ func (crf *Runtime) refillWithFP(samples tabula.ClasetInterface,
 		rowclone := row.Clone()
 		samples.PushRow(rowclone)
 	}
+}
+
+//
+// ClassifySetByWeight will classify each instance in samples by weight
+// with respect to its single performance.
+//
+// Algorithm,
+// (1) For each instance in samples,
+// (1.1) for each stage,
+// (1.1.1) collect votes for instance in current stage.
+// (1.1.2) Compute probabilities of each classes in votes.
+//
+//		prob_class = count_of_class / total_votes
+//
+// (1.1.3) Compute total of probabilites times of stage weight.
+//
+//		stage_prob = prob_class * stage_weight
+//
+// (1.2) Divide each class stage probabilites with
+//
+//		stage_prob = stage_prob /
+//			(sum_of_all_weights * number_of_tree_in_forest)
+//
+// (1.3) Select class label with highest probabilites.
+// (2) Compute confusion matrix.
+//
+func (crf *Runtime) ClassifySetByWeight(samples tabula.ClasetInterface,
+	sampleIds []int,
+) (
+	predicts []string, cm *classifier.CM,
+) {
+	vs := samples.GetClassValueSpace()
+	stageProbs := make([]float64, len(vs))
+	sumWeights := tekstus.Float64Sum(crf.weights)
+
+	// (1)
+	rows := samples.GetDataAsRows()
+	for _, row := range *rows {
+
+		// (1.1)
+		for y, forest := range crf.forests {
+			// (1.1.1)
+			votes := forest.Votes(row, -1, false)
+
+			// (1.1.2)
+			probs := tekstus.WordsProbabilitiesOf(votes, vs, false)
+
+			// (1.1.3)
+			for z := range probs {
+				stageProbs[z] += probs[z] * crf.weights[y]
+			}
+		}
+
+		// (1.2)
+		stageWeight := sumWeights * float64(crf.NTree)
+
+		for x := range stageProbs {
+			stageProbs[x] = stageProbs[x] / stageWeight
+		}
+
+		// (1.3)
+		_, maxi := tekstus.Float64FindMax(stageProbs)
+		predicts = append(predicts, vs[maxi])
+	}
+
+	// (2)
+	actuals := samples.GetClassAsStrings()
+	cm = crf.ComputeCM(sampleIds, vs, actuals, predicts)
+
+	return predicts, cm
 }
