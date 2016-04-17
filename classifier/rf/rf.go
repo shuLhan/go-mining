@@ -243,7 +243,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	// (5)
 	oobset := oob.(tabula.ClasetInterface)
-	cm = forest.ClassifySet(oobset, oobIdx, true)
+	_, cm = forest.ClassifySet(oobset, oobIdx, true)
 	forest.AddCM(cm)
 
 	stat.EndTime = time.Now().Unix()
@@ -273,101 +273,65 @@ forest. Return miss classification rate:
 Algorithm,
 
 (0) Get value space (possible class values in dataset)
-(1) Save test-set target values.
-(2) Create empty prediction.
-(3) For each row in test-set,
-(3.1) for each tree in forest,
-(3.1.1) If row is used to build the tree then skip it,
-(3.1.2) classify row in tree,
-(3.1.3) save tree class value.
-(3.2) Collect majority class vote in forest.
-(4) Compute confusion matrix from predictions.
+(1) For each row in test-set,
+(1.1) collect votes in all trees, and
+(1.2) select majority class vote.
+(2) Compute confusion matrix from predictions.
 */
 func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
 	testsetIds []int, uniq bool,
 ) (
-	cm *classifier.CM,
+	predicts []string, cm *classifier.CM,
 ) {
 	// (0)
-	classType := testset.GetClassType()
+	vs := testset.GetClassValueSpace()
 
 	// (1)
-	classAttr := testset.GetClassColumn()
-	vs := testset.GetClassValueSpace()
-	vsInt := tekstus.StringsToInt64(vs)
-	indexlen := len(testsetIds)
-
-	// (2)
-	var predictStr []string
-	var predictInt []int64
-
-	// (3)
 	rows := testset.GetRows()
 	for x, row := range *rows {
-		var votesStr []string
-		var votesInt []int64
+		// (1.1)
+		votes := forest.Votes(row, testsetIds[x], uniq)
 
-		// (3.1)
-		for y, tree := range forest.trees {
-			// (3.1.1)
-			if uniq && indexlen > 0 {
-				exist := util.IntIsExist(forest.bagIndices[y],
-					testsetIds[x])
-				if exist {
-					continue
-				}
-			}
+		// (1.2)
+		majorVote := tekstus.WordsMaxCountOf(votes, vs, false)
 
-			// (3.1.2)
-			class := tree.Classify(row)
+		predicts = append(predicts, majorVote)
+	}
 
-			// (3.1.3)
-			if classType == tabula.TString {
-				votesStr = append(votesStr, class)
-			} else {
-				i, e := strconv.ParseInt(class, 10, 0)
-				if e != nil {
-					votesStr = append(votesStr, class)
-				} else {
-					votesInt = append(votesInt, i)
-				}
+	// (2)
+	actuals := testset.GetClassAsStrings()
+	cm = forest.ComputeCM(testsetIds, vs, actuals, predicts)
+
+	return predicts, cm
+}
+
+//
+// Votes will return votes, or classes, in each tree based on sample.
+// If uniq is true then the `sampleIdx` will be checked in if it has been used
+// when training the tree, if its exist then the sample will be skipped.
+//
+// (1) If row is used to build the tree then skip it,
+// (2) classify row in tree,
+// (3) save tree class value.
+//
+func (forest *Runtime) Votes(sample *tabula.Row, sampleIdx int, uniq bool) (
+	votes []string,
+) {
+	for x, tree := range forest.trees {
+		// (1)
+		if uniq && sampleIdx > 0 {
+			exist := util.IntIsExist(forest.bagIndices[x],
+				sampleIdx)
+			if exist {
+				continue
 			}
 		}
 
-		// (3.2)
-		if classType == tabula.TString {
-			class := tekstus.WordsMaxCountOf(votesStr, vs,
-				false)
+		// (2)
+		class := tree.Classify(sample)
 
-			predictStr = append(predictStr, class)
-		} else {
-			class := tekstus.Int64MaxCountOf(votesInt, vsInt)
-
-			predictInt = append(predictInt, class)
-		}
+		// (3)
+		votes = append(votes, class)
 	}
-
-	// (4)
-	cm = &classifier.CM{}
-
-	if classType == tabula.TString {
-		actuals := classAttr.ToStringSlice()
-
-		cm.ComputeStrings(vs, actuals, predictStr)
-
-		cm.GroupIndexPredictionsStrings(testsetIds, actuals,
-			predictStr)
-	} else {
-		actuals := classAttr.ToIntegers()
-
-		cm.ComputeNumeric(vsInt, actuals, predictInt)
-
-		cm.GroupIndexPredictions(testsetIds, actuals, predictInt)
-	}
-
-	if DEBUG >= 2 {
-		fmt.Println("[rf]", cm)
-	}
-
-	return cm
+	return votes
 }
