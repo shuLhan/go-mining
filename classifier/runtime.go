@@ -7,7 +7,15 @@ package classifier
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
+	"os"
+	"strconv"
 	"time"
+)
+
+var (
+	// RUNTIME_DEBUG level, can be set it from environment variable
+	// "RUNTIME_DEBUG".
+	RUNTIME_DEBUG = 0
 )
 
 //
@@ -29,6 +37,14 @@ type Runtime struct {
 
 	// statWriter contain file writer for statistic.
 	statWriter *dsv.Writer
+}
+
+func init() {
+	var e error
+	RUNTIME_DEBUG, e = strconv.Atoi(os.Getenv("RUNTIME_DEBUG"))
+	if e != nil {
+		RUNTIME_DEBUG = 0
+	}
 }
 
 //
@@ -89,6 +105,27 @@ func (runtime *Runtime) AddStat(stat *Stat) {
 }
 
 //
+// ComputeCM will compute confusion matrix of sample using value space, actual
+// and prediction values.
+//
+func (runtime *Runtime) ComputeCM(sampleIds []int,
+	vs, actuals, predicts []string,
+) (
+	cm *CM,
+) {
+	cm = &CM{}
+
+	cm.ComputeStrings(vs, actuals, predicts)
+	cm.GroupIndexPredictionsStrings(sampleIds, actuals, predicts)
+
+	if RUNTIME_DEBUG >= 2 {
+		fmt.Println("[classifier.runtime]", cm)
+	}
+
+	return cm
+}
+
+//
 // ComputeStatFromCM will compute statistic using confusion matrix.
 //
 func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
@@ -145,7 +182,7 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 		stat.Accuracy = float64(stat.TP+stat.TN) / t
 	}
 
-	if DEBUG >= 1 {
+	if RUNTIME_DEBUG >= 1 {
 		runtime.PrintOobStat(stat, cm)
 		runtime.PrintStat(stat)
 	}
