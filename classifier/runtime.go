@@ -13,9 +13,9 @@ import (
 )
 
 var (
-	// RUNTIME_DEBUG level, can be set it from environment variable
-	// "RUNTIME_DEBUG".
-	RUNTIME_DEBUG = 0
+	// RuntimeDebug level, can be set it from environment variable
+	// "RuntimeDebug".
+	RuntimeDebug = 0
 )
 
 //
@@ -41,9 +41,9 @@ type Runtime struct {
 
 func init() {
 	var e error
-	RUNTIME_DEBUG, e = strconv.Atoi(os.Getenv("RUNTIME_DEBUG"))
+	RuntimeDebug, e = strconv.Atoi(os.Getenv("RUNTIME_DEBUG"))
 	if e != nil {
-		RUNTIME_DEBUG = 0
+		RuntimeDebug = 0
 	}
 }
 
@@ -118,7 +118,7 @@ func (runtime *Runtime) ComputeCM(sampleIds []int,
 	cm.ComputeStrings(vs, actuals, predicts)
 	cm.GroupIndexPredictionsStrings(sampleIds, actuals, predicts)
 
-	if RUNTIME_DEBUG >= 2 {
+	if RuntimeDebug >= 2 {
 		fmt.Println("[classifier.runtime]", cm)
 	}
 
@@ -182,7 +182,7 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 		stat.Accuracy = float64(stat.TP+stat.TN) / t
 	}
 
-	if RUNTIME_DEBUG >= 1 {
+	if RuntimeDebug >= 1 {
 		runtime.PrintOobStat(stat, cm)
 		runtime.PrintStat(stat)
 	}
