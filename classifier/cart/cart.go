@@ -20,8 +20,8 @@ import (
 	"fmt"
 	"github.com/shuLhan/go-mining/gain/gini"
 	"github.com/shuLhan/go-mining/tree/binary"
+	"github.com/shuLhan/numerus"
 	"github.com/shuLhan/tabula"
-	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
 	"os"
 	"strconv"
@@ -301,7 +301,7 @@ func (runtime *Runtime) SelectRandomFeature(D tabula.ClasetInterface) {
 	// Select random features excluding feature in `excludeIdx`.
 	var pickedIdx []int
 	for x := 0; x < runtime.NRandomFeature; x++ {
-		idx := util.GetRandomInteger(ncols, false, pickedIdx,
+		idx := numerus.IntPickRandPositive(ncols, false, pickedIdx,
 			excludeIdx)
 		pickedIdx = append(pickedIdx, idx)
 

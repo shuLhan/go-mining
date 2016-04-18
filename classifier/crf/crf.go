@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"github.com/shuLhan/go-mining/classifier"
 	"github.com/shuLhan/go-mining/classifier/rf"
+	"github.com/shuLhan/numerus"
 	"github.com/shuLhan/tabula"
 	"github.com/shuLhan/tekstus"
 	"math"
@@ -346,7 +347,7 @@ func (crf *Runtime) ClassifySetByWeight(samples tabula.ClasetInterface,
 ) {
 	vs := samples.GetClassValueSpace()
 	stageProbs := make([]float64, len(vs))
-	sumWeights := tekstus.Float64Sum(crf.weights)
+	sumWeights := numerus.Floats64Sum(crf.weights)
 
 	// (1)
 	rows := samples.GetDataAsRows()
@@ -374,8 +375,10 @@ func (crf *Runtime) ClassifySetByWeight(samples tabula.ClasetInterface,
 		}
 
 		// (1.3)
-		_, maxi := tekstus.Float64FindMax(stageProbs)
-		predicts = append(predicts, vs[maxi])
+		_, maxi, ok := numerus.Floats64FindMax(stageProbs)
+		if ok {
+			predicts = append(predicts, vs[maxi])
+		}
 	}
 
 	// (2)

@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"github.com/shuLhan/go-mining/classifier"
 	"github.com/shuLhan/go-mining/classifier/cart"
+	"github.com/shuLhan/numerus"
 	"github.com/shuLhan/tabula"
-	"github.com/shuLhan/tabula/util"
 	"github.com/shuLhan/tekstus"
 	"math"
 	"os"
@@ -320,7 +320,7 @@ func (forest *Runtime) Votes(sample *tabula.Row, sampleIdx int, uniq bool) (
 	for x, tree := range forest.trees {
 		// (1)
 		if uniq && sampleIdx > 0 {
-			exist := util.IntIsExist(forest.bagIndices[x],
+			exist := numerus.IntsIsExist(forest.bagIndices[x],
 				sampleIdx)
 			if exist {
 				continue

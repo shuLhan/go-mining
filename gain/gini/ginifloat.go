@@ -6,8 +6,7 @@ package gini
 
 import (
 	"fmt"
-	"github.com/shuLhan/tabula/util"
-	"github.com/shuLhan/tekstus"
+	"github.com/shuLhan/numerus"
 )
 
 //
@@ -27,14 +26,14 @@ import (
 func (gini *Gini) ComputeContinuFloat(A, T, C *[]float64) {
 	gini.IsContinu = true
 
-	gini.SortedIndex = util.IndirectSortFloat64(*A)
+	gini.SortedIndex = numerus.Floats64IndirectSort(*A)
 
 	if DEBUG >= 1 {
 		fmt.Println("[gini] attr sorted :", A)
 	}
 
 	// (1)
-	util.SortFloatSliceByIndex(T, &gini.SortedIndex)
+	numerus.Floats64SortByIndex(T, gini.SortedIndex)
 
 	// (2)
 	gini.createContinuPartition(A)
@@ -63,7 +62,7 @@ func (gini *Gini) computeFloat(T, C *[]float64) float64 {
 		return 0
 	}
 
-	classCount := tekstus.Float64Counts(T, C)
+	classCount := numerus.Floats64Counts(*T, *C)
 
 	var sump2 float64
 

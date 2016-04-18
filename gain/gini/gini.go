@@ -12,7 +12,7 @@ package gini
 
 import (
 	"fmt"
-	"github.com/shuLhan/tabula/util"
+	"github.com/shuLhan/numerus"
 	"github.com/shuLhan/tekstus"
 	"os"
 	"strconv"
@@ -206,14 +206,14 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	T2 := make([]string, len(*T))
 	copy(T2, *T)
 
-	gini.SortedIndex = util.IndirectSortFloat64(A2)
+	gini.SortedIndex = numerus.Floats64IndirectSort(A2)
 
 	if DEBUG >= 1 {
 		fmt.Println("[gini] attr sorted :", A2)
 	}
 
 	// sort the target attribute using sorted index.
-	util.SortStringSliceByIndex(&T2, &gini.SortedIndex)
+	tekstus.StringsSortByIndex(&T2, gini.SortedIndex)
 
 	// create partition
 	gini.createContinuPartition(&A2)
