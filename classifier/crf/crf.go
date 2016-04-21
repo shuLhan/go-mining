@@ -43,7 +43,7 @@ const (
 )
 
 var (
-	// DEBUG level, can set from environment CRF_DEBUG variable.
+	// DEBUG level, can be set from environment using CRF_DEBUG variable.
 	DEBUG = 0
 )
 
@@ -77,6 +77,8 @@ type Runtime struct {
 	forests []*rf.Runtime
 	// weights contain weight for each stage.
 	weights []float64
+	// tnset contain sample of all true-negative in each iteration.
+	tnset *tabula.Claset
 }
 
 func init() {
@@ -143,6 +145,7 @@ func (crf *Runtime) Initialize(samples tabula.ClasetInterface) error {
 	if crf.StatsFile == "" {
 		crf.StatsFile = DefStatsFile
 	}
+	crf.tnset = samples.Clone().(*tabula.Claset)
 
 	return crf.Runtime.Initialize()
 }
@@ -216,10 +219,6 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 
 	// (2)
 	for t := 0; t < crf.NTree; t++ {
-		if DEBUG >= 1 {
-			fmt.Printf("[crf] tree # %d\n", t)
-		}
-
 		// (2.1)
 		for {
 			cm, stat, e = forest.GrowTree(samples)
@@ -243,13 +242,16 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	// (3)
 	crf.computeWeight(stat)
 
-	fmt.Printf("[crf] #%d weight: %f\n", len(crf.weights), stat.FMeasure)
+	if DEBUG >= 1 {
+		fmt.Printf("[crf] #%d weight: %f\n", len(crf.weights),
+			stat.FMeasure)
+	}
 
 	// (4)
 	crf.deleteTrueNegative(samples, cm)
 
 	// (5)
-	crf.refillWithFP(samples, cm)
+	crf.runTPSet(samples)
 
 	return forest, nil
 }
@@ -289,13 +291,23 @@ func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 
 //
 // deleteTrueNegative will delete all samples data where their row index is in
-// true-negative values in confusion matrix.
+// true-negative values in confusion matrix and move it to TN-set.
 //
 func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
+	// Move true negative to tnset
+	for _, i := range cm.TNIndices() {
+		crf.tnset.PushRow(samples.GetRow(i))
+	}
+
+	// Delete from sample set.
 	for _, i := range cm.TNIndices() {
 		samples.DeleteRow(i)
+	}
+
+	if DEBUG >= 1 {
+		fmt.Println("[crf] TN deleted", len(cm.TNIndices()))
 	}
 }
 
@@ -303,17 +315,38 @@ func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 // refillWithFP will duplicate the false-positive data in samples and append
 // to samples.
 //
-func (crf *Runtime) refillWithFP(samples tabula.ClasetInterface,
+func (crf *Runtime) refillWithFP(samples, tnset tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
+	// Move FP samples from TN-set to training set samples.
 	for _, i := range cm.FPIndices() {
-		row := samples.GetRow(i)
-		if row == nil {
-			continue
-		}
-		rowclone := row.Clone()
-		samples.PushRow(rowclone)
+		samples.PushRow(tnset.GetRow(i))
 	}
+
+	// Delete sample from tnset.
+	for _, i := range cm.FPIndices() {
+		tnset.DeleteRow(i)
+	}
+
+	if DEBUG >= 1 {
+		fmt.Println("[crf] refill FP", len(cm.FPIndices()))
+	}
+}
+
+//
+// runTPSet will run true-positive set into trained stage, to get the
+// false-positive. The FP samples will be added to training set.
+//
+func (crf *Runtime) runTPSet(samples tabula.ClasetInterface) {
+	// Skip the first stage.
+	if len(crf.weights) <= 1 {
+		return
+	}
+
+	tnIds := numerus.IntCreateSeq(0, crf.tnset.Len()-1)
+	_, cm := crf.ClassifySetByWeight(crf.tnset, tnIds)
+
+	crf.refillWithFP(samples, crf.tnset, cm)
 }
 
 //
