@@ -4,6 +4,10 @@
 
 package classifier
 
+import (
+	"github.com/shuLhan/dsv"
+)
+
 /*
 Stats define list of statistic values.
 */
@@ -112,4 +116,28 @@ func (stats *Stats) Accuracies() (accuracies []float64) {
 		accuracies = append(accuracies, stat.Accuracy)
 	}
 	return
+}
+
+//
+// Write will write all statistic data to `file`.
+//
+func (stats *Stats) Write(file string) (e error) {
+	if file == "" {
+		return
+	}
+
+	writer := &dsv.Writer{}
+	e = writer.OpenOutput(file)
+	if e != nil {
+		return e
+	}
+
+	for _, st := range *stats {
+		e = writer.WriteRawRow(st.ToRow(), nil, nil)
+		if e != nil {
+			return e
+		}
+	}
+
+	return writer.Close()
 }
