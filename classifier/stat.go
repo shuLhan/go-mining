@@ -50,6 +50,31 @@ type Stat struct {
 	Accuracy float64
 }
 
+//
+// SetTPRate will set TP and TPRate using number of positive `p`.
+//
+func (stat *Stat) SetTPRate(tp, p int64) {
+	stat.TP = tp
+	stat.TPRate = float64(tp) / float64(p)
+}
+
+//
+// SetFPRate will set FP and FPRate using number of negative `n`.
+//
+func (stat *Stat) SetFPRate(fp, n int64) {
+	stat.FP = fp
+	stat.FPRate = float64(fp) / float64(n)
+}
+
+//
+// SetPrecisionFromRate will set Precision value using tprate and fprate.
+// `p` and `n` is the number of positive and negative class in samples.
+//
+func (stat *Stat) SetPrecisionFromRate(p, n int64) {
+	stat.Precision = (stat.TPRate * float64(p)) /
+		((stat.TPRate * float64(p)) + (stat.FPRate * float64(n)))
+}
+
 /*
 Recall return value of recall.
 */
