@@ -22,10 +22,30 @@ var (
 	FEATSTART = 1
 	// FEATEND maximum number of feature to test
 	FEATEND = -1
+	RUNOOB  = true
 )
 
+//
+// writeOOB will save the oob data to file.
+//
+func writeOOB(oobFile string, dataOOB *tabula.Dataset) error {
+	writer, e := dsv.NewWriter("")
+	if e != nil {
+		return e
+	}
+
+	e = writer.OpenOutput(oobFile)
+	if e != nil {
+		return e
+	}
+
+	_, e = writer.WriteRawDataset(dataOOB, nil)
+
+	return e
+}
+
 func runRandomForest(sampledsv string,
-	ntree, npercent, nfeature, maxFeature int,
+	ntree, npercent, nfeature, maxFeature int, runOOB bool,
 	oobFile string,
 ) {
 	// read data.
@@ -44,7 +64,7 @@ func runRandomForest(sampledsv string,
 
 	for ; nfeature < maxFeature; nfeature++ {
 		// Create and build random forest.
-		forest := rf.New(ntree, nfeature, npercent)
+		forest := rf.New(ntree, nfeature, npercent, runOOB)
 
 		e := forest.Build(&samples)
 
@@ -52,31 +72,22 @@ func runRandomForest(sampledsv string,
 			log.Fatal(e)
 		}
 
-		// Save OOB error based on number of feature.
-		colName := fmt.Sprintf("M%d", nfeature)
+		if runOOB {
+			// Save OOB error based on number of feature.
+			colName := fmt.Sprintf("M%d", nfeature)
 
-		col := tabula.NewColumnReal(forest.Stats().OobErrorMeans(),
-			colName)
+			col := tabula.NewColumnReal(forest.Stats().
+				OobErrorMeans(), colName)
 
-		dataooberr.PushColumn(*col)
+			dataooberr.PushColumn(*col)
+		}
 	}
 
-	// write oob data to file
-	writer, e := dsv.NewWriter("")
-
-	if e != nil {
-		log.Fatal(e)
-	}
-
-	e = writer.OpenOutput(oobFile)
-
-	if e != nil {
-		log.Fatal(e)
-	}
-
-	_, e = writer.WriteRawDataset(dataooberr, nil)
-	if e != nil {
-		log.Fatal(e)
+	if runOOB {
+		e = writeOOB(oobFile, dataooberr)
+		if e != nil {
+			log.Fatal(e)
+		}
 	}
 }
 
@@ -86,7 +97,7 @@ func TestEnsemblingGlass(t *testing.T) {
 	oobFile := "glass.oob"
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func TestEnsemblingIris(t *testing.T) {
@@ -96,7 +107,7 @@ func TestEnsemblingIris(t *testing.T) {
 	oobFile := "iris.oob"
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func TestEnsemblingPhoneme(t *testing.T) {
@@ -109,7 +120,7 @@ func TestEnsemblingPhoneme(t *testing.T) {
 	FEATEND = 4
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func TestEnsemblingSmotePhoneme(t *testing.T) {
@@ -122,7 +133,7 @@ func TestEnsemblingSmotePhoneme(t *testing.T) {
 	FEATEND = 4
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func TestEnsemblingLnsmotePhoneme(t *testing.T) {
@@ -135,7 +146,7 @@ func TestEnsemblingLnsmotePhoneme(t *testing.T) {
 	FEATEND = 4
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func TestWvc2010Lnsmote(t *testing.T) {
@@ -147,7 +158,7 @@ func TestWvc2010Lnsmote(t *testing.T) {
 	FEATEND = 6
 
 	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		oobFile)
+		RUNOOB, oobFile)
 }
 
 func BenchmarkPhoneme(b *testing.B) {
@@ -161,6 +172,6 @@ func BenchmarkPhoneme(b *testing.B) {
 
 	for x := 0; x < b.N; x++ {
 		runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART,
-			FEATEND, oobFile)
+			FEATEND, RUNOOB, oobFile)
 	}
 }

@@ -59,6 +59,8 @@ type Runtime struct {
 	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of sample for bootstraping.
 	PercentBoot int `json:"PercentBoot"`
+	// RunOOB if its true the OOB will be computed.
+	RunOOB bool `json:"RunOOB"`
 
 	// nSubsample number of samples used for bootstraping.
 	nSubsample int
@@ -85,13 +87,14 @@ New check and initialize forest input and attributes.
 `percentboot` is percentage of sample that will be taken randomly for
 generating a tree.
 */
-func New(ntree, nfeature, percentboot int) (
+func New(ntree, nfeature, percentboot int, runOOB bool) (
 	forest *Runtime,
 ) {
 	forest = &Runtime{
 		NTree:          ntree,
 		NRandomFeature: nfeature,
 		PercentBoot:    percentboot,
+		RunOOB:         runOOB,
 	}
 
 	return
@@ -242,9 +245,12 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	forest.AddBagIndex(bagIdx)
 
 	// (5)
-	oobset := oob.(tabula.ClasetInterface)
-	_, cm = forest.ClassifySet(oobset, oobIdx, true)
-	forest.AddCM(cm)
+	if forest.RunOOB {
+		oobset := oob.(tabula.ClasetInterface)
+		_, cm = forest.ClassifySet(oobset, oobIdx, true)
+
+		forest.AddCM(cm)
+	}
 
 	stat.EndTime = time.Now().Unix()
 	stat.ElapsedTime = stat.EndTime - stat.StartTime
@@ -254,12 +260,15 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 			stat.ElapsedTime)
 	}
 
-	// (6)
-	forest.ComputeStatFromCM(stat, cm)
 	forest.AddStat(stat)
-	forest.ComputeStatTotal(stat)
 
-	e = forest.WriteStat(stat)
+	// (6)
+	if forest.RunOOB {
+		forest.ComputeStatFromCM(stat, cm)
+		forest.ComputeStatTotal(stat)
+
+		e = forest.WriteStat(stat)
+	}
 
 	return cm, stat, e
 }
