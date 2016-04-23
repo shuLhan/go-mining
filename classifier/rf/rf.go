@@ -247,7 +247,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	// (5)
 	if forest.RunOOB {
 		oobset := oob.(tabula.ClasetInterface)
-		_, cm = forest.ClassifySet(oobset, oobIdx, true)
+		_, cm, _ = forest.ClassifySet(oobset, oobIdx)
 
 		forest.AddCM(cm)
 	}
@@ -273,62 +273,76 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	return cm, stat, e
 }
 
-/*
-ClassifySet given a dataset predict their class by running each sample in
-forest. Return miss classification rate:
-
-	(number of missed class / number of samples).
-
-Algorithm,
-
-(0) Get value space (possible class values in dataset)
-(1) For each row in test-set,
-(1.1) collect votes in all trees, and
-(1.2) select majority class vote.
-(2) Compute confusion matrix from predictions.
-*/
-func (forest *Runtime) ClassifySet(testset tabula.ClasetInterface,
-	testsetIds []int, uniq bool,
+//
+// ClassifySet given a samples predict their class by running each sample in
+// forest, adn return their class prediction with confusion matrix.
+// `samples` is the sample that will be predicted, `sampleIds` is the index of
+// samples.
+// If `sampleIds` is not nil, then sample index will be checked in each tree,
+// if the sample is used for training, their vote is not counted.
+//
+// Algorithm,
+//
+// (0) Get value space (possible class values in dataset)
+// (1) For each row in test-set,
+// (1.1) collect votes in all trees,
+// (1.2) select majority class vote, and
+// (1.3) compute and save the actual class probabilities.
+// (2) Compute confusion matrix from predictions.
+//
+func (forest *Runtime) ClassifySet(samples tabula.ClasetInterface,
+	sampleIds []int,
 ) (
-	predicts []string, cm *classifier.CM,
+	predicts []string, cm *classifier.CM, probs []float64,
 ) {
 	// (0)
-	vs := testset.GetClassValueSpace()
+	vs := samples.GetClassValueSpace()
+	actuals := samples.GetClassAsStrings()
+	sampleIdx := -1
 
 	// (1)
-	rows := testset.GetRows()
+	rows := samples.GetRows()
 	for x, row := range *rows {
 		// (1.1)
-		votes := forest.Votes(row, testsetIds[x], uniq)
+		if len(sampleIds) > 0 {
+			sampleIdx = sampleIds[x]
+		}
+		votes := forest.Votes(row, sampleIdx)
 
 		// (1.2)
-		majorVote := tekstus.WordsMaxCountOf(votes, vs, false)
+		classProbs := tekstus.WordsProbabilitiesOf(votes, vs, false)
 
-		predicts = append(predicts, majorVote)
+		_, idx, ok := numerus.Floats64FindMax(classProbs)
+
+		if ok {
+			predicts = append(predicts, vs[idx])
+		}
+
+		// (1.3)
+		probs = append(probs, classProbs[0])
 	}
 
 	// (2)
-	actuals := testset.GetClassAsStrings()
-	cm = forest.ComputeCM(testsetIds, vs, actuals, predicts)
+	cm = forest.ComputeCM(sampleIds, vs, actuals, predicts)
 
-	return predicts, cm
+	return predicts, cm, probs
 }
 
 //
 // Votes will return votes, or classes, in each tree based on sample.
-// If uniq is true then the `sampleIdx` will be checked in if it has been used
+// If checkIdx is true then the `sampleIdx` will be checked in if it has been used
 // when training the tree, if its exist then the sample will be skipped.
 //
 // (1) If row is used to build the tree then skip it,
 // (2) classify row in tree,
 // (3) save tree class value.
 //
-func (forest *Runtime) Votes(sample *tabula.Row, sampleIdx int, uniq bool) (
+func (forest *Runtime) Votes(sample *tabula.Row, sampleIdx int) (
 	votes []string,
 ) {
 	for x, tree := range forest.trees {
 		// (1)
-		if uniq && sampleIdx > 0 {
+		if sampleIdx >= 0 {
 			exist := numerus.IntsIsExist(forest.bagIndices[x],
 				sampleIdx)
 			if exist {

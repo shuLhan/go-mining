@@ -13,66 +13,95 @@ import (
 	"testing"
 )
 
+// Global options to run for each test.
 var (
-	// NTREE number of tree to generate.
-	NTREE = 100
-	// NBOOTSTRAP percentage of sample used as subsample.
-	NBOOTSTRAP = 66
-	// FEATSTART number of feature to begin with.
-	FEATSTART = 1
-	// FEATEND maximum number of feature to test
-	FEATEND = -1
-	RUNOOB  = true
+	// SampleDsvFile is the file that contain samples config.
+	SampleDsvFile string
+	// DoTest if its true then the dataset will splited into training and
+	// test set with random selection without replacement.
+	DoTest = false
+	// NTree number of tree to generate.
+	NTree = 100
+	// NBootstrap percentage of sample used as subsample.
+	NBootstrap = 66
+	// MinFeature number of feature to begin with.
+	MinFeature = 1
+	// MaxFeature maximum number of feature to test
+	MaxFeature = -1
+	// RunOOB if its true the the OOB samples will be used to test the
+	// model in each iteration.
+	RunOOB = true
+	// OobFile is the file where OOB statistic will be saved.
+	OobFile string
 )
+
+func getSamples() (train, test tabula.ClasetInterface) {
+	samples := tabula.Claset{}
+	_, e := dsv.SimpleRead(SampleDsvFile, &samples)
+	if nil != e {
+		log.Fatal(e)
+	}
+
+	if !DoTest {
+		return &samples, nil
+	}
+
+	ntrain := int(float32(samples.Len()) * (float32(NBootstrap) / 100.0))
+
+	bag, oob, _, _ := tabula.RandomPickRows(&samples, ntrain, false)
+
+	train = bag.(tabula.ClasetInterface)
+	test = oob.(tabula.ClasetInterface)
+
+	train.SetClassIndex(samples.GetClassIndex())
+	test.SetClassIndex(samples.GetClassIndex())
+
+	return train, test
+}
 
 //
 // writeOOB will save the oob data to file.
 //
-func writeOOB(oobFile string, dataOOB *tabula.Dataset) error {
+func writeOOB(dataOOB *tabula.Dataset) error {
 	writer, e := dsv.NewWriter("")
 	if e != nil {
 		return e
 	}
 
-	e = writer.OpenOutput(oobFile)
+	e = writer.OpenOutput(OobFile)
 	if e != nil {
 		return e
 	}
 
 	_, e = writer.WriteRawDataset(dataOOB, nil)
+	if e != nil {
+		return e
+	}
 
-	return e
+	return writer.Close()
 }
 
-func runRandomForest(sampledsv string,
-	ntree, npercent, nfeature, maxFeature int, runOOB bool,
-	oobFile string,
-) {
-	// read data.
-	samples := tabula.Claset{}
-	_, e := dsv.SimpleRead(sampledsv, &samples)
-	if nil != e {
-		log.Fatal(e)
-	}
+func runRandomForest() {
+	trainset, testset := getSamples()
 
 	// dataset to save each oob error in each feature iteration.
 	dataooberr := tabula.NewDataset(tabula.DatasetModeColumns, nil, nil)
 
-	if maxFeature < 0 {
-		maxFeature = samples.GetNColumn()
+	if MaxFeature < 0 {
+		MaxFeature = trainset.GetNColumn()
 	}
 
-	for ; nfeature < maxFeature; nfeature++ {
+	for nfeature := MinFeature; nfeature < MaxFeature; nfeature++ {
 		// Create and build random forest.
-		forest := rf.New(ntree, nfeature, npercent, runOOB)
+		forest := rf.New(NTree, nfeature, NBootstrap, RunOOB)
 
-		e := forest.Build(&samples)
+		e := forest.Build(trainset)
 
 		if e != nil {
 			log.Fatal(e)
 		}
 
-		if runOOB {
+		if RunOOB {
 			// Save OOB error based on number of feature.
 			colName := fmt.Sprintf("M%d", nfeature)
 
@@ -81,10 +110,20 @@ func runRandomForest(sampledsv string,
 
 			dataooberr.PushColumn(*col)
 		}
+		if DoTest {
+			predicts, _, probs := forest.ClassifySet(testset, nil)
+
+			perfs := forest.Performance(testset, predicts, probs)
+
+			e := perfs.Write("phoneme.perfs")
+			if e != nil {
+				log.Fatal(e)
+			}
+		}
 	}
 
-	if runOOB {
-		e = writeOOB(oobFile, dataooberr)
+	if RunOOB {
+		e := writeOOB(dataooberr)
 		if e != nil {
 			log.Fatal(e)
 		}
@@ -92,86 +131,59 @@ func runRandomForest(sampledsv string,
 }
 
 func TestEnsemblingGlass(t *testing.T) {
-	sampledsv := "../../testdata/forensic_glass/fgl.dsv"
-	// oob file output
-	oobFile := "glass.oob"
+	SampleDsvFile = "../../testdata/forensic_glass/fgl.dsv"
+	OobFile = "glass.oob"
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
+	runRandomForest()
 }
 
 func TestEnsemblingIris(t *testing.T) {
-	// input data
-	sampledsv := "../../testdata/iris/iris.dsv"
-	// oob file output
-	oobFile := "iris.oob"
+	SampleDsvFile = "../../testdata/iris/iris.dsv"
+	OobFile = "iris.oob"
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
+	runRandomForest()
 }
 
 func TestEnsemblingPhoneme(t *testing.T) {
-	// input data
-	sampledsv := "../../testdata/phoneme/phoneme.dsv"
-	// oob file output
-	oobFile := "phoneme.oob"
+	SampleDsvFile = "../../testdata/phoneme/phoneme.dsv"
+	OobFile = "phoneme.oob"
 
-	FEATSTART = 3
-	FEATEND = 4
+	NTree = 50
+	MinFeature = 3
+	MaxFeature = 4
+	RunOOB = false
+	DoTest = true
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
+	runRandomForest()
 }
 
 func TestEnsemblingSmotePhoneme(t *testing.T) {
-	// input data
-	sampledsv := "../../resampling/smote/phoneme_smote.dsv"
-	// oob file output
-	oobFile := "phonemesmote.oob"
+	SampleDsvFile = "../../resampling/smote/phoneme_smote.dsv"
+	OobFile = "phonemesmote.oob"
 
-	FEATSTART = 3
-	FEATEND = 4
+	MinFeature = 3
+	MaxFeature = 4
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
+	runRandomForest()
 }
 
 func TestEnsemblingLnsmotePhoneme(t *testing.T) {
-	// input data
-	sampledsv := "../../resampling/lnsmote/phoneme_lnsmote.dsv"
-	// oob file output
-	oobFile := "phonemelnsmote.oob"
+	SampleDsvFile = "../../resampling/lnsmote/phoneme_lnsmote.dsv"
+	OobFile = "phonemelnsmote.oob"
 
-	FEATSTART = 3
-	FEATEND = 4
+	MinFeature = 3
+	MaxFeature = 4
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
+	runRandomForest()
 }
 
 func TestWvc2010Lnsmote(t *testing.T) {
-	sampledsv := "../../testdata/wvc2010lnsmote/wvc2010_features.lnsmote.dsv"
-	oobFile := "wvc2010lnsmote.oob"
+	SampleDsvFile = "../../testdata/wvc2010lnsmote/wvc2010_features.lnsmote.dsv"
+	OobFile = "wvc2010lnsmote.oob"
 
-	NTREE = 1
-	FEATSTART = 5
-	FEATEND = 6
+	NTree = 1
+	MinFeature = 5
+	MaxFeature = 6
 
-	runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART, FEATEND,
-		RUNOOB, oobFile)
-}
-
-func BenchmarkPhoneme(b *testing.B) {
-	// input data
-	sampledsv := "../../testdata/phoneme/phoneme.dsv"
-	// oob file output
-	oobFile := "phoneme.oob"
-
-	FEATSTART = 3
-	FEATEND = 4
-
-	for x := 0; x < b.N; x++ {
-		runRandomForest(sampledsv, NTREE, NBOOTSTRAP, FEATSTART,
-			FEATEND, RUNOOB, oobFile)
-	}
+	runRandomForest()
 }
