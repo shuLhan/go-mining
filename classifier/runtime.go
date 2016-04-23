@@ -7,6 +7,10 @@ package classifier
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/numerus"
+	"github.com/shuLhan/tabula"
+	"github.com/shuLhan/tekstus"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -34,6 +38,9 @@ type Runtime struct {
 
 	// StatTotal contain total statistic values.
 	statTotal Stat
+
+	// perfs contain performance statistic per sample.
+	perfs Stats
 
 	// statWriter contain file writer for statistic.
 	statWriter *dsv.Writer
@@ -327,4 +334,86 @@ func (runtime *Runtime) PrintStatTotal(st *Stat) {
 		st = &runtime.statTotal
 	}
 	runtime.PrintStat(st)
+}
+
+//
+// Performance given an actuals class label and their probabilities, compute
+// the performance statistic of classifier.
+//
+// Algorithm,
+// (1) Sort the probabilities in descending order.
+// (2) Sort the actuals and predicts using sorted index from probs
+// (3) Compute tpr, fpr, precision
+// (4) Write performance to file.
+//
+func (rt *Runtime) Performance(samples tabula.ClasetInterface,
+	predicts []string, probs []float64,
+) (
+	perfs Stats,
+) {
+	// (1)
+	actuals := samples.GetClassAsStrings()
+	sortedIds := numerus.IntCreateSeq(0, len(probs)-1)
+	numerus.Floats64InplaceMergesort(probs, sortedIds, 0, len(probs),
+		false)
+
+	// (2)
+	tekstus.StringsSortByIndex(&actuals, sortedIds)
+	tekstus.StringsSortByIndex(&predicts, sortedIds)
+
+	// (3)
+	rt.computePerfByProbs(samples, actuals, probs)
+
+	return rt.perfs
+}
+
+//
+// computePerfByProbs will compute classifier performance using probabilities
+// or score `probs`.
+//
+// This currently only work for two class problem.
+//
+func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
+	actuals []string, probs []float64,
+) {
+	vs := samples.GetClassValueSpace()
+	nactuals := numerus.IntsTo64(samples.Counts())
+	pprev := math.Inf(-1)
+	tp := int64(0)
+	fp := int64(0)
+
+	fmt.Println("[runtime] n actuals:", nactuals)
+
+	for x, p := range probs {
+		if p != pprev {
+			stat := Stat{}
+			stat.SetTPRate(tp, nactuals[0])
+			stat.SetFPRate(fp, nactuals[1])
+			stat.SetPrecisionFromRate(nactuals[0], nactuals[1])
+
+			rt.PrintStat(&stat)
+
+			rt.perfs = append(rt.perfs, &stat)
+			pprev = p
+		}
+
+		if actuals[x] == vs[0] {
+			tp++
+		} else {
+			fp++
+		}
+	}
+
+	stat := Stat{}
+	stat.SetTPRate(tp, nactuals[0])
+	stat.SetFPRate(fp, nactuals[1])
+	stat.SetPrecisionFromRate(nactuals[0], nactuals[1])
+
+	rt.perfs = append(rt.perfs, &stat)
+
+	if len(rt.perfs) >= 2 {
+		// Replace the first stat with second stat, because of NaN
+		// value on the first precision.
+		rt.perfs[0] = rt.perfs[1]
+	}
 }
