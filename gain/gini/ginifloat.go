@@ -26,7 +26,7 @@ import (
 func (gini *Gini) ComputeContinuFloat(A, T, C *[]float64) {
 	gini.IsContinu = true
 
-	gini.SortedIndex = numerus.Floats64IndirectSort(*A)
+	gini.SortedIndex = numerus.Floats64IndirectSort(*A, true)
 
 	if DEBUG >= 1 {
 		fmt.Println("[gini] attr sorted :", A)

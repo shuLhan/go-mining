@@ -206,7 +206,7 @@ func (gini *Gini) ComputeContinu(A *[]float64, T *[]string, C *[]string) {
 	T2 := make([]string, len(*T))
 	copy(T2, *T)
 
-	gini.SortedIndex = numerus.Floats64IndirectSort(A2)
+	gini.SortedIndex = numerus.Floats64IndirectSort(A2, true)
 
 	if DEBUG >= 1 {
 		fmt.Println("[gini] attr sorted :", A2)
