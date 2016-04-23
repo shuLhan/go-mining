@@ -150,7 +150,7 @@ func (cm *CM) countTargetPrediction(target, predict string,
 	for x, v := range targets {
 		// In case out of range, where predictions length less than
 		// targets length.
-		if x > predictslen {
+		if x >= predictslen {
 			break
 		}
 		if v != target {
@@ -285,6 +285,10 @@ func (cm *CM) GroupIndexPredictions(sampleIds []int,
 func (cm *CM) GroupIndexPredictionsStrings(sampleIds []int,
 	actuals, predictions []string,
 ) {
+	if len(sampleIds) <= 0 {
+		return
+	}
+
 	// Reset indices.
 	cm.tpIds = nil
 	cm.fpIds = nil
