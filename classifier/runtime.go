@@ -27,8 +27,11 @@ var (
 // embedded by the real classifier (e.g. RandomForest).
 //
 type Runtime struct {
-	// StatsFile is the file where performance statistic will be written.
+	// StatsFile is the file where OOB statistic will be written.
 	StatsFile string `json:"StatsFile"`
+
+	// PerfFile is the file where statistic of performance will be written.
+	PerfFile string `json:"PerfFile"`
 
 	// cmatrices contain confusion matrix value for each iteration.
 	cmatrices []CM

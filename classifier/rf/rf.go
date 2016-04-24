@@ -29,15 +29,20 @@ import (
 const (
 	// DefNumTree default number of tree.
 	DefNumTree = 100
+
 	// DefPercentBoot default percentage of sample that will be used for
 	// bootstraping a tree.
 	DefPercentBoot = 66
+
 	// DefStatsFile default statistic file output.
 	DefStatsFile = "rf.stats"
+
+	// DefPerfFile default performance file output.
+	DefPerfFile = "rf.perf"
 )
 
 var (
-	// DEBUG level, set it from environment variable.
+	// DEBUG level, can be set from environment "RANDOMFOREST_DEBUG".
 	DEBUG = 0
 )
 
@@ -59,7 +64,7 @@ type Runtime struct {
 	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of sample for bootstraping.
 	PercentBoot int `json:"PercentBoot"`
-	// RunOOB if its true the OOB will be computed.
+	// RunOOB if its true the OOB will be computed, default is false.
 	RunOOB bool `json:"RunOOB"`
 
 	// nSubsample number of samples used for bootstraping.
@@ -143,6 +148,9 @@ func (forest *Runtime) Initialize(samples tabula.ClasetInterface) error {
 	}
 	if forest.StatsFile == "" {
 		forest.StatsFile = DefStatsFile
+	}
+	if forest.PerfFile == "" {
+		forest.PerfFile = DefPerfFile
 	}
 
 	forest.nSubsample = int(float32(samples.GetNRow()) *
