@@ -159,9 +159,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return
 	}
 
-	if DEBUG >= 1 {
-		fmt.Println("[rf] forest:", forest)
-	}
+	fmt.Println("[rf] forest:", forest)
 
 	// (1)
 	for t := 0; t < forest.NTree; t++ {
