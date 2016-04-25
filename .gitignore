@@ -15,8 +15,10 @@ testdata/phoneme/phoneme.csv
 *.dat
 *.mprof
 *.oob
+*.perf
 *.prof
 *.rej
 *.sh
+*.stat
 *.stats
 *.test
