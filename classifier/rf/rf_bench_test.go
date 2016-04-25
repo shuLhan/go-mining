@@ -10,7 +10,8 @@ import (
 
 func BenchmarkPhoneme(b *testing.B) {
 	SampleDsvFile = "../../testdata/phoneme/phoneme.dsv"
-	OobFile = "phoneme.oob"
+	OOBStatsFile = "phoneme.oob"
+	PerfFile = "phoneme.perf"
 
 	MinFeature = 3
 	MaxFeature = 4

@@ -34,8 +34,8 @@ const (
 	// bootstraping a tree.
 	DefPercentBoot = 66
 
-	// DefStatsFile default statistic file output.
-	DefStatsFile = "rf.stats"
+	// DefOOBStatsFile default statistic file output.
+	DefOOBStatsFile = "rf.oob.stat"
 
 	// DefPerfFile default performance file output.
 	DefPerfFile = "rf.perf"
@@ -64,8 +64,6 @@ type Runtime struct {
 	NRandomFeature int `json:"NRandomFeature"`
 	// PercentBoot percentage of sample for bootstraping.
 	PercentBoot int `json:"PercentBoot"`
-	// RunOOB if its true the OOB will be computed, default is false.
-	RunOOB bool `json:"RunOOB"`
 
 	// nSubsample number of samples used for bootstraping.
 	nSubsample int
@@ -82,27 +80,6 @@ func init() {
 	if e != nil {
 		DEBUG = 0
 	}
-}
-
-/*
-New check and initialize forest input and attributes.
-`ntree` is number of tree to be generated.
-`nfeature` is number of feature randomly selected for each tree for splitting
-(the `m`).
-`percentboot` is percentage of sample that will be taken randomly for
-generating a tree.
-*/
-func New(ntree, nfeature, percentboot int, runOOB bool) (
-	forest *Runtime,
-) {
-	forest = &Runtime{
-		NTree:          ntree,
-		NRandomFeature: nfeature,
-		PercentBoot:    percentboot,
-		RunOOB:         runOOB,
-	}
-
-	return
 }
 
 /*
@@ -146,8 +123,8 @@ func (forest *Runtime) Initialize(samples tabula.ClasetInterface) error {
 		ncol := samples.GetNColumn() - 1
 		forest.NRandomFeature = int(math.Sqrt(float64(ncol)))
 	}
-	if forest.StatsFile == "" {
-		forest.StatsFile = DefStatsFile
+	if forest.OOBStatsFile == "" {
+		forest.OOBStatsFile = DefOOBStatsFile
 	}
 	if forest.PerfFile == "" {
 		forest.PerfFile = DefPerfFile
@@ -257,7 +234,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 		oobset := oob.(tabula.ClasetInterface)
 		_, cm, _ = forest.ClassifySet(oobset, oobIdx)
 
-		forest.AddCM(cm)
+		forest.AddOOBCM(cm)
 	}
 
 	stat.EndTime = time.Now().Unix()
@@ -274,9 +251,9 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	if forest.RunOOB {
 		forest.ComputeStatFromCM(stat, cm)
 		forest.ComputeStatTotal(stat)
-
-		e = forest.WriteStat(stat)
 	}
+
+	e = forest.WriteOOBStat(stat)
 
 	return cm, stat, e
 }
