@@ -13,7 +13,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 var (
@@ -35,6 +34,10 @@ type Runtime struct {
 
 	// PerfFile is the file where statistic of performance will be written.
 	PerfFile string `json:"PerfFile"`
+
+	// StatFile is the file where statistic of classifying samples will be
+	// written.
+	StatFile string `json:"StatFile"`
 
 	// oobCms contain confusion matrix value for each OOB in iteration.
 	oobCms []CM
@@ -66,7 +69,7 @@ func init() {
 // opening stats file.
 //
 func (runtime *Runtime) Initialize() error {
-	runtime.oobStatTotal.StartTime = time.Now().Unix()
+	runtime.oobStatTotal.Start()
 
 	return runtime.OpenOOBStatsFile()
 }
@@ -78,8 +81,7 @@ func (runtime *Runtime) Initialize() error {
 func (runtime *Runtime) Finalize() (e error) {
 	st := &runtime.oobStatTotal
 
-	st.EndTime = time.Now().Unix()
-	st.ElapsedTime = st.EndTime - st.StartTime
+	st.End()
 	st.ID = int64(len(runtime.oobStats))
 
 	e = runtime.WriteOOBStat(st)
