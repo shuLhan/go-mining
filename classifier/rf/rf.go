@@ -23,7 +23,6 @@ import (
 	"math"
 	"os"
 	"strconv"
-	"time"
 )
 
 const (
@@ -39,6 +38,9 @@ const (
 
 	// DefPerfFile default performance file output.
 	DefPerfFile = "rf.perf"
+
+	// DefStatFile default statistic file.
+	DefStatFile = "rf.stat"
 )
 
 var (
@@ -129,6 +131,9 @@ func (forest *Runtime) Initialize(samples tabula.ClasetInterface) error {
 	if forest.PerfFile == "" {
 		forest.PerfFile = DefPerfFile
 	}
+	if forest.StatFile == "" {
+		forest.StatFile = DefStatFile
+	}
 
 	forest.nSubsample = int(float32(samples.GetNRow()) *
 		(float32(forest.PercentBoot) / 100.0))
@@ -200,7 +205,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 ) {
 	stat = &classifier.Stat{}
 	stat.ID = int64(len(forest.trees))
-	stat.StartTime = time.Now().Unix()
+	stat.Start()
 
 	// (1)
 	bag, oob, bagIdx, oobIdx := tabula.RandomPickRows(
@@ -235,8 +240,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 		forest.AddOOBCM(cm)
 	}
 
-	stat.EndTime = time.Now().Unix()
-	stat.ElapsedTime = stat.EndTime - stat.StartTime
+	stat.End()
 
 	if DEBUG >= 1 {
 		fmt.Printf("[rf] Elapsed time: %d s\n",
@@ -248,9 +252,9 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	// (6)
 	if forest.RunOOB {
 		forest.ComputeStatFromCM(stat, cm)
-		forest.ComputeStatTotal(stat)
 	}
 
+	forest.ComputeStatTotal(stat)
 	e = forest.WriteOOBStat(stat)
 
 	return cm, stat, e
@@ -272,12 +276,17 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 // (1.2) select majority class vote, and
 // (1.3) compute and save the actual class probabilities.
 // (2) Compute confusion matrix from predictions.
+// (3) Compute stat from confusion matrix.
+// (4) Write the stat to file.
 //
 func (forest *Runtime) ClassifySet(samples tabula.ClasetInterface,
 	sampleIds []int,
 ) (
 	predicts []string, cm *classifier.CM, probs []float64,
 ) {
+	stat := classifier.Stat{}
+	stat.Start()
+
 	// (0)
 	vs := samples.GetClassValueSpace()
 	actuals := samples.GetClassAsStrings()
@@ -307,6 +316,12 @@ func (forest *Runtime) ClassifySet(samples tabula.ClasetInterface,
 
 	// (2)
 	cm = forest.ComputeCM(sampleIds, vs, actuals, predicts)
+
+	// (3)
+	forest.ComputeStatFromCM(&stat, cm)
+	stat.End()
+
+	_ = stat.Write(forest.StatFile)
 
 	return predicts, cm, probs
 }

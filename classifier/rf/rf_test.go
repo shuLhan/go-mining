@@ -36,6 +36,8 @@ var (
 	OOBStatsFile string
 	// PerfFile is the file where performance statistic will be saved.
 	PerfFile string
+	// StatFile is the file where classifying statistic will be saved.
+	StatFile string
 )
 
 func getSamples() (train, test tabula.ClasetInterface) {
@@ -65,6 +67,7 @@ func getSamples() (train, test tabula.ClasetInterface) {
 func runRandomForest() {
 	oobStatsFile := OOBStatsFile
 	perfFile := PerfFile
+	statFile := StatFile
 
 	trainset, testset := getSamples()
 
@@ -79,12 +82,16 @@ func runRandomForest() {
 		// Add prefix to performance file.
 		perfFile = fmt.Sprintf("N%d.%s", nfeature, PerfFile)
 
+		// Add prefix to stat file.
+		statFile = fmt.Sprintf("N%d.%s", nfeature, StatFile)
+
 		// Create and build random forest.
 		forest := rf.Runtime{
 			Runtime: classifier.Runtime{
+				RunOOB:       RunOOB,
 				OOBStatsFile: oobStatsFile,
 				PerfFile:     perfFile,
-				RunOOB:       RunOOB,
+				StatFile:     statFile,
 			},
 			NTree:          NTree,
 			NRandomFeature: nfeature,
@@ -112,6 +119,7 @@ func TestEnsemblingGlass(t *testing.T) {
 	SampleDsvFile = "../../testdata/forensic_glass/fgl.dsv"
 	RunOOB = false
 	OOBStatsFile = "glass.oob"
+	StatFile = "glass.stat"
 	PerfFile = "glass.perf"
 	DoTest = true
 
