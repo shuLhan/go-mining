@@ -27,26 +27,30 @@ var (
 // embedded by the real classifier (e.g. RandomForest).
 //
 type Runtime struct {
-	// StatsFile is the file where OOB statistic will be written.
-	StatsFile string `json:"StatsFile"`
+	// RunOOB if its true the OOB will be computed, default is false.
+	RunOOB bool `json:"RunOOB"`
+
+	// OOBStatsFile is the file where OOB statistic will be written.
+	OOBStatsFile string `json:"OOBStatsFile"`
 
 	// PerfFile is the file where statistic of performance will be written.
 	PerfFile string `json:"PerfFile"`
 
-	// cmatrices contain confusion matrix value for each iteration.
-	cmatrices []CM
+	// oobCms contain confusion matrix value for each OOB in iteration.
+	oobCms []CM
 
-	// stats contain statistic of classifier for each iteration.
-	stats Stats
+	// oobStats contain statistic of classifier for each OOB in iteration.
+	oobStats Stats
 
-	// StatTotal contain total statistic values.
-	statTotal Stat
+	// oobStatTotal contain total OOB statistic values.
+	oobStatTotal Stat
 
-	// perfs contain performance statistic per sample.
+	// oobWriter contain file writer for statistic.
+	oobWriter *dsv.Writer
+
+	// perfs contain performance statistic per sample, after classifying
+	// sample on classifier.
 	perfs Stats
-
-	// statWriter contain file writer for statistic.
-	statWriter *dsv.Writer
 }
 
 func init() {
@@ -62,9 +66,9 @@ func init() {
 // opening stats file.
 //
 func (runtime *Runtime) Initialize() error {
-	runtime.statTotal.StartTime = time.Now().Unix()
+	runtime.oobStatTotal.StartTime = time.Now().Unix()
 
-	return runtime.OpenStatsFile()
+	return runtime.OpenOOBStatsFile()
 }
 
 //
@@ -72,46 +76,46 @@ func (runtime *Runtime) Initialize() error {
 // close the file.
 //
 func (runtime *Runtime) Finalize() (e error) {
-	st := &runtime.statTotal
+	st := &runtime.oobStatTotal
 
 	st.EndTime = time.Now().Unix()
 	st.ElapsedTime = st.EndTime - st.StartTime
-	st.ID = int64(len(runtime.stats))
+	st.ID = int64(len(runtime.oobStats))
 
-	e = runtime.WriteStat(st)
+	e = runtime.WriteOOBStat(st)
 	if e != nil {
 		return e
 	}
 
-	return runtime.CloseStatsFile()
+	return runtime.CloseOOBStatsFile()
 }
 
 //
-// Stats return all statistic objects.
+// OOBStats return all statistic objects.
 //
-func (runtime *Runtime) Stats() *Stats {
-	return &runtime.stats
+func (runtime *Runtime) OOBStats() *Stats {
+	return &runtime.oobStats
 }
 
 //
 // StatTotal return total statistic.
 //
 func (runtime *Runtime) StatTotal() *Stat {
-	return &runtime.statTotal
+	return &runtime.oobStatTotal
 }
 
 //
-// AddCM will append new confusion matrix.
+// AddOOBCM will append new confusion matrix.
 //
-func (runtime *Runtime) AddCM(cm *CM) {
-	runtime.cmatrices = append(runtime.cmatrices, *cm)
+func (runtime *Runtime) AddOOBCM(cm *CM) {
+	runtime.oobCms = append(runtime.oobCms, *cm)
 }
 
 //
 // AddStat will append new classifier statistic data.
 //
 func (runtime *Runtime) AddStat(stat *Stat) {
-	runtime.stats = append(runtime.stats, stat)
+	runtime.oobStats = append(runtime.oobStats, stat)
 }
 
 //
@@ -142,8 +146,8 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 
 	stat.OobError = cm.GetFalseRate()
 
-	stat.OobErrorMean = runtime.statTotal.OobError /
-		float64(len(runtime.stats)+1)
+	stat.OobErrorMean = runtime.oobStatTotal.OobError /
+		float64(len(runtime.oobStats)+1)
 
 	stat.TP = int64(cm.TP())
 	stat.FP = int64(cm.FP())
@@ -206,12 +210,12 @@ func (runtime *Runtime) ComputeStatTotal(stat *Stat) {
 		return
 	}
 
-	nstat := len(runtime.stats)
+	nstat := len(runtime.oobStats)
 	if nstat == 0 {
 		return
 	}
 
-	t := &runtime.statTotal
+	t := &runtime.oobStatTotal
 
 	t.OobError += stat.OobError
 	t.OobErrorMean = t.OobError / float64(nstat)
@@ -264,39 +268,39 @@ func (runtime *Runtime) ComputeStatTotal(stat *Stat) {
 }
 
 //
-// OpenStatsFile will open statistic file for output.
+// OpenOOBStatsFile will open statistic file for output.
 //
-func (runtime *Runtime) OpenStatsFile() error {
-	if runtime.statWriter != nil {
-		_ = runtime.CloseStatsFile()
+func (runtime *Runtime) OpenOOBStatsFile() error {
+	if runtime.oobWriter != nil {
+		_ = runtime.CloseOOBStatsFile()
 	}
-	runtime.statWriter = &dsv.Writer{}
-	return runtime.statWriter.OpenOutput(runtime.StatsFile)
+	runtime.oobWriter = &dsv.Writer{}
+	return runtime.oobWriter.OpenOutput(runtime.OOBStatsFile)
 }
 
 //
-// WriteStat will write statistic of process to file.
+// WriteOOBStat will write statistic of process to file.
 //
-func (runtime *Runtime) WriteStat(stat *Stat) error {
-	if runtime.statWriter == nil {
+func (runtime *Runtime) WriteOOBStat(stat *Stat) error {
+	if runtime.oobWriter == nil {
 		return nil
 	}
 	if stat == nil {
 		return nil
 	}
-	return runtime.statWriter.WriteRawRow(stat.ToRow(), nil, nil)
+	return runtime.oobWriter.WriteRawRow(stat.ToRow(), nil, nil)
 }
 
 //
-// CloseStatsFile will close statistics file for writing.
+// CloseOOBStatsFile will close statistics file for writing.
 //
-func (runtime *Runtime) CloseStatsFile() (e error) {
-	if runtime.statWriter == nil {
+func (runtime *Runtime) CloseOOBStatsFile() (e error) {
+	if runtime.oobWriter == nil {
 		return
 	}
 
-	e = runtime.statWriter.Close()
-	runtime.statWriter = nil
+	e = runtime.oobWriter.Close()
+	runtime.oobWriter = nil
 
 	return
 }
@@ -307,7 +311,7 @@ func (runtime *Runtime) CloseStatsFile() (e error) {
 func (runtime *Runtime) PrintOobStat(stat *Stat, cm *CM) {
 	fmt.Printf("[classifier.runtime] OOB error rate: %.4f,"+
 		" total: %.4f, mean %.4f, true rate: %.4f\n",
-		stat.OobError, runtime.statTotal.OobError,
+		stat.OobError, runtime.oobStatTotal.OobError,
 		stat.OobErrorMean, cm.GetTrueRate())
 }
 
@@ -316,11 +320,11 @@ func (runtime *Runtime) PrintOobStat(stat *Stat, cm *CM) {
 //
 func (runtime *Runtime) PrintStat(stat *Stat) {
 	if stat == nil {
-		statslen := len(runtime.stats)
+		statslen := len(runtime.oobStats)
 		if statslen <= 0 {
 			return
 		}
-		stat = runtime.stats[statslen-1]
+		stat = runtime.oobStats[statslen-1]
 	}
 
 	fmt.Printf("[classifier.runtime] TPRate: %.4f, FPRate: %.4f,"+
@@ -334,7 +338,7 @@ func (runtime *Runtime) PrintStat(stat *Stat) {
 //
 func (runtime *Runtime) PrintStatTotal(st *Stat) {
 	if st == nil {
-		st = &runtime.statTotal
+		st = &runtime.oobStatTotal
 	}
 	runtime.PrintStat(st)
 }
@@ -385,16 +389,12 @@ func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
 	tp := int64(0)
 	fp := int64(0)
 
-	fmt.Println("[runtime] n actuals:", nactuals)
-
 	for x, p := range probs {
 		if p != pprev {
 			stat := Stat{}
 			stat.SetTPRate(tp, nactuals[0])
 			stat.SetFPRate(fp, nactuals[1])
 			stat.SetPrecisionFromRate(nactuals[0], nactuals[1])
-
-			rt.PrintStat(&stat)
 
 			rt.perfs = append(rt.perfs, &stat)
 			pprev = p
@@ -419,4 +419,11 @@ func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
 		// value on the first precision.
 		rt.perfs[0] = rt.perfs[1]
 	}
+}
+
+//
+// WritePerformance will write performance data to file.
+//
+func (rt *Runtime) WritePerformance() error {
+	return rt.perfs.Write(rt.PerfFile)
 }
