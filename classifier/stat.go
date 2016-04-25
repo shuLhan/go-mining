@@ -5,7 +5,9 @@
 package classifier
 
 import (
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/tabula"
+	"time"
 )
 
 /*
@@ -125,4 +127,41 @@ func (stat *Stat) ToRow() (row *tabula.Row) {
 	row.PushBack(tabula.NewRecordReal(stat.Accuracy))
 
 	return
+}
+
+//
+// Start will start the timer.
+//
+func (stat *Stat) Start() {
+	stat.StartTime = time.Now().Unix()
+}
+
+//
+// End will stop the timer and compute the elapsed time.
+//
+func (stat *Stat) End() {
+	stat.EndTime = time.Now().Unix()
+	stat.ElapsedTime = stat.EndTime - stat.StartTime
+}
+
+//
+// Write will write the content of stat to `file`.
+//
+func (stat *Stat) Write(file string) (e error) {
+	if file == "" {
+		return
+	}
+
+	writer := &dsv.Writer{}
+	e = writer.OpenOutput(file)
+	if e != nil {
+		return e
+	}
+
+	e = writer.WriteRawRow(stat.ToRow(), nil, nil)
+	if e != nil {
+		return e
+	}
+
+	return writer.Close()
 }
