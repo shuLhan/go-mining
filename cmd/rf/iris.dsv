@@ -7,6 +7,8 @@
 ,	"SplitMethod"		:"gini"
 ,	"NTree"			:50
 ,	"NRandomFeature"	:2
+,	"OOBStatsFile"		:"iris.oob.stat"
+,	"PerfFile"		:"iris.perf"
 ,	"InputMetadata"		:
 	[{
 		"Name"			:"sepal-length"

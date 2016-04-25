@@ -17,6 +17,10 @@ import (
 	"time"
 )
 
+const (
+	TAG = "[rf]"
+)
+
 var (
 	// DEBUG level, can be set from environment variable.
 	DEBUG = 0
@@ -26,115 +30,173 @@ var (
 	nRandomFeature = 0
 	// percentBoot percentage of sample for bootstraping.
 	percentBoot = 0
-	// statsFile where statistic will be written.
-	statsFile = ""
+	// oobStatsFile where statistic will be written.
+	oobStatsFile = ""
+	// perfFile where performance of classifier will be written.
+	perfFile = ""
+	// trainCfg point to the configuration file for training or creating
+	// a model
+	trainCfg = ""
+	// testCfg point to the configuration file for testing
+	testCfg = ""
+
+	// forest the main object.
+	forest rf.Runtime
 )
 
 var usage = func() {
-	cmd := os.Args[0]
-	fmt.Fprintf(os.Stderr, "Usage of %s:\n"+
-		"[-ntree number] "+
-		"[-nrandomfeature number] "+
-		"[-percentboot number] "+
-		"[-statsfile string] "+
-		"[config.dsv]\n", cmd)
 	flag.PrintDefaults()
 }
 
 func init() {
-	v := os.Getenv("DEBUG")
-	if v == "" {
+	var e error
+	DEBUG, e = strconv.Atoi(os.Getenv("DEBUG"))
+	if e != nil {
 		DEBUG = 0
-	} else {
-		DEBUG, _ = strconv.Atoi(v)
 	}
 
 	flagUsage := []string{
 		"Number of tree in forest (default 100)",
 		"Number of feature to compute (default 0)",
 		"Percentage of bootstrap (default 64%)",
-		"Statistic file, where classifier performance will be written",
+		"OOB statistic file, where OOB data will be written",
+		"Performance file, where statistic of classifying data set will be written",
+		"Training configuration",
+		"Test configuration",
 	}
 
 	flag.IntVar(&nTree, "ntree", -1, flagUsage[0])
 	flag.IntVar(&nRandomFeature, "nrandomfeature", -1, flagUsage[1])
 	flag.IntVar(&percentBoot, "percentboot", -1, flagUsage[2])
-	flag.StringVar(&statsFile, "statsfile", "", flagUsage[3])
+
+	flag.StringVar(&oobStatsFile, "oobstatsfile", "", flagUsage[3])
+	flag.StringVar(&perfFile, "perffile", "", flagUsage[4])
+
+	flag.StringVar(&trainCfg, "train", "", flagUsage[5])
+	flag.StringVar(&testCfg, "test", "", flagUsage[6])
 }
 
-func trace(s string) (string, time.Time) {
-	fmt.Println("[START]", s)
-	return s, time.Now()
+func trace() (start time.Time) {
+	start = time.Now()
+	fmt.Println(TAG, "start", start)
+	return
 }
 
-func un(s string, startTime time.Time) {
+func un(startTime time.Time) {
 	endTime := time.Now()
-	fmt.Println("[END]", s, "with elapsed time",
-		endTime.Sub(startTime))
+	fmt.Println(TAG, "elapsed time", endTime.Sub(startTime))
 }
 
-func createRandomForest(fcfg string) (*rf.Runtime, error) {
-	rf := &rf.Runtime{}
-
-	config, e := ioutil.ReadFile(fcfg)
+//
+// createRandomForest will create random forest for training, with the
+// following steps,
+// (1) load training configuration.
+// (2) Overwrite configuration parameter if its set from command line.
+//
+func createRandomForest() error {
+	// (1)
+	config, e := ioutil.ReadFile(trainCfg)
 	if e != nil {
-		return nil, e
+		return e
 	}
 
-	e = json.Unmarshal(config, rf)
+	forest = rf.Runtime{}
+
+	e = json.Unmarshal(config, &forest)
 	if e != nil {
-		return nil, e
+		return e
 	}
 
-	// Use option value from command parameter.
+	// (2)
 	if nTree > 0 {
-		rf.NTree = nTree
+		forest.NTree = nTree
 	}
 	if nRandomFeature > 0 {
-		rf.NRandomFeature = nRandomFeature
+		forest.NRandomFeature = nRandomFeature
 	}
 	if percentBoot > 0 {
-		rf.PercentBoot = percentBoot
+		forest.PercentBoot = percentBoot
 	}
-	if statsFile != "" {
-		rf.StatsFile = statsFile
+	if oobStatsFile != "" {
+		forest.OOBStatsFile = oobStatsFile
+	}
+	if perfFile != "" {
+		forest.PerfFile = perfFile
 	}
 
-	return rf, nil
+	return nil
 }
 
-func main() {
-	defer un(trace("rf"))
+func train() {
+	e := createRandomForest()
+	if e != nil {
+		panic(e)
+	}
 
+	trainset := tabula.Claset{}
+
+	_, e = dsv.SimpleRead(trainCfg, &trainset)
+	if e != nil {
+		panic(e)
+	}
+
+	fmt.Println(TAG, "Training set:", &trainset)
+	fmt.Println(TAG, "Sample training set:", trainset.GetRow(0))
+
+	e = forest.Build(&trainset)
+	if e != nil {
+		panic(e)
+	}
+}
+
+func test() {
+	testset := tabula.Claset{}
+	_, e := dsv.SimpleRead(testCfg, &testset)
+	if e != nil {
+		panic(e)
+	}
+
+	fmt.Println(TAG, "Test set:", &testset)
+	fmt.Println(TAG, "Sample test set:", testset.GetRow(0))
+
+	predicts, _, probs := forest.ClassifySet(&testset, nil)
+
+	forest.Performance(&testset, predicts, probs)
+
+	e = forest.WritePerformance()
+	if e != nil {
+		panic(e)
+	}
+}
+
+//
+// (0) Parse and check command line parameters.
+// (1) If trainCfg parameter is set,
+// (1.1) train the model,
+// (1.2) TODO: load saved model.
+// (2) If testCfg parameter is set,
+// (2.1) Test the model using data from testCfg.
+//
+func main() {
+	defer un(trace())
+
+	// (0)
 	flag.Parse()
 
-	if len(flag.Args()) <= 0 {
-		usage()
-		os.Exit(1)
+	// (1)
+	if trainCfg != "" {
+		// (1.1)
+		train()
+	} else {
+		// (1.2)
+		if len(flag.Args()) <= 0 {
+			usage()
+			os.Exit(1)
+		}
 	}
 
-	fcfg := flag.Arg(0)
-
-	// Parsing config file.
-	rf, e := createRandomForest(fcfg)
-	if e != nil {
-		panic(e)
-	}
-
-	// Get dataset
-	dataset := tabula.Claset{}
-	_, e = dsv.SimpleRead(fcfg, &dataset)
-	if e != nil {
-		panic(e)
-	}
-
-	fmt.Println("[rf] Dataset:", &dataset)
-
-	row := dataset.GetRow(0)
-	fmt.Println("[rf] sample:", row)
-
-	e = rf.Build(&dataset)
-	if e != nil {
-		panic(e)
+	// (2)
+	if testCfg != "" {
+		test()
 	}
 }
