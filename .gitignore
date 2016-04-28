@@ -1,5 +1,6 @@
 cmd/cart/cart
 cmd/lnsmote/lnsmote
+cmd/crf/crf
 cmd/rf/rf
 cmd/smote/smote
 resampling/lnsmote/phoneme_lnsmote.csv
