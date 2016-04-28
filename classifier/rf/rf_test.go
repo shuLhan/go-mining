@@ -135,9 +135,11 @@ func TestEnsemblingIris(t *testing.T) {
 
 func TestEnsemblingPhoneme(t *testing.T) {
 	SampleDsvFile = "../../testdata/phoneme/phoneme.dsv"
-	OOBStatsFile = "phoneme.oob"
+	OOBStatsFile = "phoneme.oob.stat"
+	StatFile = "phoneme.stat"
+	PerfFile = "phoneme.perf"
 
-	NTree = 50
+	NTree = 200
 	MinFeature = 3
 	MaxFeature = 4
 	RunOOB = false

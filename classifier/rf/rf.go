@@ -242,7 +242,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	stat.End()
 
-	if DEBUG >= 1 {
+	if DEBUG >= 3 && forest.RunOOB {
 		fmt.Printf("[rf] Elapsed time: %d s\n",
 			stat.ElapsedTime)
 	}
