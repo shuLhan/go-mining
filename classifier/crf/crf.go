@@ -22,6 +22,7 @@ import (
 	"github.com/shuLhan/tekstus"
 	"math"
 	"os"
+	"sort"
 	"strconv"
 )
 
@@ -38,8 +39,10 @@ const (
 	// DefPercentBoot default percentage of sample that will be used for
 	// bootstraping a tree.
 	DefPercentBoot = 66
-	// DefStatsFile default statistic file output.
-	DefStatsFile = "crf.stats"
+	// DefPerfFile default performance file output.
+	DefPerfFile = "crf.perf"
+	// DefStatFile default statistic file output.
+	DefStatFile = "crf.stat"
 )
 
 var (
@@ -142,8 +145,11 @@ func (crf *Runtime) Initialize(samples tabula.ClasetInterface) error {
 		ncol := samples.GetNColumn() - 1
 		crf.NRandomFeature = int(math.Sqrt(float64(ncol)))
 	}
-	if crf.StatsFile == "" {
-		crf.StatsFile = DefStatsFile
+	if crf.PerfFile == "" {
+		crf.PerfFile = DefPerfFile
+	}
+	if crf.StatFile == "" {
+		crf.StatFile = DefStatFile
 	}
 	crf.tnset = samples.Clone().(*tabula.Claset)
 
@@ -163,11 +169,9 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return
 	}
 
-	if DEBUG >= 1 {
-		fmt.Println("[crf] # samples:", samples.Len())
-		fmt.Println("[crf] sample:", samples.GetRow(0))
-		fmt.Println("[crf]", crf)
-	}
+	fmt.Println("[crf] samples:", samples)
+	fmt.Println("[crf] sample:", samples.GetRow(0))
+	fmt.Println("[crf]", crf)
 
 	for x := 0; x < crf.NStage; x++ {
 		if DEBUG >= 1 {
@@ -209,8 +213,16 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	var cm *classifier.CM
 	var stat *classifier.Stat
 
+	fmt.Println("[crf] samples:", samples)
+
 	// (1)
-	forest = rf.New(crf.NTree, crf.NRandomFeature, crf.PercentBoot)
+	forest = &rf.Runtime{
+		Runtime: classifier.Runtime{
+			RunOOB: true,
+		},
+		NTree:          crf.NTree,
+		NRandomFeature: crf.NRandomFeature,
+	}
 
 	e = forest.Initialize(samples)
 	if e != nil {
@@ -253,6 +265,8 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	// (5)
 	crf.runTPSet(samples)
 
+	samples.RecountMajorMinor()
+
 	return forest, nil
 }
 
@@ -263,7 +277,7 @@ func (crf *Runtime) finalizeStage(forest *rf.Runtime) (e error) {
 	stat := forest.StatTotal()
 	stat.ID = int64(len(crf.forests))
 
-	e = crf.WriteStat(stat)
+	e = crf.WriteOOBStat(stat)
 	if e != nil {
 		return e
 	}
@@ -293,43 +307,68 @@ func (crf *Runtime) computeWeight(stat *classifier.Stat) {
 // deleteTrueNegative will delete all samples data where their row index is in
 // true-negative values in confusion matrix and move it to TN-set.
 //
+// (1) Move true negative to tnset on the first iteration, on the next
+// iteration it will be full deleted.
+// (2) Delete TN from sample set one-by-one with offset, to make sure we
+// are not deleting with wrong index.
+
 func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
-	// Move true negative to tnset
-	for _, i := range cm.TNIndices() {
-		crf.tnset.PushRow(samples.GetRow(i))
+	var row *tabula.Row
+
+	tnids := cm.TNIndices()
+	sort.Ints(tnids)
+
+	// (1)
+	if len(crf.weights) <= 1 {
+		for _, i := range tnids {
+			crf.tnset.PushRow(samples.GetRow(i))
+		}
 	}
 
-	// Delete from sample set.
-	for _, i := range cm.TNIndices() {
-		samples.DeleteRow(i)
+	// (2)
+	c := 0
+	for x, i := range tnids {
+		row = samples.DeleteRow(i - x)
+		if row != nil {
+			c++
+		}
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[crf] TN deleted", len(cm.TNIndices()))
+		fmt.Println("[crf] # TN", len(tnids), ", # deleted", c)
 	}
 }
 
 //
-// refillWithFP will duplicate the false-positive data in samples and append
-// to samples.
+// refillWithFP will copy the false-positive data in training set `tnset`
+// and append it to `samples`.
 //
 func (crf *Runtime) refillWithFP(samples, tnset tabula.ClasetInterface,
 	cm *classifier.CM,
 ) {
+	// Get and sort FP.
+	fpids := cm.FPIndices()
+	sort.Ints(fpids)
+
 	// Move FP samples from TN-set to training set samples.
-	for _, i := range cm.FPIndices() {
+	for _, i := range fpids {
 		samples.PushRow(tnset.GetRow(i))
 	}
 
-	// Delete sample from tnset.
-	for _, i := range cm.FPIndices() {
-		tnset.DeleteRow(i)
+	// Delete FP from training set.
+	var row *tabula.Row
+	c := 0
+	for x, i := range fpids {
+		row = tnset.DeleteRow(i - x)
+		if row != nil {
+			c++
+		}
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println("[crf] refill FP", len(cm.FPIndices()))
+		fmt.Printf("[crf] # FP %d, # refilled %d\n", len(fpids), c)
 	}
 }
 
@@ -338,13 +377,13 @@ func (crf *Runtime) refillWithFP(samples, tnset tabula.ClasetInterface,
 // false-positive. The FP samples will be added to training set.
 //
 func (crf *Runtime) runTPSet(samples tabula.ClasetInterface) {
-	// Skip the first stage.
+	// Skip the first stage, because we just got tnset from them.
 	if len(crf.weights) <= 1 {
 		return
 	}
 
 	tnIds := numerus.IntCreateSeq(0, crf.tnset.Len()-1)
-	_, cm := crf.ClassifySetByWeight(crf.tnset, tnIds)
+	_, cm, _ := crf.ClassifySetByWeight(crf.tnset, tnIds)
 
 	crf.refillWithFP(samples, crf.tnset, cm)
 }
@@ -371,31 +410,40 @@ func (crf *Runtime) runTPSet(samples tabula.ClasetInterface) {
 //			(sum_of_all_weights * number_of_tree_in_forest)
 //
 // (1.3) Select class label with highest probabilites.
+// (1.4) Save stage probabilities for positive class.
 // (2) Compute confusion matrix.
 //
 func (crf *Runtime) ClassifySetByWeight(samples tabula.ClasetInterface,
 	sampleIds []int,
 ) (
-	predicts []string, cm *classifier.CM,
+	predicts []string, cm *classifier.CM, probs []float64,
 ) {
+	stat := classifier.Stat{}
+	stat.Start()
+
 	vs := samples.GetClassValueSpace()
 	stageProbs := make([]float64, len(vs))
+	stageSumProbs := make([]float64, len(vs))
 	sumWeights := numerus.Floats64Sum(crf.weights)
 
 	// (1)
 	rows := samples.GetDataAsRows()
 	for _, row := range *rows {
+		for y := range stageSumProbs {
+			stageSumProbs[y] = 0
+		}
 
 		// (1.1)
 		for y, forest := range crf.forests {
 			// (1.1.1)
-			votes := forest.Votes(row, -1, false)
+			votes := forest.Votes(row, -1)
 
 			// (1.1.2)
 			probs := tekstus.WordsProbabilitiesOf(votes, vs, false)
 
 			// (1.1.3)
 			for z := range probs {
+				stageSumProbs[z] += probs[z]
 				stageProbs[z] += probs[z] * crf.weights[y]
 			}
 		}
@@ -412,11 +460,19 @@ func (crf *Runtime) ClassifySetByWeight(samples tabula.ClasetInterface,
 		if ok {
 			predicts = append(predicts, vs[maxi])
 		}
+
+		probs = append(probs, stageSumProbs[0]/
+			float64(len(crf.forests)))
 	}
 
 	// (2)
 	actuals := samples.GetClassAsStrings()
 	cm = crf.ComputeCM(sampleIds, vs, actuals, predicts)
 
-	return predicts, cm
+	crf.ComputeStatFromCM(&stat, cm)
+	stat.End()
+
+	_ = stat.Write(crf.StatFile)
+
+	return predicts, cm, probs
 }

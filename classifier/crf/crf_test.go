@@ -7,17 +7,24 @@ package crf_test
 import (
 	"fmt"
 	"github.com/shuLhan/dsv"
+	"github.com/shuLhan/go-mining/classifier"
 	"github.com/shuLhan/go-mining/classifier/crf"
 	"github.com/shuLhan/tabula"
 	"testing"
 )
 
-func TestCascadedRF(t *testing.T) {
-	sampledsv := "../../testdata/phoneme/phoneme.dsv"
+var (
+	SampleFile string
+	PerfFile   string
+	StatFile   string
+	NStage     = 200
+	NTree      = 1
+)
 
+func runCRF(t *testing.T) {
 	// read trainingset.
 	samples := tabula.Claset{}
-	_, e := dsv.SimpleRead(sampledsv, &samples)
+	_, e := dsv.SimpleRead(SampleFile, &samples)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -28,7 +35,14 @@ func TestCascadedRF(t *testing.T) {
 	trainset := train.(tabula.ClasetInterface)
 	testset := test.(tabula.ClasetInterface)
 
-	crf := crf.Runtime{}
+	crf := crf.Runtime{
+		Runtime: classifier.Runtime{
+			StatFile: StatFile,
+			PerfFile: PerfFile,
+		},
+		NStage: NStage,
+		NTree:  NTree,
+	}
 
 	e = crf.Build(trainset)
 	if e != nil {
@@ -38,7 +52,30 @@ func TestCascadedRF(t *testing.T) {
 	testset.RecountMajorMinor()
 	fmt.Println("Testset:", testset)
 
-	_, cm := crf.ClassifySetByWeight(testset, testIds)
+	predicts, cm, probs := crf.ClassifySetByWeight(testset, testIds)
 
 	fmt.Println("Confusion matrix:", cm)
+
+	crf.Performance(testset, predicts, probs)
+	e = crf.WritePerformance()
+	if e != nil {
+		t.Fatal(e)
+	}
+}
+
+func TestPhoneme200_1(t *testing.T) {
+	SampleFile = "../../testdata/phoneme/phoneme.dsv"
+	PerfFile = "phoneme_200_1.perf"
+	StatFile = "phoneme_200_1.stat"
+
+	runCRF(t)
+}
+
+func TestPhoneme200_10(t *testing.T) {
+	SampleFile = "../../testdata/phoneme/phoneme.dsv"
+	PerfFile = "phoneme_200_10.perf"
+	StatFile = "phoneme_200_10.stat"
+	NTree = 10
+
+	runCRF(t)
 }
