@@ -140,9 +140,6 @@ func train() {
 		panic(e)
 	}
 
-	fmt.Println(TAG, "Training set:", &trainset)
-	fmt.Println(TAG, "Sample training set:", trainset.GetRow(0))
-
 	e = forest.Build(&trainset)
 	if e != nil {
 		panic(e)
@@ -155,9 +152,6 @@ func test() {
 	if e != nil {
 		panic(e)
 	}
-
-	fmt.Println(TAG, "Test set:", &testset)
-	fmt.Println(TAG, "Sample test set:", testset.GetRow(0))
 
 	predicts, _, probs := forest.ClassifySet(&testset, nil)
 
