@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	TAG = "[crf]"
+	tag = "[crf]"
 )
 
 var (
@@ -82,13 +82,13 @@ func init() {
 
 func trace() (start time.Time) {
 	start = time.Now()
-	fmt.Println(TAG, "start", start)
+	fmt.Println(tag, "start", start)
 	return
 }
 
 func un(startTime time.Time) {
 	endTime := time.Now()
-	fmt.Println(TAG, "elapsed time", endTime.Sub(startTime))
+	fmt.Println(tag, "elapsed time", endTime.Sub(startTime))
 }
 
 //
@@ -162,8 +162,8 @@ func test() {
 		panic(e)
 	}
 
-	fmt.Println(TAG, "Test set:", &testset)
-	fmt.Println(TAG, "Sample test set:", testset.GetRow(0))
+	fmt.Println(tag, "Test set:", &testset)
+	fmt.Println(tag, "Sample test set:", testset.GetRow(0))
 
 	predicts, cm, probs := crforest.ClassifySetByWeight(&testset, nil)
 

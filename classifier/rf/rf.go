@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	TAG = "[rf]"
+	tag = "[rf]"
 
 	// DefNumTree default number of tree.
 	DefNumTree = 100
@@ -166,14 +166,14 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return
 	}
 
-	fmt.Println(TAG, "Training set    :", samples)
-	fmt.Println(TAG, "Sample (one row):", samples.GetRow(0))
-	fmt.Println(TAG, "Forest config   :", forest)
+	fmt.Println(tag, "Training set    :", samples)
+	fmt.Println(tag, "Sample (one row):", samples.GetRow(0))
+	fmt.Println(tag, "Forest config   :", forest)
 
 	// (1)
 	for t := 0; t < forest.NTree; t++ {
 		if DEBUG >= 1 {
-			fmt.Println(TAG, "tree #", t)
+			fmt.Println(tag, "tree #", t)
 		}
 
 		// (1.1)
@@ -183,7 +183,7 @@ func (forest *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 				break
 			}
 
-			fmt.Println(TAG, "error:", e)
+			fmt.Println(tag, "error:", e)
 		}
 	}
 
@@ -220,7 +220,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 
 	if DEBUG >= 2 {
 		bagset.RecountMajorMinor()
-		fmt.Println(TAG, "Bagging:", bagset)
+		fmt.Println(tag, "Bagging:", bagset)
 	}
 
 	// (2)
@@ -247,7 +247,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 	stat.End()
 
 	if DEBUG >= 3 && forest.RunOOB {
-		fmt.Println(TAG, "Elapsed time (s):", stat.ElapsedTime)
+		fmt.Println(tag, "Elapsed time (s):", stat.ElapsedTime)
 	}
 
 	forest.AddStat(stat)
@@ -257,7 +257,7 @@ func (forest *Runtime) GrowTree(samples tabula.ClasetInterface) (
 		forest.ComputeStatFromCM(stat, cm)
 
 		if DEBUG >= 2 {
-			fmt.Println(TAG, "OOB stat:", stat)
+			fmt.Println(tag, "OOB stat:", stat)
 		}
 	}
 
@@ -296,8 +296,8 @@ func (forest *Runtime) ClassifySet(samples tabula.ClasetInterface,
 	stat.Start()
 
 	if len(sampleIds) <= 0 {
-		fmt.Println(TAG, "Classify set:", samples)
-		fmt.Println(TAG, "Classify set sample (one row):",
+		fmt.Println(tag, "Classify set:", samples)
+		fmt.Println(tag, "Classify set sample (one row):",
 			samples.GetRow(0))
 	}
 
@@ -336,8 +336,8 @@ func (forest *Runtime) ClassifySet(samples tabula.ClasetInterface,
 	stat.End()
 
 	if len(sampleIds) <= 0 {
-		fmt.Println(TAG, "CM:", cm)
-		fmt.Println(TAG, "Classifying stat:", stat)
+		fmt.Println(tag, "CM:", cm)
+		fmt.Println(tag, "Classifying stat:", stat)
 		_ = stat.Write(forest.StatFile)
 	}
 

@@ -27,7 +27,7 @@ import (
 )
 
 const (
-	TAG = "[crf]"
+	tag = "[crf]"
 
 	// DefStage default number of stage
 	DefStage = 200
@@ -171,13 +171,13 @@ func (crf *Runtime) Build(samples tabula.ClasetInterface) (e error) {
 		return
 	}
 
-	fmt.Println(TAG, "Training samples:", samples)
-	fmt.Println(TAG, "Sample (one row):", samples.GetRow(0))
-	fmt.Println(TAG, "Config:", crf)
+	fmt.Println(tag, "Training samples:", samples)
+	fmt.Println(tag, "Sample (one row):", samples.GetRow(0))
+	fmt.Println(tag, "Config:", crf)
 
 	for x := 0; x < crf.NStage; x++ {
 		if DEBUG >= 1 {
-			fmt.Println(TAG, "Stage #", x)
+			fmt.Println(tag, "Stage #", x)
 		}
 
 		forest, e := crf.createForest(samples)
@@ -215,7 +215,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	var cm *classifier.CM
 	var stat *classifier.Stat
 
-	fmt.Println(TAG, "Forest samples:", samples)
+	fmt.Println(tag, "Forest samples:", samples)
 
 	// (1)
 	forest = &rf.Runtime{
@@ -257,7 +257,7 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 	crf.computeWeight(stat)
 
 	if DEBUG >= 1 {
-		fmt.Println(TAG, "Weight:", stat.FMeasure)
+		fmt.Println(tag, "Weight:", stat.FMeasure)
 	}
 
 	// (4)
@@ -338,7 +338,7 @@ func (crf *Runtime) deleteTrueNegative(samples tabula.ClasetInterface,
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println(TAG, "# TN", len(tnids), "# deleted", c)
+		fmt.Println(tag, "# TN", len(tnids), "# deleted", c)
 	}
 }
 
@@ -369,7 +369,7 @@ func (crf *Runtime) refillWithFP(samples, tnset tabula.ClasetInterface,
 	}
 
 	if DEBUG >= 1 {
-		fmt.Println(TAG, "# FP", len(fpids), "# refilled", c)
+		fmt.Println(tag, "# FP", len(fpids), "# refilled", c)
 	}
 }
 

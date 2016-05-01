@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	TAG = "[rf]"
+	tag = "[rf]"
 )
 
 var (
@@ -78,13 +78,13 @@ func init() {
 
 func trace() (start time.Time) {
 	start = time.Now()
-	fmt.Println(TAG, "start", start)
+	fmt.Println(tag, "start", start)
 	return
 }
 
 func un(startTime time.Time) {
 	endTime := time.Now()
-	fmt.Println(TAG, "elapsed time", endTime.Sub(startTime))
+	fmt.Println(tag, "elapsed time", endTime.Sub(startTime))
 }
 
 //
