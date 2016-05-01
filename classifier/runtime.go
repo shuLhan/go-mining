@@ -376,6 +376,12 @@ func (rt *Runtime) Performance(samples tabula.ClasetInterface,
 	return rt.perfs
 }
 
+func trapezoidArea(fp, fpprev, tp, tpprev int64) float64 {
+	base := math.Abs(float64(fp - fpprev))
+	heightAvg := float64(tp+tpprev) / float64(2.0)
+	return base * heightAvg
+}
+
 //
 // computePerfByProbs will compute classifier performance using probabilities
 // or score `probs`.
@@ -387,9 +393,15 @@ func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
 ) {
 	vs := samples.GetClassValueSpace()
 	nactuals := numerus.IntsTo64(samples.Counts())
+	nclass := tekstus.WordsCountTokens(actuals, vs, false)
+
 	pprev := math.Inf(-1)
 	tp := int64(0)
 	fp := int64(0)
+	tpprev := int64(0)
+	fpprev := int64(0)
+
+	auc := float64(0)
 
 	for x, p := range probs {
 		if p != pprev {
@@ -398,8 +410,14 @@ func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
 			stat.SetFPRate(fp, nactuals[1])
 			stat.SetPrecisionFromRate(nactuals[0], nactuals[1])
 
+			auc = auc + trapezoidArea(fp, fpprev, tp, tpprev)
+			stat.SetAUC(auc)
+
 			rt.perfs = append(rt.perfs, &stat)
+
 			pprev = p
+			tpprev = tp
+			fpprev = fp
 		}
 
 		if actuals[x] == vs[0] {
@@ -413,6 +431,10 @@ func (rt *Runtime) computePerfByProbs(samples tabula.ClasetInterface,
 	stat.SetTPRate(tp, nactuals[0])
 	stat.SetFPRate(fp, nactuals[1])
 	stat.SetPrecisionFromRate(nactuals[0], nactuals[1])
+
+	auc = auc + trapezoidArea(fp, fpprev, tp, tpprev)
+	auc = auc / float64(nclass[0]*nclass[1])
+	stat.SetAUC(auc)
 
 	rt.perfs = append(rt.perfs, &stat)
 
