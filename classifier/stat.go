@@ -50,6 +50,13 @@ type Stat struct {
 	// Accuracy contain the degree of closeness of measurements of a
 	// quantity to that quantity's true value.
 	Accuracy float64
+	// AUC contain the area under curve.
+	AUC float64
+}
+
+// SetAUC will set the AUC value.
+func (stat *Stat) SetAUC(v float64) {
+	stat.AUC = v
 }
 
 //
@@ -125,6 +132,7 @@ func (stat *Stat) ToRow() (row *tabula.Row) {
 	row.PushBack(tabula.NewRecordReal(stat.Precision))
 	row.PushBack(tabula.NewRecordReal(stat.FMeasure))
 	row.PushBack(tabula.NewRecordReal(stat.Accuracy))
+	row.PushBack(tabula.NewRecordReal(stat.AUC))
 
 	return
 }
