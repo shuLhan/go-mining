@@ -15,6 +15,10 @@ import (
 	"strconv"
 )
 
+const (
+	tag = "[classifier.runtime]"
+)
+
 var (
 	// RuntimeDebug level, can be set it from environment variable
 	// "RuntimeDebug".
@@ -68,63 +72,63 @@ func init() {
 // Initialize will start the runtime for processing by saving start time and
 // opening stats file.
 //
-func (runtime *Runtime) Initialize() error {
-	runtime.oobStatTotal.Start()
+func (rt *Runtime) Initialize() error {
+	rt.oobStatTotal.Start()
 
-	return runtime.OpenOOBStatsFile()
+	return rt.OpenOOBStatsFile()
 }
 
 //
 // Finalize finish the runtime, compute total statistic, write it to file, and
 // close the file.
 //
-func (runtime *Runtime) Finalize() (e error) {
-	st := &runtime.oobStatTotal
+func (rt *Runtime) Finalize() (e error) {
+	st := &rt.oobStatTotal
 
 	st.End()
-	st.ID = int64(len(runtime.oobStats))
+	st.ID = int64(len(rt.oobStats))
 
-	e = runtime.WriteOOBStat(st)
+	e = rt.WriteOOBStat(st)
 	if e != nil {
 		return e
 	}
 
-	return runtime.CloseOOBStatsFile()
+	return rt.CloseOOBStatsFile()
 }
 
 //
 // OOBStats return all statistic objects.
 //
-func (runtime *Runtime) OOBStats() *Stats {
-	return &runtime.oobStats
+func (rt *Runtime) OOBStats() *Stats {
+	return &rt.oobStats
 }
 
 //
 // StatTotal return total statistic.
 //
-func (runtime *Runtime) StatTotal() *Stat {
-	return &runtime.oobStatTotal
+func (rt *Runtime) StatTotal() *Stat {
+	return &rt.oobStatTotal
 }
 
 //
 // AddOOBCM will append new confusion matrix.
 //
-func (runtime *Runtime) AddOOBCM(cm *CM) {
-	runtime.oobCms = append(runtime.oobCms, *cm)
+func (rt *Runtime) AddOOBCM(cm *CM) {
+	rt.oobCms = append(rt.oobCms, *cm)
 }
 
 //
 // AddStat will append new classifier statistic data.
 //
-func (runtime *Runtime) AddStat(stat *Stat) {
-	runtime.oobStats = append(runtime.oobStats, stat)
+func (rt *Runtime) AddStat(stat *Stat) {
+	rt.oobStats = append(rt.oobStats, stat)
 }
 
 //
 // ComputeCM will compute confusion matrix of sample using value space, actual
 // and prediction values.
 //
-func (runtime *Runtime) ComputeCM(sampleIds []int,
+func (rt *Runtime) ComputeCM(sampleIds []int,
 	vs, actuals, predicts []string,
 ) (
 	cm *CM,
@@ -135,7 +139,7 @@ func (runtime *Runtime) ComputeCM(sampleIds []int,
 	cm.GroupIndexPredictionsStrings(sampleIds, actuals, predicts)
 
 	if RuntimeDebug >= 2 {
-		fmt.Println("[classifier.runtime]", cm)
+		fmt.Println(tag, cm)
 	}
 
 	return cm
@@ -144,12 +148,12 @@ func (runtime *Runtime) ComputeCM(sampleIds []int,
 //
 // ComputeStatFromCM will compute statistic using confusion matrix.
 //
-func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
+func (rt *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 
 	stat.OobError = cm.GetFalseRate()
 
-	stat.OobErrorMean = runtime.oobStatTotal.OobError /
-		float64(len(runtime.oobStats)+1)
+	stat.OobErrorMean = rt.oobStatTotal.OobError /
+		float64(len(rt.oobStats)+1)
 
 	stat.TP = int64(cm.TP())
 	stat.FP = int64(cm.FP())
@@ -199,25 +203,25 @@ func (runtime *Runtime) ComputeStatFromCM(stat *Stat, cm *CM) {
 	}
 
 	if RuntimeDebug >= 1 {
-		runtime.PrintOobStat(stat, cm)
-		runtime.PrintStat(stat)
+		rt.PrintOobStat(stat, cm)
+		rt.PrintStat(stat)
 	}
 }
 
 //
 // ComputeStatTotal compute total statistic.
 //
-func (runtime *Runtime) ComputeStatTotal(stat *Stat) {
+func (rt *Runtime) ComputeStatTotal(stat *Stat) {
 	if stat == nil {
 		return
 	}
 
-	nstat := len(runtime.oobStats)
+	nstat := len(rt.oobStats)
 	if nstat == 0 {
 		return
 	}
 
-	t := &runtime.oobStatTotal
+	t := &rt.oobStatTotal
 
 	t.OobError += stat.OobError
 	t.OobErrorMean = t.OobError / float64(nstat)
@@ -272,37 +276,37 @@ func (runtime *Runtime) ComputeStatTotal(stat *Stat) {
 //
 // OpenOOBStatsFile will open statistic file for output.
 //
-func (runtime *Runtime) OpenOOBStatsFile() error {
-	if runtime.oobWriter != nil {
-		_ = runtime.CloseOOBStatsFile()
+func (rt *Runtime) OpenOOBStatsFile() error {
+	if rt.oobWriter != nil {
+		_ = rt.CloseOOBStatsFile()
 	}
-	runtime.oobWriter = &dsv.Writer{}
-	return runtime.oobWriter.OpenOutput(runtime.OOBStatsFile)
+	rt.oobWriter = &dsv.Writer{}
+	return rt.oobWriter.OpenOutput(rt.OOBStatsFile)
 }
 
 //
 // WriteOOBStat will write statistic of process to file.
 //
-func (runtime *Runtime) WriteOOBStat(stat *Stat) error {
-	if runtime.oobWriter == nil {
+func (rt *Runtime) WriteOOBStat(stat *Stat) error {
+	if rt.oobWriter == nil {
 		return nil
 	}
 	if stat == nil {
 		return nil
 	}
-	return runtime.oobWriter.WriteRawRow(stat.ToRow(), nil, nil)
+	return rt.oobWriter.WriteRawRow(stat.ToRow(), nil, nil)
 }
 
 //
 // CloseOOBStatsFile will close statistics file for writing.
 //
-func (runtime *Runtime) CloseOOBStatsFile() (e error) {
-	if runtime.oobWriter == nil {
+func (rt *Runtime) CloseOOBStatsFile() (e error) {
+	if rt.oobWriter == nil {
 		return
 	}
 
-	e = runtime.oobWriter.Close()
-	runtime.oobWriter = nil
+	e = rt.oobWriter.Close()
+	rt.oobWriter = nil
 
 	return
 }
@@ -310,26 +314,26 @@ func (runtime *Runtime) CloseOOBStatsFile() (e error) {
 //
 // PrintOobStat will print the out-of-bag statistic to standard output.
 //
-func (runtime *Runtime) PrintOobStat(stat *Stat, cm *CM) {
-	fmt.Printf("[classifier.runtime] OOB error rate: %.4f,"+
+func (rt *Runtime) PrintOobStat(stat *Stat, cm *CM) {
+	fmt.Printf(tag, "OOB error rate: %.4f,"+
 		" total: %.4f, mean %.4f, true rate: %.4f\n",
-		stat.OobError, runtime.oobStatTotal.OobError,
+		stat.OobError, rt.oobStatTotal.OobError,
 		stat.OobErrorMean, cm.GetTrueRate())
 }
 
 //
 // PrintStat will print statistic value to standard output.
 //
-func (runtime *Runtime) PrintStat(stat *Stat) {
+func (rt *Runtime) PrintStat(stat *Stat) {
 	if stat == nil {
-		statslen := len(runtime.oobStats)
+		statslen := len(rt.oobStats)
 		if statslen <= 0 {
 			return
 		}
-		stat = runtime.oobStats[statslen-1]
+		stat = rt.oobStats[statslen-1]
 	}
 
-	fmt.Printf("[classifier.runtime] TPRate: %.4f, FPRate: %.4f,"+
+	fmt.Printf(tag, "TPRate: %.4f, FPRate: %.4f,"+
 		" TNRate: %.4f, precision: %.4f, f-measure: %.4f,"+
 		" accuracy: %.4f\n", stat.TPRate, stat.FPRate, stat.TNRate,
 		stat.Precision, stat.FMeasure, stat.Accuracy)
@@ -338,11 +342,11 @@ func (runtime *Runtime) PrintStat(stat *Stat) {
 //
 // PrintStatTotal will print total statistic to standard output.
 //
-func (runtime *Runtime) PrintStatTotal(st *Stat) {
+func (rt *Runtime) PrintStatTotal(st *Stat) {
 	if st == nil {
-		st = &runtime.oobStatTotal
+		st = &rt.oobStatTotal
 	}
-	runtime.PrintStat(st)
+	rt.PrintStat(st)
 }
 
 //
