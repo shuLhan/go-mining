@@ -315,8 +315,8 @@ func (rt *Runtime) CloseOOBStatsFile() (e error) {
 // PrintOobStat will print the out-of-bag statistic to standard output.
 //
 func (rt *Runtime) PrintOobStat(stat *Stat, cm *CM) {
-	fmt.Printf(tag, "OOB error rate: %.4f,"+
-		" total: %.4f, mean %.4f, true rate: %.4f\n",
+	fmt.Printf("%s OOB error rate: %.4f,"+
+		" total: %.4f, mean %.4f, true rate: %.4f\n", tag,
 		stat.OobError, rt.oobStatTotal.OobError,
 		stat.OobErrorMean, cm.GetTrueRate())
 }
@@ -333,10 +333,10 @@ func (rt *Runtime) PrintStat(stat *Stat) {
 		stat = rt.oobStats[statslen-1]
 	}
 
-	fmt.Printf(tag, "TPRate: %.4f, FPRate: %.4f,"+
+	fmt.Printf("%s TPRate: %.4f, FPRate: %.4f,"+
 		" TNRate: %.4f, precision: %.4f, f-measure: %.4f,"+
-		" accuracy: %.4f\n", stat.TPRate, stat.FPRate, stat.TNRate,
-		stat.Precision, stat.FMeasure, stat.Accuracy)
+		" accuracy: %.4f\n", tag, stat.TPRate, stat.FPRate,
+		stat.TNRate, stat.Precision, stat.FMeasure, stat.Accuracy)
 }
 
 //
