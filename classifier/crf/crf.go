@@ -233,6 +233,10 @@ func (crf *Runtime) createForest(samples tabula.ClasetInterface) (
 
 	// (2)
 	for t := 0; t < crf.NTree; t++ {
+		if DEBUG >= 2 {
+			fmt.Println(tag, "Tree #", t)
+		}
+
 		// (2.1)
 		for {
 			cm, stat, e = forest.GrowTree(samples)
