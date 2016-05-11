@@ -191,6 +191,9 @@ func main() {
 	// (0)
 	flag.Parse()
 
+	fmt.Println(tag, "Training config:", trainCfg)
+	fmt.Println(tag, "Test config:", testCfg)
+
 	// (1)
 	if trainCfg != "" {
 		// (1.1)
