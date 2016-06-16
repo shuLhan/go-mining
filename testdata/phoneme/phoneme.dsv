@@ -5,6 +5,7 @@
 ,	"ClassMetadataIndex"	:5
 ,	"ClassIndex"	:5
 ,	"DatasetMode"	:"matrix"
+,	"OutliersFile"	:"phoneme.outliers"
 ,	"InputMetadata"	:
 	[{
 		"Name"		:"f1"

@@ -45,7 +45,7 @@ func TestLNSmote(t *testing.T) {
 	}
 
 	// Initialize LN-SMOTE.
-	lnsmoteRun := lnsmote.New(100, 5, 5, "1")
+	lnsmoteRun := lnsmote.New(100, 5, 5, "1", "lnsmote.outliers")
 
 	e = lnsmoteRun.Resampling(&dataset)
 

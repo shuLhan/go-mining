@@ -14,6 +14,7 @@ package lnsmote
 
 import (
 	"fmt"
+	"github.com/shuLhan/dsv"
 	"github.com/shuLhan/go-mining/knn"
 	"github.com/shuLhan/go-mining/resampling/smote"
 	"github.com/shuLhan/tabula"
@@ -33,16 +34,23 @@ var (
 type Runtime struct {
 	// Runtime of SMOTE, since this module extend the SMOTE method.
 	smote.Runtime
-	//
+
 	// ClassMinor the minority sample in dataset that we want to
 	// oversampling.
 	ClassMinor string `json:"ClassMinor"`
-	//
+
 	// minorset contain minor class in samples.
 	minorset tabula.DatasetInterface
-	//
+
 	// datasetRows contain all rows in dataset.
 	datasetRows *tabula.Rows
+
+	// outliersRows contain all sample that is detected as outliers.
+	outliers tabula.Rows
+
+	// OutliersFile if its not empty then outliers will be saved in file
+	// specified by this option.
+	OutliersFile string `json:"OutliersFile"`
 }
 
 func init() {
@@ -57,7 +65,7 @@ func init() {
 //
 // New create and return new LnSmote object.
 //
-func New(percentOver, k, classIndex int, classMinor string) (
+func New(percentOver, k, classIndex int, classMinor, outliers string) (
 	lnsmoteRun *Runtime,
 ) {
 	lnsmoteRun = &Runtime{
@@ -69,7 +77,8 @@ func New(percentOver, k, classIndex int, classMinor string) (
 			},
 			PercentOver: percentOver,
 		},
-		ClassMinor: classMinor,
+		ClassMinor:   classMinor,
+		OutliersFile: outliers,
 	}
 
 	return
@@ -87,6 +96,8 @@ func (in *Runtime) Init(dataset tabula.ClasetInterface) {
 
 	in.minorset = tabula.SelectRowsWhere(dataset, in.ClassIndex,
 		in.ClassMinor)
+
+	in.outliers = make(tabula.Rows, 0)
 
 	if DEBUG >= 1 {
 		fmt.Println("[lnsmote] n:", in.NSynthetic)
@@ -131,6 +142,9 @@ func (in *Runtime) Resampling(dataset tabula.ClasetInterface) (
 	if in.SyntheticFile != "" {
 		e = in.Write(in.SyntheticFile)
 	}
+	if in.OutliersFile != "" && in.outliers.Len() > 0 {
+		e = in.writeOutliers()
+	}
 
 	return
 }
@@ -152,6 +166,11 @@ func (in *Runtime) createSynthetic(p *tabula.Row, neighbors knn.Neighbors) (
 		if DEBUG >= 2 {
 			fmt.Println("[lnsmote] can not create synthetic")
 		}
+
+		if slp.Len() <= 0 {
+			in.outliers.PushBack(p)
+		}
+
 		// we can not create from p and synthetic.
 		return nil
 	}
@@ -257,4 +276,26 @@ func (in *Runtime) randomGap(p, n *tabula.Row, lenslp, lensln int) (
 	}
 
 	return delta
+}
+
+// writeOutliers will save the `outliers` to file specified by
+// `OutliersFile`.
+func (in *Runtime) writeOutliers() (e error) {
+	writer, e := dsv.NewWriter("")
+	if nil != e {
+		return
+	}
+
+	e = writer.OpenOutput(in.OutliersFile)
+	if e != nil {
+		return
+	}
+
+	sep := dsv.DefSeparator
+	_, e = writer.WriteRawRows(&in.outliers, &sep)
+	if e != nil {
+		return
+	}
+
+	return writer.Close()
 }

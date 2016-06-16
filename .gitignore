@@ -1,8 +1,9 @@
 cmd/cart/cart
-cmd/lnsmote/lnsmote
 cmd/crf/crf
+cmd/lnsmote/lnsmote
 cmd/rf/rf
 cmd/smote/smote
+resampling/lnsmote/lnsmote.outliers
 resampling/lnsmote/phoneme_lnsmote.csv
 resampling/lnsmote/synthetic.csv
 resampling/smote/phoneme_smote.csv
