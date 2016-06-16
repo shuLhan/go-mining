@@ -139,10 +139,9 @@ func (smote *Runtime) Resampling(dataset tabula.Rows) (e error) {
 		// (0.1)
 		smote.NSynthetic = (smote.PercentOver / 100.0) * len(dataset)
 		dataset, _, _, _ = dataset.RandomPick(smote.NSynthetic, false)
-		smote.PercentOver = 100
+	} else {
+		smote.NSynthetic = smote.PercentOver / 100.0
 	}
-
-	smote.NSynthetic = smote.PercentOver / 100.0
 
 	// (1)
 	for x := range dataset {
