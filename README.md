@@ -1,7 +1,5 @@
-[![GoDoc](https://godoc.org/github.com/shuLhan/go-mining?status.svg)]
-(https://godoc.org/github.com/shuLhan/go-mining)
-[![Go Report Card](https://goreportcard.com/badge/github.com/shuLhan/go-mining)]
-(https://goreportcard.com/report/github.com/shuLhan/go-mining)
+[![GoDoc](https://godoc.org/github.com/shuLhan/go-mining?status.svg)](https://godoc.org/github.com/shuLhan/go-mining)
+[![Go Report Card](https://goreportcard.com/badge/github.com/shuLhan/go-mining)](https://goreportcard.com/report/github.com/shuLhan/go-mining)
 
 # go-mining
 
