@@ -7,20 +7,23 @@ Go-mining is a small library for data mining.
 
 The library is written in [Go language](golang/go).
 
+NOTE: This package has been deprecated. See
+https://github.com/shuLhan/share/lib/mining for latest implementation.
+
 ## Features
 
 ### Classifiers
 
-* CART
-* Random Forest
-* Cascaded Random Forest
-* K-Nearest Neighbourhood
+- CART
+- Random Forest
+- Cascaded Random Forest
+- K-Nearest Neighbourhood
 
 ### Resampling
 
-* SMOTE
-* LN-SMOTE (Local Neigbourhood SMOTE)
+- SMOTE
+- LN-SMOTE (Local Neigbourhood SMOTE)
 
 ### Miscellaneous
 
-* Gini index
+- Gini index
